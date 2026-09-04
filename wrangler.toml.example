@@ -1,0 +1,30 @@
+# Cloudflare Pages / Workers Wrangler Configuration
+# For ClassQue-TeachAssist
+
+name = "classque-teachassist"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dist"
+
+# ==========================================
+# 1. Cloudflare D1 Database Binding (Edge SQLite)
+# ==========================================
+[[d1_databases]]
+binding = "DB"
+database_name = "classque_db"
+database_id = "YOUR_D1_DATABASE_ID_HERE"
+migrations_dir = "./migrations"
+
+# ==========================================
+# 2. Cloudflare KV Namespace (Optional / Presets & Auth)
+# ==========================================
+# [[kv_namespaces]]
+# binding = "KV_CACHE"
+# id = "YOUR_KV_NAMESPACE_ID_HERE"
+
+# ==========================================
+# 3. Environment Variables (Edge Functions)
+# ==========================================
+[vars]
+ENVIRONMENT = "production"
+APP_NAME = "ClassQue-TeachAssist"
