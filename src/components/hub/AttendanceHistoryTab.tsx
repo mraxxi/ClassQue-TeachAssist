@@ -4,7 +4,7 @@ import {
   Clock, AlertCircle, CheckCircle2, XCircle, FileEdit
 } from 'lucide-react';
 import { Cohort, Student, AttendanceStatus } from '../../types';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 
 interface AttendanceHistoryTabProps {

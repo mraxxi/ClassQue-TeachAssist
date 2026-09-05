@@ -4,7 +4,7 @@ import {
   Award, Clock, Layers, Link as LinkIcon
 } from 'lucide-react';
 import { LessonPlan, CEFRLevel, VocabularyItem } from '../../types';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 
 interface LessonPlanModalProps {
   isOpen: boolean;

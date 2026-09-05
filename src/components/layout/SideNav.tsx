@@ -3,7 +3,7 @@ import {
   BookOpen, LayoutDashboard, Users, FileText, 
   ReceiptText, Settings, Bell, ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import { NotificationsPopover } from './NotificationsPopover';
@@ -87,7 +87,7 @@ export const SideNav: React.FC = () => {
 
         <div className="p-4 border-t border-stone-200/60 flex flex-col gap-4">
           <div className={`flex items-center ${isExpanded ? 'justify-between' : 'justify-center flex-col gap-3'}`}>
-            {isExpanded && <SyncStatusBadge language={language} />}
+            <SyncStatusBadge language={language} compact={!isExpanded} />
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setLanguage(language === 'id' ? 'en' : 'id')}

@@ -113,9 +113,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       id: a.id,
       cohortId: a.cohort_id,
       studentId: a.student_id,
-      date: a.session_date || a.date || '2026-09-05',
+      attendanceDate: a.attendance_date || a.session_date || '2026-09-05',
       status: a.status || 'present',
-      notes: a.notes || undefined,
+      note: a.note || undefined,
     }));
 
     // Map Teaching Sessions
@@ -186,6 +186,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       title: tk.title,
       priority: tk.priority || 'medium',
       dueDate: tk.due_date || '',
+      deadlineType: tk.deadline_type || 'date',
+      dueLessonLabel: tk.due_lesson_label || undefined,
       isCompleted: Boolean(tk.is_completed),
       completedAt: tk.completed_at || undefined,
     }));
@@ -330,6 +332,139 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             s.notes || null,
             s.strengths || null,
             s.growthAreas || null
+          )
+        );
+      }
+    }
+
+    // 4. Sync Lesson Plans
+    if (Array.isArray(payload.lessonPlans)) {
+      for (const l of payload.lessonPlans) {
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO lesson_plans (id, teacher_id, cohort_id, title, topic, cefr_level, duration_minutes, warm_up, presentation, practice, production, wrap_up, vocabulary_json, grammar_focus, materials_links, homework, is_template, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+              cohort_id = excluded.cohort_id, title = excluded.title, topic = excluded.topic,
+              cefr_level = excluded.cefr_level, duration_minutes = excluded.duration_minutes,
+              warm_up = excluded.warm_up, presentation = excluded.presentation,
+              practice = excluded.practice, production = excluded.production,
+              wrap_up = excluded.wrap_up, vocabulary_json = excluded.vocabulary_json,
+              grammar_focus = excluded.grammar_focus, materials_links = excluded.materials_links,
+              homework = excluded.homework, is_template = excluded.is_template,
+              updated_at = datetime('now')
+          `).bind(
+            l.id, l.teacherId || payload.teacher?.id || 'teacher-1', l.cohortId || null, l.title, l.topic || null, l.cefrLevel || 'A1', l.durationMinutes || 60, l.warmUp || null, l.presentation || null, l.practice || null, l.production || null, l.wrapUp || null, JSON.stringify(l.vocabulary || []), l.grammarFocus || null, JSON.stringify(l.materialsLinks || []), l.homework || null, l.isTemplate ? 1 : 0
+          )
+        );
+      }
+    }
+
+    // 5. Sync Attendance Records
+    if (Array.isArray(payload.attendanceRecords)) {
+      for (const a of payload.attendanceRecords) {
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO attendance_records (id, cohort_id, student_id, attendance_date, status, note, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+              status = excluded.status, note = excluded.note, updated_at = datetime('now')
+          `).bind(
+            a.id, a.cohortId, a.studentId, a.attendanceDate, a.status, a.note || null
+          )
+        );
+      }
+    }
+
+    // 6. Sync Teaching Sessions
+    if (Array.isArray(payload.sessions)) {
+      for (const s of payload.sessions) {
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO teaching_sessions (id, teacher_id, cohort_id, lesson_plan_id, session_date, start_time, duration_minutes, hourly_rate, total_claim_amount, status, scratchpad_notes, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+              duration_minutes = excluded.duration_minutes, hourly_rate = excluded.hourly_rate,
+              total_claim_amount = excluded.total_claim_amount, status = excluded.status,
+              scratchpad_notes = excluded.scratchpad_notes, updated_at = datetime('now')
+          `).bind(
+            s.id, s.teacherId || payload.teacher?.id || 'teacher-1', s.cohortId, s.lessonPlanId || null, s.sessionDate, s.startTime, s.durationMinutes, s.hourlyRate, s.totalClaimAmount, s.status || 'completed', s.scratchpadNotes || null
+          )
+        );
+      }
+    }
+
+    // 7. Sync Teaching Claims
+    if (Array.isArray(payload.claims)) {
+      for (const cl of payload.claims) {
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO teaching_claims (id, teacher_id, claim_period, claim_number, total_sessions, total_hours, base_amount, allowance_amount, total_claim_amount, currency, status, submitted_at, paid_at, notes, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+              total_sessions = excluded.total_sessions, total_hours = excluded.total_hours,
+              base_amount = excluded.base_amount, allowance_amount = excluded.allowance_amount,
+              total_claim_amount = excluded.total_claim_amount, status = excluded.status,
+              submitted_at = excluded.submitted_at, paid_at = excluded.paid_at,
+              notes = excluded.notes, updated_at = datetime('now')
+          `).bind(
+            cl.id, cl.teacherId || payload.teacher?.id || 'teacher-1', cl.claimPeriod, cl.claimNumber || null, cl.totalSessions || 0, cl.totalHours || 0, cl.baseAmount || 0, cl.allowanceAmount || 0, cl.totalClaimAmount || 0, cl.currency || 'IDR', cl.status || 'draft', cl.submittedAt || null, cl.paidAt || null, cl.notes || null
+          )
+        );
+      }
+    }
+
+    // 8. Sync Student Milestone Evaluations
+    if (Array.isArray(payload.studentEvaluations)) {
+      for (const ev of payload.studentEvaluations) {
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO student_milestone_evaluations (id, student_id, milestone_id, competency_score, evaluated_at, teacher_notes, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+              competency_score = excluded.competency_score, teacher_notes = excluded.teacher_notes,
+              evaluated_at = excluded.evaluated_at, updated_at = datetime('now')
+          `).bind(
+            ev.id, ev.studentId, ev.milestoneId, ev.competencyScore, ev.evaluatedAt || new Date().toISOString(), ev.teacherNotes || null
+          )
+        );
+      }
+    }
+
+    // 9. Sync Parent Reports
+    if (Array.isArray(payload.parentReports)) {
+      for (const rp of payload.parentReports) {
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO parent_reports (id, student_id, cohort_id, report_period, attendance_rate, total_sessions_count, present_count, milestone_summary_json, teacher_narrative_feedback, whatsapp_brief_text, is_sent, sent_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+              attendance_rate = excluded.attendance_rate, total_sessions_count = excluded.total_sessions_count,
+              present_count = excluded.present_count, milestone_summary_json = excluded.milestone_summary_json,
+              teacher_narrative_feedback = excluded.teacher_narrative_feedback,
+              whatsapp_brief_text = excluded.whatsapp_brief_text, is_sent = excluded.is_sent,
+              sent_at = excluded.sent_at, updated_at = datetime('now')
+          `).bind(
+            rp.id, rp.studentId, rp.cohortId, rp.reportPeriod, rp.attendanceRate || 100, rp.totalSessionsCount || 0, rp.presentCount || 0, rp.milestoneSummaryJson || null, rp.teacherNarrativeFeedback || null, rp.whatsappBriefText || null, rp.isSent ? 1 : 0, rp.sentAt || null
+          )
+        );
+      }
+    }
+
+    // 10. Sync Tasks
+    if (Array.isArray(payload.tasks)) {
+      for (const tk of payload.tasks) {
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO tasks (id, teacher_id, cohort_id, title, priority, due_date, deadline_type, due_lesson_label, is_completed, completed_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+              title = excluded.title, priority = excluded.priority, due_date = excluded.due_date,
+              deadline_type = excluded.deadline_type, due_lesson_label = excluded.due_lesson_label,
+              is_completed = excluded.is_completed, completed_at = excluded.completed_at,
+              updated_at = datetime('now')
+          `).bind(
+            tk.id, tk.teacherId || payload.teacher?.id || 'teacher-1', tk.cohortId || null, tk.title, tk.priority || 'medium', tk.dueDate || null, tk.deadlineType || 'date', tk.dueLessonLabel || null, tk.isCompleted ? 1 : 0, tk.completedAt || null
           )
         );
       }

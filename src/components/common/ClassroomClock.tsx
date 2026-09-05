@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Globe } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 
 interface ClassroomClockProps {
   compact?: boolean;

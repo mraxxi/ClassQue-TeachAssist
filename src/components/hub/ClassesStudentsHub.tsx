@@ -5,7 +5,7 @@ import {
   ArrowRightLeft, Sparkles, TrendingUp, Phone, Mail, FileText,
   CalendarCheck2, Star
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 import { Student, Cohort } from '../../types';
 import { CohortModal } from './CohortModal';

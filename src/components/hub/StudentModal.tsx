@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Phone, Mail, Sparkles, TrendingUp, FileText } from 'lucide-react';
 import { Student } from '../../types';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 
 interface StudentModalProps {
   isOpen: boolean;

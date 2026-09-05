@@ -4,7 +4,7 @@ import {
   Copy, UserCheck, Plus, Trash2, Calendar,
   DollarSign, Award, BookOpen, Send, CheckCircle2, History
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 import { TeachingSession, ClaimStatus, ParentReport, CompetencyScore } from '../../types';
 import { ManualSessionModal } from './ManualSessionModal';

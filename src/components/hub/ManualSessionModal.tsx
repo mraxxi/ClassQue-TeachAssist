@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Clock, Calendar, DollarSign, Plus } from 'lucide-react';
 import { TeachingSession, Cohort } from '../../types';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 
 interface ManualSessionModalProps {
   isOpen: boolean;

@@ -3,7 +3,7 @@ import {
   Bell, Clock, CheckSquare, Receipt, Users, 
   CheckCheck, Trash2, X, ChevronRight, AlertCircle 
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { NotificationItem } from '../../types';
 
 interface NotificationsPopoverProps {

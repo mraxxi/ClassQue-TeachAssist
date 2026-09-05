@@ -3,7 +3,7 @@ import {
   FileText, Plus, BookOpen, Edit2, Copy, Trash2, 
   Printer, ExternalLink, Search, Layers, CheckCircle2
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 import { LessonPlan } from '../../types';
 import { LessonPlanModal } from './LessonPlanModal';

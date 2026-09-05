@@ -3,7 +3,7 @@ import {
   Database, Cloud, RefreshCw, X, 
   CheckCircle2, AlertTriangle, ShieldCheck, Activity, Download, Upload 
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 
 interface SyncDiagnosticsModalProps {
   isOpen: boolean;

@@ -4,7 +4,7 @@ import {
   FileEdit, X, Sparkles, BookOpen, MessageSquare
 } from 'lucide-react';
 import { Cohort, Student, SkillCategory, CEFRLevel, CompetencyScore } from '../../types';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 
 interface CefrGradebookTabProps {
   activeCohort: Cohort;

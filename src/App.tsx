@@ -5,25 +5,30 @@ import { ClassesStudentsHub } from './components/hub/ClassesStudentsHub';
 import { LessonPlannerHub } from './components/hub/LessonPlannerHub';
 import { ClaimsReportsHub } from './components/hub/ClaimsReportsHub';
 import { SettingsHub } from './components/hub/SettingsHub';
-import { useTeacherStore } from './store/useTeacherStore';
+import { useTeacherStore, useZustandStore } from './store/facade';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastContainer } from './components/common/ToastContainer';
 import { ClassroomClock } from './components/common/ClassroomClock';
 import { SyncStatusBadge } from './components/layout/SyncStatusBadge';
 
+import { populateDemoData } from './db/seed';
+
 export const App: React.FC = () => {
   const { activeTab, language, fetchDatabaseFromEdge } = useTeacherStore();
 
   useEffect(() => {
-    // Fetch initial dataset from Cloudflare D1 Edge database on load
-    fetchDatabaseFromEdge();
+    // Populate demo data into Dexie if empty
+    populateDemoData().then(() => {
+      // Fetch initial dataset from Cloudflare D1 Edge database on load
+      fetchDatabaseFromEdge();
+    });
 
     // Reconnection listener: automatically flush pending local changes when back online
     const handleOnline = () => {
       fetchDatabaseFromEdge();
     };
     const handleOffline = () => {
-      useTeacherStore.setState({ isEdgeConnected: false });
+      useZustandStore.setState({ isEdgeConnected: false });
     };
 
     window.addEventListener('online', handleOnline);

@@ -1,5 +1,5 @@
 import { Clock, MapPin, Play } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 
 export const ScheduleTimeline: React.FC = () => {

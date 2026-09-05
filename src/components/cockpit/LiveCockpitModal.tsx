@@ -3,7 +3,7 @@ import {
   X, Play, Pause, CheckCircle2, 
   BookOpen, Users, StickyNote, Award, ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore, useZustandStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 import { AttendanceStatus, CompetencyScore } from '../../types';
 
@@ -195,7 +195,7 @@ export const LiveCockpitModal: React.FC = () => {
                   {t.cockpit.rollCallTitle} ({cohortStudents.length})
                 </h3>
                 <button
-                  onClick={() => currentCohort && useTeacherStore.getState().batchMarkAllPresent(currentCohort.id, todayDate)}
+                  onClick={() => currentCohort && useZustandStore.getState().batchMarkAllPresent(currentCohort.id, todayDate)}
                   className="text-[11px] font-bold text-teal-800 hover:underline cursor-pointer"
                 >
                   {t.cockpit.markAllPresent}

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { CloudCheck, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Language } from '../../types';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { SyncDiagnosticsModal } from '../settings/SyncDiagnosticsModal';
 
 interface SyncStatusBadgeProps {
   language: Language;
+  compact?: boolean;
 }
 
-export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language }) => {
+export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, compact = false }) => {
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const { isSyncingWithEdge, isEdgeConnected, hasUnsyncedChanges } = useTeacherStore();
@@ -53,31 +54,31 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language }) =>
         {isSyncingWithEdge ? (
           <>
             <RefreshCw className="w-3.5 h-3.5 text-blue-600 animate-spin" />
-            <span className="hidden sm:inline">{language === 'id' ? 'Menyinkronkan...' : 'Syncing...'}</span>
+            {!compact && <span className="hidden sm:inline">{language === 'id' ? 'Menyinkronkan...' : 'Syncing...'}</span>}
           </>
         ) : !isOnline ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             <CloudOff className="w-3.5 h-3.5 text-amber-600" />
-            <span>{language === 'id' ? 'Luar Jaringan' : 'Offline'}</span>
+            {!compact && <span>{language === 'id' ? 'Luar Jaringan' : 'Offline'}</span>}
           </>
         ) : hasUnsyncedChanges ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
             <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-            <span>{language === 'id' ? 'Belum Tersinkron' : 'Unsynced'}</span>
+            {!compact && <span>{language === 'id' ? 'Belum Tersinkron' : 'Unsynced'}</span>}
           </>
         ) : isEdgeConnected ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
             <CloudCheck className="w-3.5 h-3.5 text-teal-600" />
-            <span className="hidden sm:inline">D1 Synced</span>
+            {!compact && <span className="hidden sm:inline">D1 Synced</span>}
           </>
         ) : (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-stone-400"></span>
             <CloudOff className="w-3.5 h-3.5 text-stone-500" />
-            <span>{language === 'id' ? 'Penyangga Lokal' : 'Local Buffer'}</span>
+            {!compact && <span>{language === 'id' ? 'Penyangga Lokal' : 'Local Buffer'}</span>}
           </>
         )}
       </button>

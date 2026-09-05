@@ -3,7 +3,7 @@ import {
   Settings, Save, Database, Download, Upload, 
   RotateCcw, ShieldCheck, HardDrive, Wifi, RefreshCw
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 import { ConfirmModal } from '../common/ConfirmModal';
 

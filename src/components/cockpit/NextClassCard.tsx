@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Play, MapPin, Award, BookMarked, Sparkles, ChevronDown } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 
 export const NextClassCard: React.FC = () => {

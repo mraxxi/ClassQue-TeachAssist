@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, Users, CheckSquare, Receipt } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 import { ClassroomClock } from '../common/ClassroomClock';
 import { NextClassCard } from './NextClassCard';

@@ -3,7 +3,7 @@ import {
   CheckSquare2, Square, Plus, Trash2, Calendar, 
   AlertCircle, GraduationCap, ChevronDown, ChevronUp 
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 import { useTranslation } from '../../utils/i18n';
 import { TaskItem, TaskPriority } from '../../types';
 
@@ -108,7 +108,7 @@ export const UrgentTasksCard: React.FC = () => {
           onClick={() => setShowOptions(!showOptions)}
           className="text-xs font-medium text-teal-800 hover:text-teal-900 flex items-center gap-1 cursor-pointer"
         >
-          <span>{deadlineMode === 'lesson' ? '🎓 Sesi Kelas' : '📅 Kalender'}</span>
+          <span>{deadlineMode === 'lesson' ? '🎓 ' + t.cockpit.cohortLesson : '📅 ' + t.cockpit.calendarDate}</span>
           {showOptions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </button>
       </div>
@@ -137,7 +137,7 @@ export const UrgentTasksCard: React.FC = () => {
           <div className="p-3 bg-stone-50/90 rounded-xl border border-stone-200/80 space-y-2.5 text-xs animate-in fade-in duration-150">
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold text-stone-700 text-[11px]">
-                {language === 'id' ? 'Metode Batas Waktu:' : 'Deadline Method:'}
+                {t.cockpit.deadlineMethod}:
               </span>
               <div className="flex items-center bg-stone-200/70 p-0.5 rounded-lg">
                 <button
@@ -149,7 +149,7 @@ export const UrgentTasksCard: React.FC = () => {
                       : 'text-stone-500 hover:text-stone-800'
                   }`}
                 >
-                  📅 {language === 'id' ? 'Tanggal Kalender' : 'Calendar Date'}
+                  📅 {t.cockpit.calendarDate}
                 </button>
                 <button
                   type="button"
@@ -160,7 +160,7 @@ export const UrgentTasksCard: React.FC = () => {
                       : 'text-stone-500 hover:text-stone-800'
                   }`}
                 >
-                  🎓 {language === 'id' ? 'Sesi Kelas' : 'Cohort Lesson'}
+                  🎓 {t.cockpit.cohortLesson}
                 </button>
               </div>
             </div>
@@ -168,7 +168,7 @@ export const UrgentTasksCard: React.FC = () => {
             {deadlineMode === 'date' ? (
               <div className="flex items-center gap-2">
                 <span className="text-stone-500 text-[11px] shrink-0">
-                  {language === 'id' ? 'Pilih Tanggal:' : 'Pick Date:'}
+                  {t.cockpit.pickDate}
                 </span>
                 <input
                   type="date"
@@ -181,7 +181,7 @@ export const UrgentTasksCard: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-stone-500 text-[11px] shrink-0">
-                    {language === 'id' ? 'Target Kelas:' : 'Target Cohort:'}
+                    {t.cockpit.targetCohort}:
                   </span>
                   <select
                     value={selectedCohortId}
@@ -201,7 +201,7 @@ export const UrgentTasksCard: React.FC = () => {
 
                 <div className="flex items-center gap-2">
                   <span className="text-stone-500 text-[11px] shrink-0">
-                    {language === 'id' ? 'Pilih Jadwal:' : 'Lesson Slot:'}
+                    {t.cockpit.lessonSlot}:
                   </span>
                   <select
                     value={effectiveSlot}
@@ -220,7 +220,7 @@ export const UrgentTasksCard: React.FC = () => {
 
             {/* Priority Picker */}
             <div className="flex items-center justify-between pt-1 border-t border-stone-200/60 text-[11px]">
-              <span className="text-stone-500 font-medium">Prioritas:</span>
+              <span className="text-stone-500 font-medium">{t.cockpit.priorityLabel}:</span>
               <div className="flex items-center gap-1.5">
                 {(['medium', 'high', 'urgent'] as TaskPriority[]).map((p) => (
                   <button

@@ -35,6 +35,7 @@ To add a feature request, add an entry to the **Incoming Requests** table below 
 | **FR-015** | Cross-Cutting | **Cookie Storage for Language & Preferences**: Store language, theme, and sidebar preferences in persistent cookies. | P1 | Stage 12 | Completed ✓ |
 | **FR-016** | Cross-Cutting | **Interactive Notifications Center**: Functional notification bell with unread badge, popover list, and class/task alerts. | P1 | Stage 13 | Completed ✓ |
 | **FR-017** | Settings & Data Sync | **Continuous Local-to-D1 Auto-Sync**: Automatically reflect app mutations in Cloudflare D1 with offline queuing. | P0 | Stage 14 | Completed ✓ |
+| **FR-018** | Cross-Cutting | **Critical Bugfix — Full D1 Sync & Dynamic Notifications**: Fix POST sync data loss (8 missing entity types), fix attendance field mismatch, implement dynamic notification generation, add missing D1 schema migration, fix SyncStatusBadge in collapsed mode, complete i18n coverage. | P0 | Stage 15 | In Progress 🔧 |
 
 ---
 

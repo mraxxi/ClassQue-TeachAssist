@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, Clock, MapPin, Award, DollarSign } from 'lucide-react';
 import { Cohort, CEFRLevel } from '../../types';
-import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTeacherStore } from '../../store/facade';
 
 interface CohortModalProps {
   isOpen: boolean;

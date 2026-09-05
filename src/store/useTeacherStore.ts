@@ -12,7 +12,7 @@ import {
 } from './seedData';
 import { getCookie, setCookie, COOKIE_KEYS } from '../utils/cookies';
 
-interface TeacherState {
+export interface TeacherState {
   // Navigation
   activeTab: 'cockpit' | 'classes-students' | 'lesson-planner' | 'claims-reports' | 'settings';
   setActiveTab: (tab: 'cockpit' | 'classes-students' | 'lesson-planner' | 'claims-reports' | 'settings') => void;
