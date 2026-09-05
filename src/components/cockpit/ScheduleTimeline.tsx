@@ -1,66 +1,47 @@
-import React from 'react';
-import { Clock, MapPin } from 'lucide-react';
+import { Clock, MapPin, Play } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 
 export const ScheduleTimeline: React.FC = () => {
-  const { language } = useTeacherStore();
+  const { cohorts, sessions, startLiveSession, language } = useTeacherStore();
   const t = useTranslation(language);
 
-  const scheduleItems = [
-    {
-      time: '13:15 - 14:15',
-      title: 'Cambridge Starters A1',
-      room: 'Room 102',
-      status: 'completed',
-      statusLabel: t.cockpit.completed,
-    },
-    {
-      time: '14:30 - 15:30',
-      title: 'Cambridge Flyers A2',
-      room: 'Room 204',
-      status: 'upcoming',
-      statusLabel: t.cockpit.upcoming,
-    },
-    {
-      time: '15:45 - 16:45',
-      title: 'Teacher Planning & Prep',
-      room: 'Staff Room',
-      status: 'later',
-      statusLabel: t.cockpit.later,
-    },
-    {
-      time: '17:00 - 18:30',
-      title: 'IELTS Intensive Prep',
-      room: 'Virtual Lab (Meet)',
-      status: 'later',
-      statusLabel: t.cockpit.later,
-    },
-  ];
+  const todayDate = new Date().toISOString().split('T')[0];
+  const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const todayDayName = daysMap[new Date().getDay()];
+
+  // Find cohorts scheduled for today (or all active cohorts as fallback)
+  const todayCohorts = cohorts.filter((c) => c.scheduleDays?.includes(todayDayName));
+  const displayCohorts = todayCohorts.length > 0 ? todayCohorts : cohorts;
+
+  // Completed sessions for today
+  const todaySessions = sessions.filter((s) => s.sessionDate === todayDate && s.status === 'completed');
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-stone-200/90 shadow-xs">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-xs space-y-4">
+      <div className="flex items-center justify-between border-b border-stone-100 pb-3">
         <h3 className="text-base font-extrabold text-stone-900 flex items-center gap-2">
           <Clock className="w-4 h-4 text-teal-700" />
           {t.cockpit.scheduleTimeline}
         </h3>
-        <span className="text-xs font-semibold text-stone-500">13:15 – 18:30</span>
+        <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-100 font-mono">
+          {todayDayName}, {todayDate}
+        </span>
       </div>
 
       <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-stone-200">
-        {scheduleItems.map((item, idx) => {
-          const isCompleted = item.status === 'completed';
-          const isUpcoming = item.status === 'upcoming';
+        {displayCohorts.map((cohort, idx) => {
+          const isCompleted = todaySessions.some((s) => s.cohortId === cohort.id);
+          const isFirstUpcoming = !isCompleted && idx === 0;
 
           return (
-            <div key={idx} className="relative group">
+            <div key={cohort.id} className="relative group">
               {/* Dot indicator */}
               <div
-                className={`absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white ring-2 ${
+                className={`absolute -left-6 top-2 w-3.5 h-3.5 rounded-full border-2 border-white ring-2 transition-all ${
                   isCompleted
                     ? 'bg-emerald-500 ring-emerald-200'
-                    : isUpcoming
+                    : isFirstUpcoming
                     ? 'bg-teal-700 ring-teal-200 scale-110'
                     : 'bg-stone-300 ring-stone-100'
                 }`}
@@ -68,32 +49,57 @@ export const ScheduleTimeline: React.FC = () => {
 
               {/* Card item */}
               <div
-                className={`p-3 rounded-xl border transition-all ${
-                  isUpcoming
-                    ? 'bg-teal-50/60 border-teal-200 shadow-xs'
+                className={`p-3.5 rounded-2xl border transition-all ${
+                  isFirstUpcoming
+                    ? 'bg-teal-50/70 border-teal-200 shadow-2xs'
+                    : isCompleted
+                    ? 'bg-emerald-50/40 border-emerald-200/70'
                     : 'bg-stone-50/60 border-stone-200/70 hover:bg-stone-100/70'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-stone-900 truncate">{item.title}</span>
-                  <span
-                    className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
-                      isCompleted
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : isUpcoming
-                        ? 'bg-teal-100 text-teal-900 border border-teal-300'
-                        : 'bg-stone-200/80 text-stone-600'
-                    }`}
-                  >
-                    {item.statusLabel}
-                  </span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-bold text-stone-900 truncate">{cohort.name}</span>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-stone-200/80 text-stone-700 shrink-0">
+                      {cohort.cefrLevel}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                        isCompleted
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : isFirstUpcoming
+                          ? 'bg-teal-800 text-white shadow-2xs'
+                          : 'bg-stone-200/80 text-stone-600'
+                      }`}
+                    >
+                      {isCompleted
+                        ? (language === 'id' ? 'SELESAI' : 'COMPLETED')
+                        : isFirstUpcoming
+                        ? (language === 'id' ? 'BERIKUTNYA' : 'UPCOMING')
+                        : (language === 'id' ? 'NANTI' : 'LATER')}
+                    </span>
+
+                    {!isCompleted && (
+                      <button
+                        onClick={() => startLiveSession(cohort.id)}
+                        className="p-1 rounded-lg bg-teal-800 hover:bg-teal-900 text-white transition-colors cursor-pointer"
+                        title="Start this class"
+                      >
+                        <Play className="w-3 h-3 fill-white" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-[11px] text-stone-500 mt-1">
-                  <span>{item.time}</span>
+
+                <div className="flex items-center gap-3 text-[11px] text-stone-500 mt-1 font-medium">
+                  <span className="font-mono text-stone-700">{cohort.startTime || '14:00'} ({cohort.durationMinutes || 60}m)</span>
                   <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-stone-400" />
-                    {item.room}
+                  <span className="flex items-center gap-1 truncate">
+                    <MapPin className="w-3 h-3 text-stone-400 shrink-0" />
+                    <span className="truncate">{cohort.roomOrLink || 'Room 101'}</span>
                   </span>
                 </div>
               </div>

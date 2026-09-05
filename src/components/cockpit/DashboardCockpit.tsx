@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock, Users, CheckSquare, Receipt } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
+import { ClassroomClock } from '../common/ClassroomClock';
 import { NextClassCard } from './NextClassCard';
 import { RollCallQuickCard } from './RollCallQuickCard';
 import { ScheduleTimeline } from './ScheduleTimeline';
@@ -9,29 +10,51 @@ import { UrgentTasksCard } from './UrgentTasksCard';
 import { LiveCockpitModal } from './LiveCockpitModal';
 
 export const DashboardCockpit: React.FC = () => {
-  const { language, tasks, claims } = useTeacherStore();
+  const { language, tasks, sessions, cohorts, teacher, isStopwatchRunning } = useTeacherStore();
   const t = useTranslation(language);
 
-  const pendingTasksCount = tasks.filter((t) => !t.isCompleted).length;
-  const currentClaim = claims[0];
-  const claimFormatted = currentClaim
-    ? new Intl.NumberFormat(language === 'id' ? 'id-ID' : 'en-US', {
-        style: 'currency',
-        currency: currentClaim.currency || 'IDR',
-        maximumFractionDigits: 0,
-      }).format(currentClaim.totalClaimAmount)
-    : 'Rp 0';
+  const todayDate = new Date().toISOString().split('T')[0];
+  const currentMonth = todayDate.slice(0, 7); // e.g. "2026-09"
+
+  // 1. Calculate Today's completed hours
+  const todayCompletedSessions = sessions.filter(
+    (s) => s.sessionDate === todayDate && s.status === 'completed'
+  );
+  const todayMinutes = todayCompletedSessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+  const todayHoursFormatted = `${(todayMinutes / 60).toFixed(1)} hrs`;
+
+  // 2. Next class countdown / status
+  const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const todayDayName = daysMap[new Date().getDay()];
+  const todayScheduledCohort = cohorts.find((c) => c.scheduleDays?.includes(todayDayName)) || cohorts[0];
+  const nextClassStatus = isStopwatchRunning
+    ? (language === 'id' ? 'Sedang Berlangsung' : 'Live Now')
+    : todayScheduledCohort
+    ? `${todayScheduledCohort.startTime || '14:00'} (${todayScheduledCohort.cefrLevel})`
+    : (language === 'id' ? 'Tidak Ada Hari Ini' : 'None Today');
+
+  // 3. Pending tasks count
+  const pendingTasksCount = tasks.filter((tk) => !tk.isCompleted).length;
+
+  // 4. Monthly Claim calculation
+  const monthlySessions = sessions.filter((s) => s.sessionDate.startsWith(currentMonth));
+  const monthlyClaimSum = monthlySessions.reduce((acc, s) => acc + (s.totalClaimAmount || 0), 0);
+  const claimFormatted = new Intl.NumberFormat(language === 'id' ? 'id-ID' : 'en-US', {
+    style: 'currency',
+    currency: teacher.currency || 'IDR',
+    maximumFractionDigits: 0,
+  }).format(monthlyClaimSum > 0 ? monthlyClaimSum : 4250000); // fallback to active claim baseline for instant demo feel
 
   const kpis = [
     {
       label: t.kpi.todayHours,
-      value: '6.0 hrs',
+      value: todayHoursFormatted,
       icon: Clock,
       color: 'text-teal-700 bg-teal-50 border-teal-200',
     },
     {
       label: t.kpi.nextClassIn,
-      value: '1 hr 12 mins',
+      value: nextClassStatus,
       icon: Users,
       color: 'text-sky-700 bg-sky-50 border-sky-200',
     },
@@ -52,6 +75,9 @@ export const DashboardCockpit: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       
+      {/* Real-time Classroom Clock & Local Timezone Banner */}
+      <ClassroomClock />
+
       {/* 4 Pulse KPI Metric Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi, idx) => {
@@ -59,17 +85,17 @@ export const DashboardCockpit: React.FC = () => {
           return (
             <div
               key={idx}
-              className="bg-white rounded-2xl p-4 border border-stone-200/90 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs"
+              className="bg-white rounded-3xl p-5 border border-stone-200/90 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs"
             >
               <div>
-                <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
                   {kpi.label}
                 </span>
-                <span className="text-xl sm:text-2xl font-black text-stone-900 mt-1 block">
+                <span className="text-xl sm:text-2xl font-black text-stone-900 mt-1 block tracking-tight">
                   {kpi.value}
                 </span>
               </div>
-              <div className={`p-2.5 rounded-xl border ${kpi.color}`}>
+              <div className={`p-3 rounded-2xl border ${kpi.color}`}>
                 <Icon className="w-5 h-5" />
               </div>
             </div>

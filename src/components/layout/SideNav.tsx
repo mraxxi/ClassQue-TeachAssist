@@ -1,16 +1,31 @@
 import React, { useState } from 'react';
 import { 
   BookOpen, LayoutDashboard, Users, FileText, 
-  ReceiptText, Settings, Globe, Bell, ChevronLeft, ChevronRight
+  ReceiptText, Settings, Bell, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { SyncStatusBadge } from './SyncStatusBadge';
+import { NotificationsPopover } from './NotificationsPopover';
+import { getCookie, setCookie, COOKIE_KEYS } from '../../utils/cookies';
 
 export const SideNav: React.FC = () => {
-  const { activeTab, setActiveTab, language, setLanguage, teacher } = useTeacherStore();
+  const { activeTab, setActiveTab, language, setLanguage, teacher, notifications } = useTeacherStore();
   const t = useTranslation(language);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(() => {
+    const savedCookie = getCookie(COOKIE_KEYS.SIDEBAR_EXPANDED);
+    if (savedCookie !== null) return savedCookie === 'true';
+    return true;
+  });
+
+  const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
+
+  const handleToggleExpand = () => {
+    const nextState = !isExpanded;
+    setIsExpanded(nextState);
+    setCookie(COOKIE_KEYS.SIDEBAR_EXPANDED, String(nextState));
+  };
 
   const navItems = [
     { id: 'cockpit' as const, label: t.nav.cockpit, icon: LayoutDashboard },
@@ -23,7 +38,7 @@ export const SideNav: React.FC = () => {
   return (
     <>
       {/* Desktop Left Sidebar */}
-      <aside className={`hidden md:flex flex-col h-screen sticky top-0 bg-white/95 backdrop-blur-md border-r border-stone-200/80 shadow-sm transition-all duration-300 z-40 ${isExpanded ? 'w-64' : 'w-20'}`}>
+      <aside className={`hidden md:flex flex-col justify-between sticky top-0 left-0 h-screen self-start shrink-0 bg-white/95 backdrop-blur-md border-r border-stone-200/80 shadow-xs transition-all duration-300 z-40 select-none overflow-y-auto ${isExpanded ? 'w-64' : 'w-20'}`}>
         <div className="flex items-center justify-between p-4 border-b border-stone-200/60">
           <div className="flex items-center gap-3 cursor-pointer overflow-hidden" onClick={() => setActiveTab('cockpit')}>
             <div className="w-10 h-10 shrink-0 rounded-xl bg-teal-800 flex items-center justify-center text-white shadow-xs">
@@ -42,7 +57,7 @@ export const SideNav: React.FC = () => {
 
         {/* Toggle Collapse Button */}
         <button 
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={handleToggleExpand}
           className="absolute -right-3 top-6 bg-white border border-stone-200 rounded-full p-1 text-stone-500 hover:text-teal-700 shadow-sm z-50 cursor-pointer"
         >
           {isExpanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -81,10 +96,26 @@ export const SideNav: React.FC = () => {
               >
                 <span className="text-[10px] font-bold">{language.toUpperCase()}</span>
               </button>
-              <button className="flex items-center justify-center w-8 h-8 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors relative cursor-pointer">
-                <Bell className="w-4 h-4" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-teal-600 ring-2 ring-white"></span>
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setIsNotifOpen(!isNotifOpen)}
+                  className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors relative cursor-pointer ${
+                    isNotifOpen 
+                      ? 'bg-teal-100 text-teal-800' 
+                      : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
+                  }`}
+                  title={language === 'id' ? 'Pusat Notifikasi' : 'Notifications'}
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+                  )}
+                </button>
+                <NotificationsPopover 
+                  isOpen={isNotifOpen} 
+                  onClose={() => setIsNotifOpen(false)} 
+                />
+              </div>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTeacherStore } from '../../store/useTeacherStore';
-import { Info, CheckCircle2, AlertTriangle, X } from 'lucide-react';
+import { Info, CheckCircle2, AlertTriangle, AlertCircle, X } from 'lucide-react';
 
 export const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useTeacherStore();
@@ -17,6 +17,7 @@ export const ToastContainer: React.FC = () => {
           {toast.type === 'info' && <Info className="w-5 h-5 text-teal-600 shrink-0" />}
           {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
           {toast.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />}
+          {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />}
           
           <p className="text-sm text-stone-800 font-medium flex-1">{toast.message}</p>
           

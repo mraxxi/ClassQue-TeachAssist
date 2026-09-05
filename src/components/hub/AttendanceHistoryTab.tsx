@@ -1,0 +1,400 @@
+import React, { useState } from 'react';
+import { 
+  Calendar, ChevronLeft, ChevronRight, CheckCheck, 
+  Clock, AlertCircle, CheckCircle2, XCircle, FileEdit
+} from 'lucide-react';
+import { Cohort, Student, AttendanceStatus } from '../../types';
+import { useTeacherStore } from '../../store/useTeacherStore';
+import { useTranslation } from '../../utils/i18n';
+
+interface AttendanceHistoryTabProps {
+  activeCohort: Cohort;
+  cohortStudents: Student[];
+}
+
+export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
+  activeCohort,
+  cohortStudents,
+}) => {
+  const { attendanceRecords, setAttendance, batchMarkAllPresent, language, addToast } = useTeacherStore();
+  const t = useTranslation(language);
+
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [viewMode, setViewMode] = useState<'daily' | 'matrix'>('daily');
+  const [editingNoteStudentId, setEditingNoteStudentId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState<string>('');
+
+  // Date navigation helpers
+  const handlePrevDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleToday = () => {
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const getStudentStatusRecord = (studentId: string, date: string) => {
+    return attendanceRecords.find(
+      (r) => r.studentId === studentId && r.attendanceDate === date
+    );
+  };
+
+  const getStudentStatus = (studentId: string, date: string): AttendanceStatus => {
+    const rec = getStudentStatusRecord(studentId, date);
+    return rec?.status || 'present';
+  };
+
+  const statusConfigs: { key: AttendanceStatus; label: string; activeClass: string; badgeClass: string; icon: any }[] = [
+    { key: 'present', label: language === 'id' ? 'Hadir (H)' : 'Present (P)', activeClass: 'bg-emerald-600 text-white shadow-xs', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
+    { key: 'absent', label: language === 'id' ? 'Alpa (A)' : 'Absent (A)', activeClass: 'bg-rose-600 text-white shadow-xs', badgeClass: 'bg-rose-100 text-rose-800 border-rose-200', icon: XCircle },
+    { key: 'late', label: language === 'id' ? 'Terlambat (T)' : 'Late (L)', activeClass: 'bg-amber-600 text-white shadow-xs', badgeClass: 'bg-amber-100 text-amber-800 border-amber-200', icon: Clock },
+    { key: 'excused', label: language === 'id' ? 'Izin (I)' : 'Excused (E)', activeClass: 'bg-sky-600 text-white shadow-xs', badgeClass: 'bg-sky-100 text-sky-800 border-sky-200', icon: AlertCircle },
+  ];
+
+  // Selected date statistics
+  const presentCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'present').length;
+  const absentCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'absent').length;
+  const lateCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'late').length;
+  const excusedCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'excused').length;
+  const attendanceRate = cohortStudents.length > 0 
+    ? Math.round(((presentCount + lateCount) / cohortStudents.length) * 100) 
+    : 100;
+
+  // Recent 7 dates for matrix view
+  const recentDates: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    recentDates.push(d.toISOString().split('T')[0]);
+  }
+
+  const handleSaveNote = (studentId: string) => {
+    const currentStatus = getStudentStatus(studentId, selectedDate);
+    setAttendance(studentId, activeCohort.id, selectedDate, currentStatus, noteText.trim());
+    setEditingNoteStudentId(null);
+    setNoteText('');
+    addToast(language === 'id' ? 'Catatan presensi disimpan' : 'Attendance note saved', 'success');
+  };
+
+  return (
+    <div className="space-y-5 animate-in fade-in duration-150">
+      
+      {/* Top Controls Bar */}
+      <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        
+        {/* Date Navigator */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrevDay}
+            className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+            title="Previous Day"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <div className="flex items-center gap-2 bg-stone-50 px-3.5 py-1.5 rounded-xl border border-stone-200 font-bold text-xs text-stone-800">
+            <Calendar className="w-3.5 h-3.5 text-teal-700" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent focus:outline-none cursor-pointer font-mono"
+            />
+          </div>
+
+          <button
+            onClick={handleNextDay}
+            className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+            title="Next Day"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={handleToday}
+            className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors cursor-pointer"
+          >
+            {language === 'id' ? 'Hari Ini' : 'Today'}
+          </button>
+        </div>
+
+        {/* View Mode & Quick Actions */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-bold">
+            <button
+              onClick={() => setViewMode('daily')}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                viewMode === 'daily' ? 'bg-white text-teal-900 shadow-xs' : 'text-stone-600'
+              }`}
+            >
+              {language === 'id' ? 'Harian' : 'Daily Roll-Call'}
+            </button>
+            <button
+              onClick={() => setViewMode('matrix')}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                viewMode === 'matrix' ? 'bg-white text-teal-900 shadow-xs' : 'text-stone-600'
+              }`}
+            >
+              {language === 'id' ? 'Matriks 7 Hari' : '7-Day Matrix'}
+            </button>
+          </div>
+
+          {viewMode === 'daily' && (
+            <button
+              onClick={() => {
+                batchMarkAllPresent(activeCohort.id, selectedDate);
+                addToast(language === 'id' ? 'Semua siswa ditandai Hadir' : 'All students marked Present', 'success');
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <CheckCheck className="w-3.5 h-3.5 text-teal-700" />
+              <span>{t.cockpit.markAllPresent}</span>
+            </button>
+          )}
+        </div>
+
+      </div>
+
+      {/* Date KPI Summary Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
+          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+            {language === 'id' ? 'Tingkat Kehadiran' : 'Attendance Rate'}
+          </span>
+          <span className="text-xl font-black text-teal-900 mt-0.5 block">{attendanceRate}%</span>
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
+          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
+            {language === 'id' ? 'Hadir' : 'Present'}
+          </span>
+          <span className="text-xl font-black text-stone-900 mt-0.5 block">{presentCount}</span>
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
+          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
+            {language === 'id' ? 'Alpa' : 'Absent'}
+          </span>
+          <span className="text-xl font-black text-stone-900 mt-0.5 block">{absentCount}</span>
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
+          <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
+            {language === 'id' ? 'Terlambat' : 'Late'}
+          </span>
+          <span className="text-xl font-black text-stone-900 mt-0.5 block">{lateCount}</span>
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center col-span-2 sm:col-span-1">
+          <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider block">
+            {language === 'id' ? 'Izin' : 'Excused'}
+          </span>
+          <span className="text-xl font-black text-stone-900 mt-0.5 block">{excusedCount}</span>
+        </div>
+      </div>
+
+      {/* View 1: Daily Roll-Call List */}
+      {viewMode === 'daily' && (
+        <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+            <h3 className="text-sm font-extrabold text-stone-900">
+              {language === 'id' ? 'Daftar Presensi Sesi:' : 'Session Roster:'} <span className="font-mono text-teal-800">{selectedDate}</span>
+            </h3>
+            <span className="text-xs text-stone-500 font-medium">
+              {cohortStudents.length} {language === 'id' ? 'Siswa' : 'Students'}
+            </span>
+          </div>
+
+          <div className="divide-y divide-stone-100">
+            {cohortStudents.map((st) => {
+              const currentStatus = getStudentStatus(st.id, selectedDate);
+              const rec = getStudentStatusRecord(st.id, selectedDate);
+              const isEditingNote = editingNoteStudentId === st.id;
+
+              return (
+                <div key={st.id} className="py-3.5 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    
+                    {/* Student Identity */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-stone-100 text-stone-800 font-bold text-xs flex items-center justify-center border border-stone-200">
+                        {st.nickname?.[0] || st.fullName?.[0] || 'S'}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-stone-900">{st.fullName}</p>
+                        <p className="text-[11px] text-stone-400">
+                          "{st.nickname}" • Wali: {st.guardianName}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 1-Click Status Selector & Note Trigger */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200">
+                        {statusConfigs.map((cfg) => {
+                          const isSelected = currentStatus === cfg.key;
+                          return (
+                            <button
+                              key={cfg.key}
+                              onClick={() => setAttendance(st.id, activeCohort.id, selectedDate, cfg.key, rec?.note)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                isSelected ? cfg.activeClass : 'text-stone-600 hover:bg-stone-200'
+                              }`}
+                            >
+                              {cfg.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          if (isEditingNote) {
+                            setEditingNoteStudentId(null);
+                          } else {
+                            setEditingNoteStudentId(st.id);
+                            setNoteText(rec?.note || '');
+                          }
+                        }}
+                        className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                          rec?.note
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-stone-100 hover:bg-stone-200 text-stone-500 border-stone-200'
+                        }`}
+                        title={rec?.note ? `Catatan: ${rec.note}` : 'Tambah catatan presensi'}
+                      >
+                        <FileEdit className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                  </div>
+
+                  {/* Existing Note or Inline Note Editor */}
+                  {rec?.note && !isEditingNote && (
+                    <div className="pl-12">
+                      <span className="text-[11px] font-medium bg-amber-50 text-amber-900 px-2.5 py-1 rounded-lg border border-amber-200/80 inline-block">
+                        📝 {rec.note}
+                      </span>
+                    </div>
+                  )}
+
+                  {isEditingNote && (
+                    <div className="pl-12 flex items-center gap-2 pt-1 animate-in fade-in duration-100">
+                      <input
+                        type="text"
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        placeholder="e.g. Izin sakit flu / Datang terlambat 15 menit..."
+                        className="flex-1 px-3 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleSaveNote(st.id)}
+                        className="px-3 py-1.5 rounded-xl bg-teal-800 text-white text-xs font-bold hover:bg-teal-900 cursor-pointer"
+                      >
+                        Simpan
+                      </button>
+                      <button
+                        onClick={() => setEditingNoteStudentId(null)}
+                        className="px-2.5 py-1.5 rounded-xl bg-stone-100 text-stone-600 text-xs font-bold hover:bg-stone-200 cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* View 2: 7-Day Cohort Matrix View */}
+      {viewMode === 'matrix' && (
+        <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-4 overflow-x-auto">
+          <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+            <h3 className="text-sm font-extrabold text-stone-900">
+              {language === 'id' ? 'Matriks Riwayat Presensi 7 Hari Terakhir' : '7-Day Attendance Matrix'}
+            </h3>
+            <span className="text-xs text-stone-500 font-medium">
+              Klik chip status untuk mengubah
+            </span>
+          </div>
+
+          <table className="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr className="border-b border-stone-200 text-[11px] text-stone-400 uppercase font-bold">
+                <th className="py-2.5 px-3">Siswa / Student</th>
+                {recentDates.map((dt) => (
+                  <th key={dt} className="py-2.5 px-2 text-center font-mono">
+                    {dt.slice(5)}
+                  </th>
+                ))}
+                <th className="py-2.5 px-3 text-right">Kehadiran</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {cohortStudents.map((st) => {
+                let stPresent = 0;
+                return (
+                  <tr key={st.id} className="hover:bg-stone-50/60 transition-colors">
+                    <td className="py-3 px-3 font-bold text-stone-900">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-stone-100 text-stone-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {st.nickname?.[0] || 'S'}
+                        </div>
+                        <span className="truncate max-w-[140px]">{st.fullName}</span>
+                      </div>
+                    </td>
+
+                    {recentDates.map((dt) => {
+                      const status = getStudentStatus(st.id, dt);
+                      if (status === 'present' || status === 'late') stPresent++;
+
+                      const letter = status === 'present' ? 'H' : status === 'absent' ? 'A' : status === 'late' ? 'T' : 'I';
+                      const color = status === 'present' 
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                        : status === 'absent' 
+                        ? 'bg-rose-100 text-rose-800 border-rose-300' 
+                        : status === 'late' 
+                        ? 'bg-amber-100 text-amber-800 border-amber-300' 
+                        : 'bg-sky-100 text-sky-800 border-sky-300';
+
+                      const cycleNext = () => {
+                        const order: AttendanceStatus[] = ['present', 'late', 'excused', 'absent'];
+                        const nextIdx = (order.indexOf(status) + 1) % order.length;
+                        setAttendance(st.id, activeCohort.id, dt, order[nextIdx]);
+                      };
+
+                      return (
+                        <td key={dt} className="py-3 px-2 text-center">
+                          <button
+                            onClick={cycleNext}
+                            className={`w-7 h-7 rounded-lg text-xs font-black border transition-all cursor-pointer ${color}`}
+                            title={`${dt}: ${status.toUpperCase()} (Click to toggle)`}
+                          >
+                            {letter}
+                          </button>
+                        </td>
+                      );
+                    })}
+
+                    <td className="py-3 px-3 text-right font-mono font-bold text-teal-900">
+                      {Math.round((stPresent / recentDates.length) * 100)}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </div>
+  );
+};

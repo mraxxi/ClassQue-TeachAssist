@@ -172,6 +172,20 @@ export interface TaskItem {
   title: string;
   priority: TaskPriority;
   dueDate: string;
+  deadlineType?: 'date' | 'lesson';
+  dueLessonLabel?: string;
   isCompleted: boolean;
   completedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  category: 'schedule' | 'task' | 'claim' | 'attendance';
+  title: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  actionTab?: 'cockpit' | 'classes-students' | 'lesson-planner' | 'claims-reports' | 'settings';
 }
