@@ -7,9 +7,9 @@ Teachers face immense cognitive friction switching between isolated tools for ro
 
 ## 🏗️ Architecture & Stack
 Designed for **Cloudflare's 100% Free Tier**:
-- **Frontend**: React 19, Vite, TailwindCSS v4, Zustand.
+- **Frontend**: React 19, Vite, TailwindCSS v4, Zustand; light / dark / system themes, phone-first layouts, self-hosted fonts.
 - **Backend/Data**: Cloudflare Pages Functions (`functions/api/sync.ts`, bearer-token protected), Cloudflare D1 (Edge SQLite).
-- **Local-First Sync**: every edit is written to `localStorage` immediately and pushed to D1 in the background; a service worker lets the app open offline. See `docs/ARCHITECTURE.md` §3.
+- **Local-First Sync**: every edit is written to `localStorage` immediately and pushed to D1 in the background; a service worker lets the app open offline; sync is incremental (delta) with per-record conflict resolution. See `docs/ARCHITECTURE.md` §3.
 
 ## 🚀 Quick Start (Local Development)
 

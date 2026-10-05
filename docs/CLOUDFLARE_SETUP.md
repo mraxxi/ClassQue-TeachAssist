@@ -43,6 +43,7 @@ npx wrangler d1 migrations apply classque_db --local
 # ...and on the live Cloudflare edge D1
 npx wrangler d1 migrations apply classque_db --remote
 ```
+> **Migration `0004_delta_sync.sql` must be applied to the remote D1 BEFORE deploying the delta-sync build** (it adds `client_updated_at` and the `updated_at` indexes the new API reads).
 > `wrangler.toml` is git-ignored; copy `wrangler.toml.example` and fill in your `database_id`.
 > `compatibility_date` is intentionally conservative (`2026-04-01`): a date newer than the installed wrangler
 > supports makes `wrangler pages dev` refuse to start.

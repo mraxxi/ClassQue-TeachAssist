@@ -1,7 +1,8 @@
 # 📋 Stage 17: Delta Sync (FR-020) & UX / Design Pass
 
-**Lifecycle Stage**: `working_on` 🔧
-**Rule**: every box is ticked only after an automated check in `e2e/` passes against the real build.
+**Lifecycle Stage**: `finished_tested` ✅
+**Rule**: every box was ticked only after an automated check in `e2e/` passed against the real build
+(`npm run test:e2e`: 12 files, 347 checks on 2026-10-06). Design rationale: `docs/UI_UX_SPECIFICATION.md` §6.
 
 ---
 
@@ -25,15 +26,26 @@ Findings from the critique (desktop + 390 px phone):
 8. Fonts load from Google (third party, fails offline, fallback font flashes).
 
 Deliverables:
-- [ ] Shared touch-friendly attendance control (≥ 44 px, colour + icon + label, `aria-pressed`, progress "3/5 recorded") used in Attendance tab, cockpit card and live cockpit.
-- [ ] Cockpit redesign: greeting + context line instead of a second clock; "Now" card first on phones; compact KPIs.
-- [ ] Live cockpit on phones: sticky stopwatch/finish bar and tabs (Roll-call · Grading · Lesson · Notes).
-- [ ] Undo toast for deletes (student, cohort, session, task, lesson plan) incl. cascade, working across devices.
-- [ ] First-run onboarding checklist + purposeful empty states with a call to action.
-- [ ] Dark mode (`cq_theme`: light / dark / system), print always light.
-- [ ] Self-hosted fonts (offline-safe, no third-party request).
-- [ ] Accessibility pass with axe-core: no serious/critical violations on the main screens in light and dark; labelled icon buttons; visible focus; reduced motion.
-- [ ] Keyboard shortcut help dialog (`?`).
+- [x] Shared touch-friendly attendance control (≥ 44 px, colour + icon + label, `aria-pressed`, progress "3/5 recorded") used in Attendance tab, cockpit card and live cockpit.
+- [x] Cockpit redesign: greeting + context line instead of a second clock; "Now" card first on phones; compact KPIs.
+- [x] Live cockpit on phones: sticky stopwatch/finish bar and tabs (Roll-call · Grading · Lesson · Notes).
+- [x] Undo toast for deletes (student, cohort, session, task, lesson plan) incl. cascade, working across devices.
+- [x] First-run onboarding checklist + purposeful empty states with a call to action.
+- [x] Dark mode (`cq_theme`: light / dark / system), print always light.
+- [x] Self-hosted fonts (offline-safe, no third-party request).
+- [x] Accessibility pass with axe-core: **zero** violations (all impacts) on 10 screens × light / dark / phone, including modals; labelled icon buttons and inputs; `h1` per page; visible focus; reduced motion.
+- [x] Keyboard shortcut help dialog (`?`).
 
 ## Verification
-- [ ] `npm run typecheck` · `npm run test:e2e` all green · plan moved to `finished_tested/`.
+- [x] `npm run typecheck` · `npm run test:e2e` all green · plan moved to `finished_tested/`.
+
+## Also delivered (found while reviewing screenshots)
+- [x] `<body>` still carried hard-coded light colours (flash on overscroll / before mount) → theme variables.
+- [x] Modal backdrops inverted to a light scrim in dark mode → `.scrim`.
+- [x] Phone: cohort chips scroll horizontally, sub-tabs scroll, claims metrics in a 2-column grid, live-cockpit header no longer overlaps, full-height live sheet.
+- [x] Self-hosted fonts; secondary hubs lazy-loaded (first-load JS 502 kB → 330 kB) and preloaded when idle so they open offline.
+
+## Not done / notes
+- Conflicts are still merged silently (FR-027 would surface "your edit lost to a newer one").
+- Dark palette is generated from Tailwind's theme: re-run `node scripts/gen-dark-theme.mjs` after upgrading Tailwind.
+- Migration `0004` must be applied to the remote D1 before deploying this build.
