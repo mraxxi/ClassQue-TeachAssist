@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Printer, BookOpen, Layers } from 'lucide-react';
 import { LessonPlan, Teacher } from '../../types';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
@@ -34,8 +35,8 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
     { num: 5, name: 'Stage 5: Review & Wrap-up', duration: '5–10 min', content: lessonPlan.wrapUp },
   ];
 
-  return (
-    <div className="fixed inset-0 z-50 bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+  return createPortal(
+    <div className="print-portal fixed inset-0 z-50 bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
       <div className="print-sheet bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto print:max-w-none print:shadow-none print:border-none print:p-0 print:m-0">
         
         {/* Action Header (Hidden in Print) */}
@@ -165,6 +166,7 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

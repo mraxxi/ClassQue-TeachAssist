@@ -15,7 +15,14 @@ const STATUS_LABEL: Record<SlotStatus, { id: string; en: string; chip: string; c
 };
 
 export const ScheduleTimeline: React.FC = () => {
-  const { startLiveSession, language } = useTeacherStore();
+  const { startLiveSession, activeSessionCohortId, language } = useTeacherStore();
+
+  const handleStart = (cohortId: string) => {
+    if (activeSessionCohortId && activeSessionCohortId !== cohortId && !window.confirm(language === 'id'
+      ? 'Kelas lain sedang berlangsung. Ganti dengan kelas ini? (Sesi yang berjalan akan dibuang.)'
+      : 'Another class is in progress. Switch to this one? (The running session will be discarded.)')) return;
+    startLiveSession(cohortId);
+  };
   const t = useTranslation(language);
   const { slots, now } = useCockpitCohort();
 
@@ -57,7 +64,7 @@ export const ScheduleTimeline: React.FC = () => {
                       </span>
                       {slot.status !== 'completed' && (
                         <button
-                          onClick={() => startLiveSession(slot.cohort.id)}
+                          onClick={() => handleStart(slot.cohort.id)}
                           className="p-1 rounded-lg bg-teal-800 hover:bg-teal-900 text-white transition-colors cursor-pointer"
                           title="Start this class"
                         >

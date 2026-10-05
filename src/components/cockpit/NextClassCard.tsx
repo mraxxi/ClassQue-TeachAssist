@@ -6,11 +6,23 @@ import { useCockpitCohort } from '../../hooks/useCockpitCohort';
 import { formatRelative } from '../../utils/date';
 
 export const NextClassCard: React.FC = () => {
-  const { cohorts, startLiveSession, language, lessonPlans, isLiveCockpitOpen, addToast } = useTeacherStore();
+  const { cohorts, startLiveSession, language, lessonPlans, activeSessionCohortId, addToast } = useTeacherStore();
   const t = useTranslation(language);
 
   const { setCockpitCohortId } = useTeacherStore();
   const { active: activeCohort, activeSlot, now } = useCockpitCohort();
+
+  const sessionRunning = !!activeSessionCohortId;
+  const runningElsewhere = sessionRunning && activeSessionCohortId !== activeCohort?.id;
+
+  /** Starting a different class would discard the running one, so ask first. */
+  const handleLaunch = () => {
+    if (!activeCohort) return;
+    if (runningElsewhere && !window.confirm(language === 'id'
+      ? 'Kelas lain sedang berlangsung. Ganti dengan kelas ini? (Sesi yang berjalan akan dibuang.)'
+      : 'Another class is in progress. Switch to this one? (The running session will be discarded.)')) return;
+    startLiveSession(activeCohort.id);
+  };
 
   const linkedLesson =
     lessonPlans.find((lp) => lp.cohortId === activeCohort?.id) || lessonPlans.find((lp) => !lp.cohortId);
@@ -110,11 +122,11 @@ export const NextClassCard: React.FC = () => {
       {/* Big 1-Click Launch Button */}
       <div className="flex items-center gap-3 pt-1">
         <button
-          onClick={() => startLiveSession(activeCohort.id)}
+          onClick={handleLaunch}
           className="flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-teal-800 to-teal-700 hover:from-teal-900 hover:to-teal-800 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
         >
           <Play className="w-4 h-4 fill-white" />
-          <span>{isLiveCockpitOpen ? t.cockpit.liveRunning : t.cockpit.launchLive}</span>
+          <span>{sessionRunning && !runningElsewhere ? t.cockpit.liveRunning : t.cockpit.launchLive}</span>
           <span className="text-teal-200 text-xs font-normal">⏱️</span>
         </button>
 

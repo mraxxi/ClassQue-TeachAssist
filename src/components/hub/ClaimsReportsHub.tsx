@@ -41,13 +41,14 @@ export const ClaimsReportsHub: React.FC = () => {
   // Narrative feedback editor for selected student
   const [narrativeFeedback, setNarrativeFeedback] = useState<string>('');
 
-  // Months offered: the current month plus every month that has sessions or a claim (newest first)
+  // Months offered: the current month plus every month that has sessions, a claim or attendance (newest first)
   const monthOptions = useMemo(() => {
     const set = new Set<string>([localMonthStr(), selectedMonth]);
     sessions.forEach((x) => x.sessionDate && set.add(x.sessionDate.slice(0, 7)));
     claims.forEach((c) => c.claimPeriod && set.add(c.claimPeriod));
+    attendanceRecords.forEach((r) => r.attendanceDate && set.add(r.attendanceDate.slice(0, 7)));
     return Array.from(set).sort().reverse();
-  }, [sessions, claims, selectedMonth]);
+  }, [sessions, claims, attendanceRecords, selectedMonth]);
 
   const monthLabel = (m: string) => {
     const [y, mo] = m.split('-').map(Number);

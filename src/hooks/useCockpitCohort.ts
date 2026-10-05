@@ -13,16 +13,17 @@ export function useNow(intervalMs = 30_000): Date {
 }
 
 /**
- * The cohort the Cockpit is "about": the class that is live, else the next one today,
- * else the first cohort. The teacher can override it from the Next Class card.
+ * The cohort the Cockpit is "about": the class being taught right now (running session), else the one
+ * that is live / next today, else the first cohort. The teacher can override it from the Next Class card.
  */
 export function useCockpitCohort() {
-  const { cohorts, sessions, cockpitCohortId } = useTeacherStore();
+  const { cohorts, sessions, cockpitCohortId, activeSessionCohortId } = useTeacherStore();
   const now = useNow();
   const slots = useMemo(() => getTodaySlots(cohorts, sessions, now), [cohorts, sessions, now]);
   const next = getNextSlot(slots);
   const fallback = next?.cohort || slots[0]?.cohort || cohorts[0];
-  const active = cohorts.find((c) => c.id === cockpitCohortId) || fallback;
+  // priority: manual override > the class that is running right now > live/next class > first cohort
+  const active = cohorts.find((c) => c.id === cockpitCohortId) || cohorts.find((c) => c.id === activeSessionCohortId) || fallback;
   const activeSlot = slots.find((s) => s.cohort.id === active?.id);
   return { now, slots, next, active, activeSlot };
 }

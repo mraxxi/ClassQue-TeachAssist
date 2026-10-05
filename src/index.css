@@ -34,26 +34,33 @@
   background: #94A3B8;
 }
 
-/* Print Stylesheet: A4 sheets (report card, lesson scaffold, claim invoice) */
+/* Print Stylesheet: A4 sheets (report card, lesson scaffold, claim invoice).
+ * The printable modals render through a portal into <body> (outside #root), so printing simply hides the
+ * whole app and lays the sheet out as a normal page: no blank pages, no sidebar, no toasts. */
 @page {
   size: A4;
   margin: 12mm;
 }
 @media print {
-  /* Print ONLY the sheet: hide the app shell, sidebar, toasts and modal chrome. */
-  body * {
-    visibility: hidden !important;
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
   }
-  .print-sheet,
-  .print-sheet * {
-    visibility: visible !important;
+  body > #root {
+    display: none !important;
+  }
+  .print-portal {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    overflow: visible !important;
   }
   .print-sheet {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
+    max-width: none !important;
     max-height: none !important;
+    width: 100% !important;
     overflow: visible !important;
     box-shadow: none !important;
     border: none !important;

@@ -201,7 +201,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
                 type="number"
                 min={1}
                 max={720}
-                step={5}
+                step={1}
                 list="session-duration-presets"
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value) || 1))}

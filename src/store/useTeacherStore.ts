@@ -877,7 +877,8 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     },
 
     // ---- Notifications ---------------------------------------------------------------------
-    notifications: [],
+    // Restored so read-state survives the first regeneration after a reload.
+    notifications: arr<NotificationItem>(saved?.notifications),
     dismissedNotifications: (saved?.dismissedNotifications && typeof saved.dismissedNotifications === 'object' ? saved.dismissedNotifications : {}) as Record<string, string>,
     refreshNotifications: () => {
       const s = get();

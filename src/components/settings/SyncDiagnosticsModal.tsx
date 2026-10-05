@@ -96,13 +96,13 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
   };
 
   const entities = [
-    { label: language === 'id' ? 'Kelas Cohort' : 'Cohorts', count: cohorts.length, remote: remote?.counts.cohorts },
-    { label: language === 'id' ? 'Siswa' : 'Students', count: students.length, remote: remote?.counts.students },
-    { label: language === 'id' ? 'Rencana Ajar' : 'Lesson Plans', count: lessonPlans.length, remote: remote?.counts.lessonPlans },
-    { label: language === 'id' ? 'Catatan Kehadiran' : 'Attendance', count: attendanceRecords.length, remote: remote?.counts.attendance },
-    { label: language === 'id' ? 'Tugas Prioritas' : 'Tasks', count: tasks.length, remote: remote?.counts.tasks },
-    { label: language === 'id' ? 'Sesi Mengajar' : 'Teaching Sessions', count: sessions.length, remote: remote?.counts.sessions },
-    { label: language === 'id' ? 'Klaim Honor' : 'Teaching Claims', count: claims.length, remote: remote?.counts.claims },
+    { key: 'cohorts', label: language === 'id' ? 'Kelas Cohort' : 'Cohorts', count: cohorts.length, remote: remote?.counts.cohorts },
+    { key: 'students', label: language === 'id' ? 'Siswa' : 'Students', count: students.length, remote: remote?.counts.students },
+    { key: 'lessonPlans', label: language === 'id' ? 'Rencana Ajar' : 'Lesson Plans', count: lessonPlans.length, remote: remote?.counts.lessonPlans },
+    { key: 'attendance', label: language === 'id' ? 'Catatan Kehadiran' : 'Attendance', count: attendanceRecords.length, remote: remote?.counts.attendance },
+    { key: 'tasks', label: language === 'id' ? 'Tugas Prioritas' : 'Tasks', count: tasks.length, remote: remote?.counts.tasks },
+    { key: 'sessions', label: language === 'id' ? 'Sesi Mengajar' : 'Teaching Sessions', count: sessions.length, remote: remote?.counts.sessions },
+    { key: 'claims', label: language === 'id' ? 'Klaim Honor' : 'Teaching Claims', count: claims.length, remote: remote?.counts.claims },
   ];
 
   const authMessage =
@@ -252,7 +252,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                   <span className="text-[10px] font-semibold text-stone-500 block truncate">
                     {item.label}
                   </span>
-                  <span className="text-[10px] font-mono text-teal-700 block" data-testid={`diag-remote-${item.label}`}>
+                  <span className="text-[10px] font-mono text-teal-700 block" data-testid={`diag-remote-${item.key}`}>
                     {item.remote === undefined ? '—' : `D1: ${item.remote}`}
                   </span>
                 </div>
