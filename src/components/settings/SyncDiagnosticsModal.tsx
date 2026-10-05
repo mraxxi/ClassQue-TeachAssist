@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Database, Cloud, RefreshCw, X, 
   CheckCircle2, AlertTriangle, ShieldCheck, Activity, Download, Upload 
@@ -130,7 +131,9 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     }
   };
 
-  return (
+  // Portal into <body>: the badge lives inside the blurred, scrolling sidebar/header, and a `backdrop-filter`
+  // ancestor would otherwise become the containing block of this `position: fixed` overlay.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 scrim backdrop-blur-xs animate-in fade-in duration-150">
       <div 
         className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]"
@@ -308,6 +311,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

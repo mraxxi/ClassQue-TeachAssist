@@ -69,6 +69,14 @@ check('11.7 pull brings D1-only changes into the app', (await store(p)).tasks.so
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 check('11.8 Esc closes the diagnostics modal', !(await txt(p, 'body')).includes('Diagnostik Cloudflare D1'));
 
+// the modal must be a centred overlay over the whole viewport, even when opened from the (blurred, scrolling) sidebar
+await p.locator('aside button[title*="Diagnostik"], aside button[title*="sinkron" i]').first().click(); await p.waitForTimeout(600);
+const box = await p.locator('[role=dialog], div.fixed:has-text("Diagnostik Cloudflare D1")').last().boundingBox();
+const panel = await p.locator('div.fixed:has-text("Diagnostik Cloudflare D1") > div').first().boundingBox();
+const vp = p.viewportSize();
+check('11.9 opened from the SIDEBAR badge the diagnostics modal is a centred overlay, not trapped in the sidebar', box.width >= vp.width - 2 && panel.width > 400 && panel.x > 200 && Math.abs(panel.x + panel.width / 2 - vp.width / 2) < 40, JSON.stringify({ box, panel }));
+await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+
 // ============================ Stage 14: offline brownout ============================
 // register the service worker + warm the cache, then go offline
 await p.evaluate(() => navigator.serviceWorker.ready.then(() => true));
