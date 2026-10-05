@@ -11,6 +11,27 @@ import { addMinutesToTime, localDateStr, localTimeStr } from '../utils/date';
 import { generateDynamicNotifications, mergeNotifications } from '../utils/notifications';
 import { getSyncToken, syncHeaders, type SyncAuthStatus } from '../utils/syncAuth';
 import { validateBackup } from '../utils/backup';
+import { applyTheme, persistTheme, readThemePreference, type ThemePreference } from '../utils/theme';
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  /** Optional button, e.g. "Undo". */
+  action?: { label: string; onClick: () => void };
+}
+
+/** Everything a delete can remove or un-link; kept in memory only so the last delete can be undone. */
+export interface UndoSnapshot {
+  cohorts: Cohort[];
+  students: Student[];
+  attendanceRecords: AttendanceRecord[];
+  studentEvaluations: StudentMilestoneEvaluation[];
+  parentReports: ParentReport[];
+  lessonPlans: LessonPlan[];
+  tasks: TaskItem[];
+  sessions: TeachingSession[];
+}
 
 export type TabId = 'cockpit' | 'classes-students' | 'lesson-planner' | 'claims-reports' | 'settings';
 
@@ -30,6 +51,10 @@ export interface TeacherState {
   // Language & Localization
   language: Language;
   setLanguage: (lang: Language) => void;
+
+  // Appearance (cq_theme cookie)
+  theme: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
 
   // Teacher Profile
   teacher: Teacher;
@@ -137,14 +162,22 @@ export interface TeacherState {
   clearNotifications: () => void;
   addNotification: (notification: NotificationItem) => void;
 
+  // Undo for destructive actions (cohort / student / session / task / lesson plan deletes)
+  lastDelete: { label: string; snapshot: UndoSnapshot } | null;
+  undoLastDelete: () => void;
+
   // UI State
-  toasts: { id: string; message: string; type: 'info' | 'success' | 'warning' | 'error' }[];
-  addToast: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
+  toasts: ToastItem[];
+  addToast: (message: string, type?: ToastItem['type'], options?: { action?: ToastItem['action']; duration?: number }) => void;
   removeToast: (id: string) => void;
 }
 
 const STORAGE_KEY = 'classque_teacher_os_v1';
 const nowIso = () => new Date().toISOString();
+const takeSnapshot = (s: TeacherState): UndoSnapshot => ({
+  cohorts: s.cohorts, students: s.students, attendanceRecords: s.attendanceRecords, studentEvaluations: s.studentEvaluations,
+  parentReports: s.parentReports, lessonPlans: s.lessonPlans, tasks: s.tasks, sessions: s.sessions,
+});
 
 const getSavedState = (): any => {
   try {
@@ -389,6 +422,16 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
   };
 
   /** Shared body for stamping + persisting a collection mutation. */
+  /** Remember the pre-delete state and show an "Undo" toast. */
+  const announceDelete = (snapshot: UndoSnapshot, label: string) => {
+    set({ lastDelete: { label, snapshot } });
+    const id = get().language === 'id';
+    get().addToast(label, 'info', {
+      duration: 8000,
+      action: { label: id ? 'Urungkan' : 'Undo', onClick: () => get().undoLastDelete() },
+    });
+  };
+
   const stamp = <T extends object>(item: T): T => {
     const at = nowIso();
     markDirty((item as { id?: string }).id, at);
@@ -412,6 +455,13 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
       setCookie(COOKIE_KEYS.LANG, lang);
       get().refreshNotifications();
       persistWithLive();
+    },
+
+    theme: readThemePreference(),
+    setTheme: (theme) => {
+      persistTheme(theme);
+      applyTheme(theme);
+      set({ theme });
     },
 
     teacher: saved?.teacher ? { ...defaultTeacher, ...saved.teacher } : defaultTeacher,
@@ -440,6 +490,8 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
      * Teaching Sessions are KEPT so already-earned honorarium history stays intact.
      */
     deleteCohort: (id) => {
+      const snap = takeSnapshot(get());
+      const name = get().cohorts.find((c) => c.id === id)?.name ?? '';
       set((state) => {
         const studentIds = state.students.filter((s) => s.cohortId === id).map((s) => s.id);
         const gone = new Set(studentIds);
@@ -468,6 +520,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
         };
       });
       commitMutation();
+      announceDelete(snap, get().language === 'id' ? `Kelas "${name}" dihapus` : `Cohort "${name}" deleted`);
     },
 
     // ---- Students --------------------------------------------------------------------------
@@ -484,6 +537,8 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     },
     /** Deletes a student and their attendance, evaluations and parent reports. */
     deleteStudent: (id) => {
+      const snap = takeSnapshot(get());
+      const name = get().students.find((x) => x.id === id)?.fullName ?? '';
       set((state) => {
         const attendance = state.attendanceRecords.filter((r) => r.studentId === id);
         const evals = state.studentEvaluations.filter((e) => e.studentId === id);
@@ -503,6 +558,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
         };
       });
       commitMutation();
+      announceDelete(snap, get().language === 'id' ? `Siswa "${name}" dihapus` : `Student "${name}" removed`);
     },
     transferStudent: (studentId, newCohortId) => {
       set((state) => ({
@@ -659,6 +715,8 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
       commitMutation();
     },
     deleteLessonPlan: (id) => {
+      const snap = takeSnapshot(get());
+      const title = get().lessonPlans.find((x) => x.id === id)?.title ?? '';
       set((state) => {
         const remaining = state.lessonPlans.filter((p) => p.id !== id);
         return {
@@ -669,6 +727,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
         };
       });
       commitMutation();
+      announceDelete(snap, get().language === 'id' ? `RPP "${title}" dihapus` : `Lesson plan "${title}" deleted`);
     },
     duplicateLessonPlan: (id) => {
       const target = get().lessonPlans.find((p) => p.id === id);
@@ -693,11 +752,14 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
       commitMutation();
     },
     deleteTask: (id) => {
+      const snap = takeSnapshot(get());
+      const title = get().tasks.find((x) => x.id === id)?.title ?? '';
       set((state) => ({
         tasks: state.tasks.filter((t) => t.id !== id),
         tombstones: addTombstones(state.tombstones, 'tasks', [id]),
       }));
       commitMutation();
+      announceDelete(snap, get().language === 'id' ? `Tugas "${title}" dihapus` : `Task "${title}" deleted`);
     },
 
     // ---- CEFR ------------------------------------------------------------------------------
@@ -740,11 +802,14 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
       commitMutation();
     },
     deleteSession: (id) => {
+      const snap = takeSnapshot(get());
+      const date = get().sessions.find((x) => x.id === id)?.sessionDate ?? '';
       set((state) => ({
         sessions: state.sessions.filter((s) => s.id !== id),
         tombstones: addTombstones(state.tombstones, 'sessions', [id]),
       }));
       commitMutation();
+      announceDelete(snap, get().language === 'id' ? `Sesi ${date} dihapus` : `Session ${date} deleted`);
     },
 
     claims: arr<TeachingClaim>(saved?.claims),
@@ -1048,14 +1113,61 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
       persistWithLive();
     },
 
+    // ---- Undo ------------------------------------------------------------------------------
+    lastDelete: null,
+    undoLastDelete: () => {
+      const ld = get().lastDelete;
+      if (!ld) return;
+      const sn = ld.snapshot;
+      const restored = new Set<string>();
+      /** Snapshot order is kept; removed records come back (re-stamped so the server revives them); un-links are reverted. */
+      const restore = <T extends { id: string; updatedAt?: string; cohortId?: string; lessonPlanId?: string }>(snapList: T[], cur: T[]): T[] => {
+        const curById = new Map(cur.map((x) => [x.id, x]));
+        const snapIds = new Set(snapList.map((x) => x.id));
+        const merged = snapList.map((o) => {
+          const c = curById.get(o.id);
+          if (!c) {
+            restored.add(o.id);
+            return stamp(o);
+          }
+          let fixed = c;
+          if (o.cohortId && c.cohortId === undefined) fixed = stamp({ ...fixed, cohortId: o.cohortId });
+          if (o.lessonPlanId && c.lessonPlanId === undefined) fixed = stamp({ ...fixed, lessonPlanId: o.lessonPlanId });
+          return fixed;
+        });
+        return [...merged, ...cur.filter((x) => !snapIds.has(x.id))];
+      };
+      set((state) => {
+        const next = {
+          cohorts: restore(sn.cohorts, state.cohorts),
+          students: restore(sn.students, state.students),
+          attendanceRecords: restore(sn.attendanceRecords, state.attendanceRecords),
+          studentEvaluations: restore(sn.studentEvaluations, state.studentEvaluations),
+          parentReports: restore(sn.parentReports, state.parentReports),
+          lessonPlans: restore(sn.lessonPlans, state.lessonPlans),
+          tasks: restore(sn.tasks, state.tasks),
+          sessions: restore(sn.sessions, state.sessions),
+        };
+        const tombstones: Tombstones = {};
+        (Object.keys(state.tombstones) as TombstoneKey[]).forEach((k) => {
+          const left = (state.tombstones[k] || []).filter((t) => !restored.has(t.id));
+          if (left.length) tombstones[k] = left;
+        });
+        return { ...next, tombstones, lastDelete: null };
+      });
+      commitMutation();
+      const id = get().language === 'id';
+      get().addToast(id ? 'Dikembalikan' : 'Restored', 'success');
+    },
+
     // ---- Toasts ----------------------------------------------------------------------------
     toasts: [],
-    addToast: (message, type = 'info') => {
+    addToast: (message, type = 'info', options) => {
       const id = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      set((state) => ({ toasts: [...state.toasts, { id, message, type }] }));
+      set((state) => ({ toasts: [...state.toasts, { id, message, type, action: options?.action }] }));
       setTimeout(() => {
         set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
-      }, 3000);
+      }, options?.duration ?? 3000);
     },
     removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
   };

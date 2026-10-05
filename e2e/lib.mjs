@@ -74,11 +74,12 @@ export async function api(path = '/api/sync', init = {}) {
 /** Last visible modal/dialog overlay text (excludes the mobile nav bar). */
 export const modalText = async (p) => (await p.locator('div.fixed:not(.md\\:hidden)').last().innerText()).replace(/\n+/g, ' | ');
 
-/** Nav helpers (Indonesian UI labels). */
+/** Nav helpers (Indonesian/English labels). Works on desktop (sidebar) and phones (bottom bar). */
+const nav = (p, re) => p.locator('aside button, div.md\\:hidden button').filter({ hasText: re }).locator('visible=true').first().click();
 export const goto = {
-  cockpit: (p) => p.locator('aside button', { hasText: /Dasbor Hari Ini|Today's Cockpit/ }).first().click(),
-  classes: (p) => p.locator('aside button', { hasText: /Kelas & Siswa|Classes & Students/ }).first().click(),
-  lessons: (p) => p.locator('aside button', { hasText: /Rencana Mengajar|Lesson Planner/ }).first().click(),
-  claims: (p) => p.locator('aside button', { hasText: /Klaim & Laporan|Claims & Reports/ }).first().click(),
-  settings: (p) => p.locator('aside button', { hasText: /Pengaturan|Settings/ }).first().click(),
+  cockpit: (p) => nav(p, /Dasbor Hari Ini|Today's Cockpit/),
+  classes: (p) => nav(p, /Kelas & Siswa|Classes & Students/),
+  lessons: (p) => nav(p, /Rencana Mengajar|Lesson Planner/),
+  claims: (p) => nav(p, /Klaim & Laporan|Claims & Reports/),
+  settings: (p) => nav(p, /Pengaturan|Settings/),
 };

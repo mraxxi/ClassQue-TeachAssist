@@ -83,7 +83,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   });
 
   return createPortal(
-    <div className="print-portal fixed inset-0 z-50 bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+    <div className="print-portal fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
       <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto print:max-w-none print:shadow-none print:border-none print:p-0 print:m-0">
         
         {/* Action Header (Hidden in Print) */}
@@ -104,6 +104,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             </button>
             <button
               onClick={onClose}
+              aria-label="Tutup / Close"
               className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -137,7 +138,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
           </div>
 
           {/* Student Identity Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-[#FCFAF7] border border-stone-200 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-(--app-paper) border border-stone-200 text-xs">
             <div>
               <span className="text-[10px] font-extrabold text-stone-400 uppercase tracking-wider block">
                 {language === 'id' ? 'Nama Siswa' : 'Student Name'}
@@ -235,7 +236,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                   {evaluations.map((ev, idx) => {
                     const scoreObj = getScoreLabel(ev.score);
                     return (
-                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#FCFAF7]'}>
+                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-(--app-paper)'}>
                         <td className="p-2.5 border border-stone-200 font-mono font-bold text-stone-700">
                           {ev.milestone.code}
                         </td>

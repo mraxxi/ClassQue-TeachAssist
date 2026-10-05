@@ -58,7 +58,6 @@ export const LessonPlannerHub: React.FC = () => {
   const handleDeleteConfirm = () => {
     if (!confirmDeletePlan) return;
     deleteLessonPlan(confirmDeletePlan.id);
-    addToast(language === 'id' ? 'RPP berhasil dihapus' : 'Lesson plan deleted', 'info');
     setConfirmDeletePlan(null);
   };
 
@@ -113,9 +112,19 @@ export const LessonPlannerHub: React.FC = () => {
 
           <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
             {filteredPlans.length === 0 ? (
-              <div className="p-8 text-center text-stone-400 text-xs">
-                <p>{language === 'id' ? 'Tidak ada RPP yang sesuai.' : 'No lesson plans found.'}</p>
-              </div>
+              lessonPlans.length === 0 ? (
+                <div className="p-6 text-center space-y-3" data-testid="plans-empty">
+                  <p className="text-sm font-bold text-stone-800">{language === 'id' ? 'Belum ada rencana pembelajaran' : 'No lesson plans yet'}</p>
+                  <p className="text-xs text-stone-600">{language === 'id' ? 'Susun pelajaran dalam 5 tahap dengan bank kosakata, lalu pakai langsung di Kokpit.' : 'Draft a 5-stage lesson with a vocabulary bank, then use it live in the Cockpit.'}</p>
+                  <button onClick={handleOpenAdd} className="px-4 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold cursor-pointer">
+                    {language === 'id' ? 'Buat RPP Pertama' : 'Create your first plan'}
+                  </button>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-stone-500 text-xs">
+                  <p>{language === 'id' ? 'Tidak ada RPP yang sesuai.' : 'No lesson plans found.'}</p>
+                </div>
+              )
             ) : (
               filteredPlans.map((plan) => {
                 const isSelected = plan.id === activePlan?.id;
@@ -137,7 +146,7 @@ export const LessonPlannerHub: React.FC = () => {
                         {plan.durationMinutes} min
                       </span>
                     </div>
-                    <h4 className="text-xs font-bold text-stone-900 truncate">{plan.title}</h4>
+                    <h3 className="text-xs font-bold text-stone-900 truncate">{plan.title}</h3>
                     <p className="text-[11px] text-stone-500 truncate mt-0.5">{plan.topic || 'General Lesson'}</p>
                   </div>
                 );
@@ -200,7 +209,7 @@ export const LessonPlannerHub: React.FC = () => {
 
                     <button
                       onClick={() => setConfirmDeletePlan(activePlan)}
-                      className="p-2.5 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                      className="p-2.5 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition-colors cursor-pointer"
                       title="Delete Lesson Plan"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -218,10 +227,10 @@ export const LessonPlannerHub: React.FC = () => {
 
               {/* 5 Lesson Stages Stack */}
               <div className="space-y-3">
-                <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-teal-700" />
                   5 Tahap Alur Pembelajaran (Pedagogical Delivery)
-                </h4>
+                </h3>
 
                 <div className="space-y-2.5">
                   {stages.map((stg) => (
@@ -246,10 +255,10 @@ export const LessonPlannerHub: React.FC = () => {
               {/* Vocabulary Table */}
               {activePlan.vocabulary && activePlan.vocabulary.length > 0 && (
                 <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <h3 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
                     <BookOpen className="w-3.5 h-3.5 text-teal-700" />
                     Target Vocabulary Bank ({activePlan.vocabulary.length})
-                  </h4>
+                  </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {activePlan.vocabulary.map((vocab, idx) => (
                       <div key={idx} className="p-3 rounded-2xl bg-stone-50 border border-stone-200/80 text-xs space-y-0.5">

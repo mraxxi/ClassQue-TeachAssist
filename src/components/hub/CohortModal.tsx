@@ -117,7 +117,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
   const isEditing = !!cohortToEdit;
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
       <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-7 space-y-5 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
@@ -141,6 +141,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Tutup / Close"
             className="text-stone-400 hover:text-stone-600 p-2 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -173,6 +174,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
                 {language === 'id' ? 'Target Tingkat CEFR' : 'Target CEFR Level'}
               </label>
               <select
+                aria-label={language === 'id' ? 'Target level CEFR' : 'Target CEFR level'}
                 value={cefrLevel}
                 onChange={(e) => setCefrLevel(e.target.value as CEFRLevel)}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-bold"
@@ -191,6 +193,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
                 {language === 'id' ? 'Durasi Sesi (Menit)' : 'Duration (Minutes)'}
               </label>
               <select
+                aria-label={language === 'id' ? 'Durasi' : 'Duration'}
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-medium"
@@ -237,6 +240,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
               </label>
               <input
                 type="time"
+                aria-label={language === 'id' ? 'Jam mulai' : 'Start time'}
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-mono"

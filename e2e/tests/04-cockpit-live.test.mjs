@@ -14,7 +14,7 @@ const status = await p.locator('[data-testid="next-class-status"]').innerText();
 check('5.4 next-class card focuses the live cohort', /Starters/.test(await txt(p, 'main')) && /berlangsung/i.test(status), status);
 check('5.5 roll-call card follows the same cohort (Starters has 1 student)', /Cambridge Starters A1 • 1 siswa/.test(await txt(p, 'main')), (await txt(p, 'main')).match(/Cambridge [^|]* • \d+ siswa/)?.[0]);
 check('5.6 monthly claim KPI has no hard-coded fallback (no October sessions -> Rp 0)', /^Rp\s?0$/.test((await kpi(p, 'KLAIM BULAN INI')) || ''), await kpi(p, 'KLAIM BULAN INI'));
-check('5.7 no unrecorded student is shown as present on the roll-call card', await p.locator('main button.bg-emerald-500').count() === 0);
+check('5.7 no unrecorded student is shown as present on the roll-call card', (await p.locator('main [role=radio]').count()) > 0 && (await p.locator('main [role=radio][aria-checked=true]').count()) === 0);
 // switch focus to Flyers: countdown + their roster
 await p.locator('main select').first().selectOption('cohort-1'); await p.waitForTimeout(300);
 const st2 = await p.locator('[data-testid="next-class-status"]').innerText();

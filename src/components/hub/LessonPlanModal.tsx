@@ -167,7 +167,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
   const isEditing = !!planToEdit;
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
       <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
         
         {/* Header */}
@@ -191,6 +191,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Tutup / Close"
             className="text-stone-400 hover:text-stone-600 p-2 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -226,6 +227,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                   {language === 'id' ? 'Target Kelas / Rombel' : 'Cohort (Optional)'}
                 </label>
                 <select
+                aria-label={language === 'id' ? 'Rombel sasaran' : 'Target cohort'}
                   value={cohortId}
                   onChange={(e) => setCohortId(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
@@ -260,6 +262,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                   {language === 'id' ? 'Tingkat CEFR' : 'CEFR Level'}
                 </label>
                 <select
+                aria-label={language === 'id' ? 'Level CEFR' : 'CEFR level'}
                   value={cefrLevel}
                   onChange={(e) => setCefrLevel(e.target.value as CEFRLevel)}
                   className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-bold"
@@ -278,6 +281,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                   {language === 'id' ? 'Durasi (Menit)' : 'Duration (Minutes)'}
                 </label>
                 <select
+                aria-label={language === 'id' ? 'Durasi' : 'Duration'}
                   value={durationMinutes}
                   onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
                   className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
@@ -405,6 +409,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                   </div>
                   <div className="sm:col-span-2">
                     <select
+                aria-label={language === 'id' ? 'Jenis kata (POS)' : 'Part of speech'}
                       value={v.pos}
                       onChange={(e) => handleUpdateVocabItem(idx, 'pos', e.target.value)}
                       className="w-full px-2 py-1.5 text-xs bg-white border border-stone-200 rounded-lg text-stone-700 font-mono"
@@ -438,7 +443,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoveVocabItem(idx)}
-                      className="p-1.5 text-stone-400 hover:text-rose-600 rounded-lg"
+                      className="p-1.5 text-stone-400 hover:text-rose-700 rounded-lg"
                       title="Remove word"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -510,7 +515,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoveLink(idx)}
-                      className="text-stone-400 hover:text-rose-600 p-1"
+                      className="text-stone-400 hover:text-rose-700 p-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

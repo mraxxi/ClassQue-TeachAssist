@@ -36,7 +36,7 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
   ];
 
   return createPortal(
-    <div className="print-portal fixed inset-0 z-50 bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+    <div className="print-portal fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
       <div className="print-sheet bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto print:max-w-none print:shadow-none print:border-none print:p-0 print:m-0">
         
         {/* Action Header (Hidden in Print) */}
@@ -54,6 +54,7 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
             </button>
             <button
               onClick={onClose}
+              aria-label="Tutup / Close"
               className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -108,10 +109,10 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
 
           {/* The 5 Pedagogical Stages */}
           <div className="space-y-3">
-            <h3 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-stone-200 pb-1">
+            <h2 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-stone-200 pb-1">
               <Layers className="w-4 h-4 text-teal-700" />
               5-Stage Pedagogical Delivery Flow
-            </h3>
+            </h2>
 
             <div className="space-y-2.5">
               {stages.map((stg) => (
@@ -129,10 +130,10 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
           {/* Target Vocabulary */}
           {lessonPlan.vocabulary && lessonPlan.vocabulary.length > 0 && (
             <div className="space-y-2 pt-2">
-              <h3 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-stone-200 pb-1">
+              <h2 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-stone-200 pb-1">
                 <BookOpen className="w-4 h-4 text-teal-700" />
                 Target Vocabulary Bank
-              </h3>
+              </h2>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {lessonPlan.vocabulary.map((vocab, idx) => (

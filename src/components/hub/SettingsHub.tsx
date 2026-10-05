@@ -15,7 +15,7 @@ export const SettingsHub: React.FC = () => {
     cohorts, students, attendanceRecords, lessonPlans, tasks, 
     sessions, claims, studentEvaluations, parentReports, cefrMilestones,
     importFullDatabase, reloadFromEdge, syncDatabaseToEdge, fetchDatabaseFromEdge,
-    syncAuthStatus, hasUnsyncedChanges,
+    syncAuthStatus, hasUnsyncedChanges, theme, setTheme,
   } = useTeacherStore();
   const t = useTranslation(language);
 
@@ -211,6 +211,7 @@ export const SettingsHub: React.FC = () => {
               {language === 'id' ? 'Nama Lengkap Guru' : 'Teacher Full Name'}
             </label>
             <input
+              aria-label={language === 'id' ? 'Nama lengkap guru' : 'Teacher full name'}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -223,6 +224,7 @@ export const SettingsHub: React.FC = () => {
               {language === 'id' ? 'Email Guru' : 'Teacher Email'}
             </label>
             <input
+              aria-label={language === 'id' ? 'Email guru' : 'Teacher email'}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -235,6 +237,7 @@ export const SettingsHub: React.FC = () => {
               {language === 'id' ? 'Nama Sekolah / Lembaga Kursus' : 'School / Academy Name'}
             </label>
             <input
+              aria-label={language === 'id' ? 'Nama sekolah / lembaga' : 'School / institution name'}
               type="text"
               value={schoolName}
               onChange={(e) => setSchoolName(e.target.value)}
@@ -248,6 +251,7 @@ export const SettingsHub: React.FC = () => {
             </label>
             <div className="flex items-center gap-2">
               <input
+              aria-label={language === 'id' ? 'Tarif honor standar per jam' : 'Default hourly rate'}
                 type="number"
                 value={hourlyRate}
                 onChange={(e) => setHourlyRate(e.target.value)}
@@ -262,7 +266,7 @@ export const SettingsHub: React.FC = () => {
 
         {/* Language Preferences */}
         <div className="border-t border-stone-100 pt-4 space-y-3">
-          <h3 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider text-stone-400">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-stone-600">
             {language === 'id' ? 'Preferensi Bahasa Antarmuka' : 'UI Language Preference'}
           </h3>
 
@@ -285,6 +289,33 @@ export const SettingsHub: React.FC = () => {
             >
               🇬🇧 English
             </button>
+          </div>
+        </div>
+
+        {/* Appearance */}
+        <div className="border-t border-stone-100 pt-4 space-y-3">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-stone-600" id="theme-heading">
+            {language === 'id' ? 'Tampilan' : 'Appearance'}
+          </h3>
+          <div role="radiogroup" aria-labelledby="theme-heading" className="flex flex-wrap items-center gap-3" data-testid="theme-picker">
+            {([
+              ['light', language === 'id' ? '☀️ Terang' : '☀️ Light'],
+              ['dark', language === 'id' ? '🌙 Gelap' : '🌙 Dark'],
+              ['system', language === 'id' ? '💻 Ikuti sistem' : '💻 Match system'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={theme === value}
+                onClick={() => setTheme(value)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${
+                  theme === value ? 'bg-teal-800 text-white shadow-xs' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -314,7 +345,7 @@ export const SettingsHub: React.FC = () => {
                 : 'Download a complete JSON snapshot of your teaching database or restore from a previous file.'}
             </p>
           </div>
-          <ShieldCheck className="w-5 h-5 text-emerald-600" />
+          <ShieldCheck className="w-5 h-5 text-emerald-700" />
         </div>
 
         {/* Actions Grid */}
@@ -372,7 +403,7 @@ export const SettingsHub: React.FC = () => {
             className="p-4 rounded-2xl bg-rose-50/60 hover:bg-rose-100/80 border border-rose-200 text-rose-900 transition-all text-left flex flex-col justify-between group cursor-pointer shadow-xs"
           >
             <div className="flex items-center justify-between">
-              <RotateCcw className="w-5 h-5 text-rose-600 group-hover:rotate-45 transition-transform" />
+              <RotateCcw className="w-5 h-5 text-rose-700 group-hover:rotate-45 transition-transform" />
               <span className="text-[10px] font-extrabold bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-md">RESET</span>
             </div>
             <div className="mt-3">
@@ -415,7 +446,7 @@ export const SettingsHub: React.FC = () => {
       </div>
 
       {/* Cloudflare D1 & Edge Diagnostics */}
-      <div className="bg-stone-900 rounded-3xl p-6 text-white space-y-4 shadow-md">
+      <div className="theme-original bg-stone-900 rounded-3xl p-6 text-white space-y-4 shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 pb-4">
           <div>
             <h4 className="font-extrabold flex items-center gap-2 text-sm text-teal-400">

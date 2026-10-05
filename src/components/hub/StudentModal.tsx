@@ -115,7 +115,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   const isEditing = !!studentToEdit;
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
       <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-7 space-y-5 animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
         
         {/* Header */}
@@ -139,6 +139,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Tutup / Close"
             className="text-stone-400 hover:text-stone-600 p-2 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -154,6 +155,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               {language === 'id' ? 'Kelas / Rombongan Belajar' : 'Assigned Cohort'} *
             </label>
             <select
+                aria-label={language === 'id' ? 'Rombel' : 'Cohort'}
               value={cohortId}
               onChange={(e) => setCohortId(e.target.value)}
               className="w-full px-3.5 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-bold"
@@ -230,6 +232,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               </label>
               <input
                 type="date"
+                aria-label={language === 'id' ? 'Tanggal lahir' : 'Date of birth'}
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-mono"
@@ -291,7 +294,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1 flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
                 {language === 'id' ? 'Kelebihan / Kekuatan Siswa' : 'Academic Strengths'}
               </label>
               <textarea
@@ -305,7 +308,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1 flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
+                <TrendingUp className="w-3.5 h-3.5 text-amber-700" />
                 {language === 'id' ? 'Area yang Perlu Ditingkatkan' : 'Growth Areas'}
               </label>
               <textarea

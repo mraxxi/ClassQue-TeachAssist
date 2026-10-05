@@ -2,7 +2,8 @@ import React from 'react';
 import { Clock, Users, CheckSquare, Receipt } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
-import { ClassroomClock } from '../common/ClassroomClock';
+import { CockpitGreeting } from './CockpitGreeting';
+import { OnboardingChecklist } from './OnboardingChecklist';
 import { NextClassCard } from './NextClassCard';
 import { RollCallQuickCard } from './RollCallQuickCard';
 import { ScheduleTimeline } from './ScheduleTimeline';
@@ -75,29 +76,32 @@ export const DashboardCockpit: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
+    <div className="space-y-4 sm:space-y-6 pb-12 animate-in fade-in duration-200">
       
-      {/* Real-time Classroom Clock & Local Timezone Banner */}
-      <ClassroomClock />
+      {/* Greeting + what happens next (the live clock is in the header; phones get a compact one here) */}
+      <CockpitGreeting />
+
+      {/* First-run guide (hidden once a cohort and a student exist) */}
+      <OnboardingChecklist />
 
       {/* 4 Pulse KPI Metric Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {kpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
             <div
               key={idx}
-              className="bg-white rounded-3xl p-5 border border-stone-200/90 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs"
+              className="bg-white rounded-3xl p-3.5 sm:p-5 border border-stone-200/90 shadow-2xs flex items-center justify-between gap-2 transition-all hover:shadow-xs min-w-0"
             >
               <div>
-                <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
+                <span className="text-[10px] sm:text-[11px] font-bold text-stone-600 uppercase tracking-wider block">
                   {kpi.label}
                 </span>
-                <span className="text-xl sm:text-2xl font-black text-stone-900 mt-1 block tracking-tight">
+                <span className="text-base sm:text-2xl font-black text-stone-900 mt-0.5 sm:mt-1 block tracking-tight break-words">
                   {kpi.value}
                 </span>
               </div>
-              <div className={`p-3 rounded-2xl border ${kpi.color}`}>
+              <div className={`hidden sm:block p-3 rounded-2xl border shrink-0 ${kpi.color}`} aria-hidden="true">
                 <Icon className="w-5 h-5" />
               </div>
             </div>

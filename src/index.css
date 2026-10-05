@@ -1,21 +1,33 @@
 @import "tailwindcss";
+@import "./dark-theme.css";
 
 @layer base {
   :root {
-    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    --font-heading: 'Plus Jakarta Sans', var(--font-sans);
+    --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --font-heading: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', var(--font-sans);
+    --app-bg: #F6F4EF;
+    --app-fg: #1E293B;
+    --app-paper: #FCFAF7;
+    /* WCAG AA: Tailwind's stone-400/500 are < 4.5:1 for small text on white / stone-50 / stone-100 */
+    --color-stone-400: oklch(53% 0.012 56);
+    --color-stone-500: oklch(46% 0.012 56);
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #F6F4EF;
-    color: #1E293B;
+    background-color: var(--app-bg);
+    color: var(--app-fg);
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     letter-spacing: -0.02em;
   }
+}
+
+/* Modal backdrop: always a dark translucent scrim (stone-950/N would turn light in dark mode) */
+.scrim {
+  background-color: rgb(12 10 9 / 0.72);
 }
 
 /* Custom Scrollbar */

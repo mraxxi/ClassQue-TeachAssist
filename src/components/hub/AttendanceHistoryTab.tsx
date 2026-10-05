@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { 
   Calendar, ChevronLeft, ChevronRight, CheckCheck, 
-  Clock, AlertCircle, CheckCircle2, XCircle, FileEdit
+  FileEdit
 } from 'lucide-react';
 import { Cohort, Student, AttendanceStatus } from '../../types';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
+import { AttendanceControl, RollCallProgress } from '../common/AttendanceControl';
 import { addDaysStr, localDateStr } from '../../utils/date';
 
 interface AttendanceHistoryTabProps {
@@ -39,13 +40,6 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
   /** `undefined` = not recorded yet. Unrecorded never counts as present. */
   const getStudentStatus = (studentId: string, date: string): AttendanceStatus | undefined =>
     getStudentStatusRecord(studentId, date)?.status;
-
-  const statusConfigs: { key: AttendanceStatus; label: string; activeClass: string; badgeClass: string; icon: any }[] = [
-    { key: 'present', label: language === 'id' ? 'Hadir (H)' : 'Present (P)', activeClass: 'bg-emerald-600 text-white shadow-xs', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
-    { key: 'absent', label: language === 'id' ? 'Alpa (A)' : 'Absent (A)', activeClass: 'bg-rose-600 text-white shadow-xs', badgeClass: 'bg-rose-100 text-rose-800 border-rose-200', icon: XCircle },
-    { key: 'late', label: language === 'id' ? 'Terlambat (T)' : 'Late (L)', activeClass: 'bg-amber-600 text-white shadow-xs', badgeClass: 'bg-amber-100 text-amber-800 border-amber-200', icon: Clock },
-    { key: 'excused', label: language === 'id' ? 'Izin (I)' : 'Excused (E)', activeClass: 'bg-sky-600 text-white shadow-xs', badgeClass: 'bg-sky-100 text-sky-800 border-sky-200', icon: AlertCircle },
-  ];
 
   // Selected date statistics
   const presentCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'present').length;
@@ -94,6 +88,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
             <Calendar className="w-3.5 h-3.5 text-teal-700" />
             <input
               type="date"
+                aria-label={language === 'id' ? 'Tanggal presensi' : 'Attendance date'}
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="bg-transparent focus:outline-none cursor-pointer font-mono"
@@ -162,25 +157,25 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
           <span className="text-xl font-black text-teal-900 mt-0.5 block">{attendanceRate === null ? '—' : `${attendanceRate}%`}</span>
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
-          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
+          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
             {language === 'id' ? 'Hadir' : 'Present'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{presentCount}</span>
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
-          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
+          <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">
             {language === 'id' ? 'Alpa' : 'Absent'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{absentCount}</span>
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
-          <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
+          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
             {language === 'id' ? 'Terlambat' : 'Late'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{lateCount}</span>
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
-          <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider block">
+          <span className="text-[10px] font-bold text-sky-700 uppercase tracking-wider block">
             {language === 'id' ? 'Izin' : 'Excused'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{excusedCount}</span>
@@ -200,9 +195,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
             <h3 className="text-sm font-extrabold text-stone-900">
               {language === 'id' ? 'Daftar Presensi Sesi:' : 'Session Roster:'} <span className="font-mono text-teal-800">{selectedDate}</span>
             </h3>
-            <span className="text-xs text-stone-500 font-medium">
-              {cohortStudents.length} {language === 'id' ? 'Siswa' : 'Students'}
-            </span>
+            <RollCallProgress recorded={recordedCount} total={cohortStudents.length} language={language} />
           </div>
 
           <div className="divide-y divide-stone-100">
@@ -230,22 +223,12 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
 
                     {/* 1-Click Status Selector & Note Trigger */}
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200">
-                        {statusConfigs.map((cfg) => {
-                          const isSelected = currentStatus === cfg.key;
-                          return (
-                            <button
-                              key={cfg.key}
-                              onClick={() => setAttendance(st.id, activeCohort.id, selectedDate, cfg.key, rec?.note)}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                isSelected ? cfg.activeClass : 'text-stone-600 hover:bg-stone-200'
-                              }`}
-                            >
-                              {cfg.label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <AttendanceControl
+                        value={currentStatus}
+                        language={language}
+                        label={st.fullName}
+                        onChange={(status) => setAttendance(st.id, activeCohort.id, selectedDate, status, rec?.note)}
+                      />
 
                       <button
                         onClick={() => {

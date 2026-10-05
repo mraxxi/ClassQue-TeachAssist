@@ -22,6 +22,8 @@ CHROMIUM=/usr/bin/chromium-browser npm run test:e2e
 | `07-sync-offline` | Stages 11, 12, 14, W8 (debounce, in-flight edits, offline reload via service worker, diagnostics, cookies) |
 | `08-api` / `08b-api-unconfigured` | Stage 15, W2 (auth, fail-closed, validation, falsy values, tombstones, summary) |
 | `09-tasks-notifications` | Stages 10 + 13 (lesson deadlines, overdue, dynamic notifications) |
+| `10-delta-sync` | FR-020: two devices sharing one D1 — delta payloads, incremental pull, offline edits, last-write-wins, delete propagation, edit-beats-delete |
+| `11-ux` | Stage 17: roll-call control, phone layouts, Undo (cross-device), onboarding, dark mode, fonts, shortcuts, offline lazy chunks, axe-core audit |
 
 ## Conventions
 - Pin time with `open({ time })` (the clock keeps ticking) and use `Asia/Jakarta`; many bugs only show near

@@ -50,11 +50,11 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({ isOp
   const getCategoryIcon = (cat: NotificationItem['category']) => {
     switch (cat) {
       case 'schedule':
-        return <Clock className="w-4 h-4 text-sky-600" />;
+        return <Clock className="w-4 h-4 text-sky-700" />;
       case 'task':
-        return <CheckSquare className="w-4 h-4 text-amber-600" />;
+        return <CheckSquare className="w-4 h-4 text-amber-700" />;
       case 'claim':
-        return <Receipt className="w-4 h-4 text-emerald-600" />;
+        return <Receipt className="w-4 h-4 text-emerald-700" />;
       case 'attendance':
         return <Users className="w-4 h-4 text-teal-600" />;
       default:
@@ -102,6 +102,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({ isOp
           )}
           <button
             onClick={onClose}
+            aria-label="Tutup / Close"
             className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -161,7 +162,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({ isOp
           </span>
           <button
             onClick={() => clearNotifications()}
-            className="text-stone-500 hover:text-rose-600 transition-colors flex items-center gap-1 font-medium cursor-pointer"
+            className="text-stone-500 hover:text-rose-700 transition-colors flex items-center gap-1 font-medium cursor-pointer"
           >
             <Trash2 className="w-3 h-3" />
             <span>{language === 'id' ? 'Bersihkan Semua' : 'Clear All'}</span>

@@ -24,7 +24,7 @@ export const ClassroomClock: React.FC<ClassroomClockProps> = ({ compact = false,
   const minutesUntil = nextSlot ? Math.ceil((nextSlot.start.getTime() - now.getTime()) / 60000) : null;
   const proximity: 'live' | 'soon' | 'none' =
     nextSlot?.status === 'live' ? 'live' : nextSlot && minutesUntil !== null && minutesUntil <= 30 ? 'soon' : 'none';
-  const proximityColor = proximity === 'live' ? 'text-emerald-600' : proximity === 'soon' ? 'text-amber-500' : 'text-teal-700';
+  const proximityColor = proximity === 'live' ? 'text-emerald-700' : proximity === 'soon' ? 'text-amber-500' : 'text-teal-700';
   const proximityLabel =
     proximity === 'live'
       ? (language === 'id' ? 'Kelas berlangsung' : 'Class in progress')

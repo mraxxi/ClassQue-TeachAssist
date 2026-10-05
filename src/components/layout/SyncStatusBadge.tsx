@@ -33,7 +33,7 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
       <button
         type="button"
         onClick={() => setIsDiagnosticsOpen(true)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer select-none hover:shadow-xs hover:scale-[1.02] active:scale-95 ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 whitespace-nowrap rounded-full text-xs font-semibold border transition-all cursor-pointer select-none hover:shadow-xs hover:scale-[1.02] active:scale-95 ${
           isSyncingWithEdge
             ? 'bg-blue-50 text-blue-800 border-blue-200'
             : !isOnline
@@ -64,19 +64,19 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
         ) : !isOnline ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            <CloudOff className="w-3.5 h-3.5 text-amber-600" />
+            <CloudOff className="w-3.5 h-3.5 text-amber-700" />
             {!compact && <span>{language === 'id' ? 'Luar Jaringan' : 'Offline'}</span>}
           </>
         ) : authProblem ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
             {!compact && <span>{syncAuthStatus === 'missing' ? (language === 'id' ? 'Perlu Token' : 'Token Needed') : syncAuthStatus === 'rejected' ? (language === 'id' ? 'Token Ditolak' : 'Token Rejected') : (language === 'id' ? 'Server Belum Diatur' : 'Server Not Set')}</span>}
           </>
         ) : hasUnsyncedChanges ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
             {!compact && <span>{language === 'id' ? 'Belum Tersinkron' : 'Unsynced'}</span>}
           </>
         ) : isEdgeConnected ? (

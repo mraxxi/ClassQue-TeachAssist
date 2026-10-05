@@ -8,7 +8,7 @@ import type { SlotStatus } from '../../utils/schedule';
 
 const STATUS_LABEL: Record<SlotStatus, { id: string; en: string; chip: string; card: string; dot: string }> = {
   completed: { id: 'SELESAI', en: 'COMPLETED', chip: 'bg-emerald-100 text-emerald-800', card: 'bg-emerald-50/40 border-emerald-200/70', dot: 'bg-emerald-500 ring-emerald-200' },
-  live: { id: 'BERLANGSUNG', en: 'LIVE NOW', chip: 'bg-rose-600 text-white shadow-2xs', card: 'bg-rose-50/60 border-rose-200', dot: 'bg-rose-500 ring-rose-200 scale-110' },
+  live: { id: 'BERLANGSUNG', en: 'LIVE NOW', chip: 'bg-rose-700 text-white shadow-2xs', card: 'bg-rose-50/60 border-rose-200', dot: 'bg-rose-500 ring-rose-200 scale-110' },
   upcoming: { id: 'BERIKUTNYA', en: 'UPCOMING', chip: 'bg-teal-800 text-white shadow-2xs', card: 'bg-teal-50/70 border-teal-200 shadow-2xs', dot: 'bg-teal-700 ring-teal-200 scale-110' },
   later: { id: 'NANTI', en: 'LATER', chip: 'bg-stone-200/80 text-stone-600', card: 'bg-stone-50/60 border-stone-200/70 hover:bg-stone-100/70', dot: 'bg-stone-300 ring-stone-100' },
   missed: { id: 'TERLEWAT', en: 'MISSED', chip: 'bg-amber-100 text-amber-800', card: 'bg-amber-50/50 border-amber-200/70', dot: 'bg-amber-400 ring-amber-100' },

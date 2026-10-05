@@ -261,10 +261,12 @@ export const UrgentTasksCard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => toggleTask(task.id)}
-                className="mt-0.5 text-stone-400 hover:text-teal-700 transition-colors shrink-0 cursor-pointer"
+                aria-label={`${task.isCompleted ? (language === 'id' ? 'Tandai belum selesai' : 'Mark as not done') : (language === 'id' ? 'Tandai selesai' : 'Mark as done')}: ${task.title}`}
+                aria-pressed={task.isCompleted}
+                className="mt-0.5 text-stone-500 hover:text-teal-700 transition-colors shrink-0 cursor-pointer"
               >
                 {task.isCompleted ? (
-                  <CheckSquare2 className="w-4 h-4 text-emerald-600" />
+                  <CheckSquare2 className="w-4 h-4 text-emerald-700" />
                 ) : (
                   <Square className="w-4 h-4" />
                 )}
@@ -298,7 +300,7 @@ export const UrgentTasksCard: React.FC = () => {
                   )}
 
                   {task.priority === 'urgent' && (
-                    <span className="text-rose-600 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-0.5">
+                    <span className="text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-0.5">
                       <AlertCircle className="w-2.5 h-2.5" /> Urgent
                     </span>
                   )}
@@ -308,7 +310,7 @@ export const UrgentTasksCard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => deleteTask(task.id)}
-                className="text-stone-300 hover:text-rose-600 p-1 transition-colors shrink-0 cursor-pointer"
+                className="text-stone-300 hover:text-rose-700 p-1 transition-colors shrink-0 cursor-pointer"
                 title="Delete task"
               >
                 <Trash2 className="w-3.5 h-3.5" />

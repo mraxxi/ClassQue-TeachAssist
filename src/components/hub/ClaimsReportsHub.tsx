@@ -223,7 +223,6 @@ _${teacher.schoolName || ''}_`;
   const handleDeleteSessionConfirm = () => {
     if (!sessionToDelete) return;
     deleteSession(sessionToDelete.id);
-    addToast(language === 'id' ? 'Sesi berhasil dihapus' : 'Session deleted', 'info');
     setSessionToDelete(null);
   };
 
@@ -288,7 +287,7 @@ _${teacher.schoolName || ''}_`;
                 : 'text-stone-500 hover:text-stone-900'
             }`}
           >
-            <MessageSquare className="w-4 h-4 text-emerald-600" />
+            <MessageSquare className="w-4 h-4 text-emerald-700" />
             <span>{t.hubs.parentReportsTab}</span>
           </button>
         </div>
@@ -306,6 +305,7 @@ _${teacher.schoolName || ''}_`;
                 {language === 'id' ? 'Pilih Periode Bulan:' : 'Select Claim Period:'}
               </label>
               <select
+                aria-label={language === 'id' ? 'Periode klaim' : 'Claim period'}
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="px-3.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-teal-700"
@@ -336,12 +336,12 @@ _${teacher.schoolName || ''}_`;
           </div>
 
           {/* Metric Cards Banner */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-xs">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white rounded-3xl p-3.5 sm:p-5 border border-stone-200 shadow-xs">
               <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider block">
                 {language === 'id' ? 'Total Sesi Terverifikasi' : 'Verified Sessions'}
               </span>
-              <p className="text-2xl font-black text-stone-900 mt-1 font-mono">
+              <p className="text-lg sm:text-2xl font-black text-stone-900 mt-1 font-mono break-words">
                 {monthlySessions.length} <span className="text-xs font-medium text-stone-400 font-sans">sesi</span>
               </p>
               <p className="text-[11px] text-stone-400 mt-0.5">
@@ -349,11 +349,11 @@ _${teacher.schoolName || ''}_`;
               </p>
             </div>
 
-            <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-xs">
+            <div className="bg-white rounded-3xl p-3.5 sm:p-5 border border-stone-200 shadow-xs">
               <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider block">
                 {language === 'id' ? 'Honor Pokok Sesi' : 'Base Honorarium'}
               </span>
-              <p className="text-2xl font-black text-stone-900 mt-1 font-mono">
+              <p className="text-lg sm:text-2xl font-black text-stone-900 mt-1 font-mono break-words">
                 {formatIDR(baseAmount)}
               </p>
               <p className="text-[11px] text-stone-400 mt-0.5">
@@ -361,13 +361,14 @@ _${teacher.schoolName || ''}_`;
               </p>
             </div>
 
-            <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-xs">
+            <div className="col-span-2 lg:col-span-1 bg-white rounded-3xl p-3.5 sm:p-5 border border-stone-200 shadow-xs">
               <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider block">
                 {language === 'id' ? 'Tunjangan & Ekstra' : 'Allowances & Extras'}
               </span>
               <div className="mt-1 flex items-center gap-1.5">
                 <input
                   type="number"
+                  aria-label={language === 'id' ? 'Tunjangan & ekstra (Rp)' : 'Allowances & extras'}
                   step="50000"
                   min={0}
                   value={allowanceInput}
@@ -382,7 +383,7 @@ _${teacher.schoolName || ''}_`;
               <p className="text-[11px] text-stone-400 mt-0.5">Transport & materi</p>
             </div>
 
-            <div className="bg-gradient-to-br from-teal-800 to-teal-950 rounded-3xl p-5 text-white shadow-md">
+            <div className="theme-original col-span-2 lg:col-span-1 bg-gradient-to-br from-teal-800 to-teal-950 rounded-3xl p-4 sm:p-5 text-white shadow-md">
               <span className="text-[11px] font-extrabold text-teal-300 uppercase tracking-wider block">
                 {language === 'id' ? 'Grand Total Klaim' : 'Total Claim Amount'}
               </span>
@@ -435,7 +436,7 @@ _${teacher.schoolName || ''}_`;
                 onClick={() => handleStatusChange('submitted')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   claimStatus === 'submitted'
-                    ? 'bg-amber-600 text-white shadow-xs'
+                    ? 'bg-amber-700 text-white shadow-xs'
                     : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
                 }`}
               >
@@ -457,7 +458,7 @@ _${teacher.schoolName || ''}_`;
                 onClick={() => handleStatusChange('paid')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   claimStatus === 'paid'
-                    ? 'bg-emerald-600 text-white shadow-xs'
+                    ? 'bg-emerald-700 text-white shadow-xs'
                     : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
                 }`}
               >
@@ -523,7 +524,7 @@ _${teacher.schoolName || ''}_`;
 
                         <button
                           onClick={() => setSessionToDelete(sess)}
-                          className="p-1.5 text-stone-300 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-stone-300 hover:text-rose-700 rounded-lg transition-colors cursor-pointer"
                           title="Delete session"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -590,10 +591,10 @@ _${teacher.schoolName || ''}_`;
             {/* Past Generated Reports History */}
             <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-extrabold text-stone-900 flex items-center gap-1.5">
+                <h3 className="text-xs font-extrabold text-stone-900 flex items-center gap-1.5">
                   <History className="w-3.5 h-3.5 text-stone-500" />
                   {language === 'id' ? 'Riwayat Rapor Siswa Ini' : 'Student Report History'}
-                </h4>
+                </h3>
                 <span className="text-[10px] text-stone-400 font-mono">
                   {studentReports.length} {language === 'id' ? 'tersimpan' : 'saved'}
                 </span>
@@ -660,10 +661,10 @@ _${teacher.schoolName || ''}_`;
             {/* Editable Teacher Narrative Feedback */}
             <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-extrabold text-stone-900 flex items-center gap-2">
+                <h3 className="text-xs font-extrabold text-stone-900 flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-teal-700" />
                   {language === 'id' ? 'Catatan & Narasi Evaluasi Guru' : 'Teacher Narrative Feedback & Recommendations'}
-                </h4>
+                </h3>
                 <button
                   onClick={handleSaveParentReport}
                   className="px-3.5 py-1.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
@@ -685,14 +686,14 @@ _${teacher.schoolName || ''}_`;
             {/* Format 1: WhatsApp Message Copy Card */}
             <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-extrabold text-stone-900 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-extrabold text-stone-900 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-emerald-700" />
                   {language === 'id' ? 'Format Pesan WhatsApp (1-Klik Salin & Kirim)' : 'WhatsApp Brief Format (1-Click Copy & Send)'}
-                </h4>
+                </h3>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleCopyWhatsApp}
-                    className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>{copyFeedback ? (language === 'id' ? 'Tersalin! ✓' : 'Copied! ✓') : (language === 'id' ? 'Salin Teks WA' : 'Copy WA Text')}</span>
@@ -720,10 +721,10 @@ _${teacher.schoolName || ''}_`;
             <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-extrabold text-stone-900 flex items-center gap-2">
+                  <h3 className="text-xs font-extrabold text-stone-900 flex items-center gap-2">
                     <Printer className="w-4 h-4 text-teal-700" />
                     {language === 'id' ? 'Lembar Rapor Cetak A4 / PDF Resmi' : 'Formal Printable A4 / PDF Report Card'}
-                  </h4>
+                  </h3>
                   <p className="text-[11px] text-stone-500 mt-0.5">
                     {language === 'id' 
                       ? 'Format lengkap dengan matriks kompetensi CEFR, tingkat kehadiran, dan kolom tanda tangan wali.' 
@@ -740,7 +741,7 @@ _${teacher.schoolName || ''}_`;
               </div>
 
               {/* Compact Mini Preview */}
-              <div className="p-4 border border-stone-200 rounded-2xl bg-[#FCFAF7] text-stone-900 text-xs space-y-2">
+              <div className="p-4 border border-stone-200 rounded-2xl bg-(--app-paper) text-stone-900 text-xs space-y-2">
                 <div className="flex items-center justify-between border-b border-stone-200 pb-2">
                   <span className="font-extrabold text-stone-700 uppercase">{teacher.schoolName}</span>
                   <span className="text-[10px] font-bold text-teal-800 font-mono">Period: {selectedMonth}</span>

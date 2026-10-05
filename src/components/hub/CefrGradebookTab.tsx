@@ -52,9 +52,9 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
 
   // Competency level definitions
   const competencyLevels: { score: CompetencyScore; shortLabel: string; fullEn: string; fullId: string; activeClass: string; badgeClass: string }[] = [
-    { score: 1, shortLabel: '1 • MB', fullEn: 'Emerging', fullId: 'Mulai Berkembang (MB)', activeClass: 'bg-amber-600 text-white shadow-xs', badgeClass: 'bg-amber-100 text-amber-800' },
-    { score: 2, shortLabel: '2 • SB', fullEn: 'Developing', fullId: 'Sedang Berkembang (SB)', activeClass: 'bg-sky-600 text-white shadow-xs', badgeClass: 'bg-sky-100 text-sky-800' },
-    { score: 3, shortLabel: '3 • TC', fullEn: 'Achieved', fullId: 'Tercapai Sesuai Harapan (TC)', activeClass: 'bg-emerald-600 text-white shadow-xs', badgeClass: 'bg-emerald-100 text-emerald-800' },
+    { score: 1, shortLabel: '1 • MB', fullEn: 'Emerging', fullId: 'Mulai Berkembang (MB)', activeClass: 'bg-amber-700 text-white shadow-xs', badgeClass: 'bg-amber-100 text-amber-800' },
+    { score: 2, shortLabel: '2 • SB', fullEn: 'Developing', fullId: 'Sedang Berkembang (SB)', activeClass: 'bg-sky-700 text-white shadow-xs', badgeClass: 'bg-sky-100 text-sky-800' },
+    { score: 3, shortLabel: '3 • TC', fullEn: 'Achieved', fullId: 'Tercapai Sesuai Harapan (TC)', activeClass: 'bg-emerald-700 text-white shadow-xs', badgeClass: 'bg-emerald-100 text-emerald-800' },
     { score: 4, shortLabel: '4 • M', fullEn: 'Mastered', fullId: 'Mahir / Sangat Berkembang (M)', activeClass: 'bg-purple-600 text-white shadow-xs', badgeClass: 'bg-purple-100 text-purple-800' },
   ];
 
@@ -125,6 +125,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
             {language === 'id' ? 'Evaluasi Siswa:' : 'Evaluating Student:'}
           </span>
           <select
+                aria-label={language === 'id' ? 'Pilih siswa untuk dinilai' : 'Choose student to evaluate'}
             value={currentStudent?.id || ''}
             onChange={(e) => {
               const st = cohortStudents.find((s) => s.id === e.target.value);
@@ -345,7 +346,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
 
       {/* Milestone Qualitative Note Modal */}
       {editingNoteMilestoneId && (
-        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-stone-200 p-6 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-extrabold text-stone-900 flex items-center gap-2">
@@ -354,6 +355,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
               </h4>
               <button
                 onClick={() => setEditingNoteMilestoneId(null)}
+                aria-label="Tutup / Close"
                 className="text-stone-400 hover:text-stone-600 p-1 rounded-lg"
               >
                 <X className="w-4 h-4" />

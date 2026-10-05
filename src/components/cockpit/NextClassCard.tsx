@@ -48,7 +48,7 @@ export const NextClassCard: React.FC = () => {
             {t.cockpit.nextClass}
           </span>
           <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
-            <Award className="w-3.5 h-3.5 text-amber-600" />
+            <Award className="w-3.5 h-3.5 text-amber-700" />
             CEFR {activeCohort.cefrLevel}
           </span>
           <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-stone-100 text-stone-700 border border-stone-200" data-testid="next-class-status">
@@ -68,6 +68,7 @@ export const NextClassCard: React.FC = () => {
         {cohorts.length > 1 && (
           <div className="relative">
             <select
+                aria-label={language === 'id' ? 'Pilih rombel' : 'Choose cohort'}
               value={activeCohort.id}
               onChange={(e) => setCockpitCohortId(e.target.value)}
               className="appearance-none pl-3 pr-7 py-1 text-xs font-bold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-teal-700 cursor-pointer"
@@ -123,7 +124,7 @@ export const NextClassCard: React.FC = () => {
       <div className="flex items-center gap-3 pt-1">
         <button
           onClick={handleLaunch}
-          className="flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-teal-800 to-teal-700 hover:from-teal-900 hover:to-teal-800 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
+          className="theme-original flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-teal-800 to-teal-700 hover:from-teal-900 hover:to-teal-800 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
         >
           <Play className="w-4 h-4 fill-white" />
           <span>{sessionRunning && !runningElsewhere ? t.cockpit.liveRunning : t.cockpit.launchLive}</span>

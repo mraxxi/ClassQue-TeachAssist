@@ -110,7 +110,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
       <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-7 space-y-5 animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
         
         {/* Header */}
@@ -134,6 +134,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Tutup / Close"
             className="text-stone-400 hover:text-stone-600 p-2 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -170,6 +171,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
               </label>
               <input
                 type="date"
+                aria-label={language === 'id' ? 'Tanggal sesi' : 'Session date'}
                 required
                 value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
@@ -184,6 +186,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
               </label>
               <input
                 type="time"
+                aria-label={language === 'id' ? 'Jam mulai' : 'Start time'}
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 className="w-full px-3.5 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800 font-mono"
