@@ -2,9 +2,16 @@
 // Bidirectional D1 sync endpoint with camelCase <-> snake_case translation.
 // Authentication is enforced by ./_middleware.ts (Bearer SYNC_TOKEN).
 //
-//   GET  /api/sync              -> full dataset
-//   GET  /api/sync?summary=1    -> record counts + last update (cheap, for diagnostics)
-//   POST /api/sync              -> upsert records, soft-delete tombstones ({ deleted: { <entity>: [id] } })
+//   GET  /api/sync                  -> full dataset (+ `cursor`)
+//   GET  /api/sync?since=<cursor>   -> DELTA: only records changed after the cursor (+ `deleted` ids)
+//   GET  /api/sync?summary=1        -> record counts + last update (cheap, for diagnostics)
+//   POST /api/sync                  -> upsert records + soft-delete tombstones
+//        { cohorts: [...], ..., deleted: { <entity>: [id | { id, at }] } }
+//
+// Conflict rule (per record, last-write-wins): every record carries the client's `updatedAt`, stored as
+// `client_updated_at`. An upsert or delete only applies when it is NEWER than what is stored; a newer upsert
+// also revives a soft-deleted row (this is what makes "Undo delete" work across devices). Rejected writes are
+// counted in the response (`rejected`) and the winning version arrives with the next pull.
 
 interface Env {
   DB: D1Database;
@@ -98,22 +105,52 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
       });
     }
 
-    const q = (sql: string) => env.DB.prepare(sql).all();
-    const [rawTeachers, rawCohorts, rawStudents, rawMilestones, rawLessons, rawAttendance, rawSessions, rawClaims, rawEvals, rawReports, rawTasks] =
+    const url = new URL(request.url);
+    const since = url.searchParams.get('since');
+    // Taken BEFORE the queries so a write landing mid-request is re-delivered next time (idempotent).
+    const cursor = new Date().toISOString();
+    const isDelta = !!since;
+
+    const all = (table: string) =>
+      isDelta
+        ? env.DB.prepare(`SELECT * FROM ${table} WHERE updated_at > ?`).bind(since).all()
+        : env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL`).all();
+    const [rawTeachers, rawCohortsAll, rawStudentsAll, rawMilestones, rawLessonsAll, rawAttendanceAll, rawSessionsAll, rawClaimsAll, rawEvalsAll, rawReportsAll, rawTasksAll] =
       await Promise.all([
-        q('SELECT * FROM teachers WHERE deleted_at IS NULL'),
-        q('SELECT * FROM cohorts WHERE deleted_at IS NULL'),
-        q('SELECT * FROM students WHERE deleted_at IS NULL'),
-        q('SELECT * FROM cefr_milestones'),
-        q('SELECT * FROM lesson_plans WHERE deleted_at IS NULL'),
-        q('SELECT * FROM attendance_records WHERE deleted_at IS NULL'),
-        q('SELECT * FROM teaching_sessions WHERE deleted_at IS NULL'),
-        q('SELECT * FROM teaching_claims WHERE deleted_at IS NULL'),
-        q('SELECT * FROM student_milestone_evaluations WHERE deleted_at IS NULL'),
-        q('SELECT * FROM parent_reports WHERE deleted_at IS NULL'),
-        q('SELECT * FROM tasks WHERE deleted_at IS NULL'),
+        env.DB.prepare('SELECT * FROM teachers WHERE deleted_at IS NULL').all(),
+        all('cohorts'),
+        all('students'),
+        isDelta ? Promise.resolve({ results: [] }) : env.DB.prepare('SELECT * FROM cefr_milestones').all(), // static framework
+        all('lesson_plans'),
+        all('attendance_records'),
+        all('teaching_sessions'),
+        all('teaching_claims'),
+        all('student_milestone_evaluations'),
+        all('parent_reports'),
+        all('tasks'),
       ]);
     const rows = (r: { results?: unknown[] }) => (r.results || []) as Row[];
+    // Delta responses include soft-deleted rows; split them into live records and a `deleted` id list.
+    const deleted: Record<string, { id: string; at: string }[]> = {};
+    const live = (key: string, raw: { results?: unknown[] }) => {
+      const list = rows(raw);
+      if (isDelta) {
+        const gone = list.filter((r) => r.deleted_at).map((r) => ({ id: r.id as string, at: (r.client_updated_at || r.deleted_at) as string }));
+        if (gone.length) deleted[key] = gone;
+      }
+      return list.filter((r) => !r.deleted_at);
+    };
+    const rawCohorts = { results: live('cohorts', rawCohortsAll) };
+    const rawStudents = { results: live('students', rawStudentsAll) };
+    const rawLessons = { results: live('lessonPlans', rawLessonsAll) };
+    const rawAttendance = { results: live('attendanceRecords', rawAttendanceAll) };
+    const rawSessions = { results: live('sessions', rawSessionsAll) };
+    const rawClaims = { results: live('claims', rawClaimsAll) };
+    const rawEvals = { results: live('studentEvaluations', rawEvalsAll) };
+    const rawReports = { results: live('parentReports', rawReportsAll) };
+    const rawTasks = { results: live('tasks', rawTasksAll) };
+    /** The client's own edit timestamp travels with every record. */
+    const ts = (r: Row) => (r.client_updated_at ? { updatedAt: r.client_updated_at as string } : {});
 
     const teachers = rows(rawTeachers).map((t) => ({
       id: t.id,
@@ -129,6 +166,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const cohorts = rows(rawCohorts).map((c) => ({
       id: c.id,
+      ...ts(c),
       teacherId: c.teacher_id,
       name: c.name,
       cefrLevel: c.cefr_level || 'A1',
@@ -142,6 +180,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const students = rows(rawStudents).map((s) => ({
       id: s.id,
+      ...ts(s),
       cohortId: s.cohort_id,
       fullName: s.full_name,
       nickname: s.nickname || '',
@@ -169,6 +208,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const lessonPlans = rows(rawLessons).map((l) => ({
       id: l.id,
+      ...ts(l),
       teacherId: l.teacher_id,
       cohortId: l.cohort_id || undefined,
       title: l.title,
@@ -189,6 +229,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const attendanceRecords = rows(rawAttendance).map((a) => ({
       id: a.id,
+      ...ts(a),
       cohortId: a.cohort_id,
       studentId: a.student_id,
       attendanceDate: a.attendance_date || a.session_date || '',
@@ -198,6 +239,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const sessions = rows(rawSessions).map((s) => ({
       id: s.id,
+      ...ts(s),
       teacherId: s.teacher_id,
       cohortId: s.cohort_id,
       lessonPlanId: s.lesson_plan_id || undefined,
@@ -213,6 +255,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const claims = rows(rawClaims).map((cl) => ({
       id: cl.id,
+      ...ts(cl),
       teacherId: cl.teacher_id,
       claimPeriod: cl.claim_period,
       claimNumber: cl.claim_number,
@@ -230,6 +273,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const studentEvaluations = rows(rawEvals).map((ev) => ({
       id: ev.id,
+      ...ts(ev),
       studentId: ev.student_id,
       milestoneId: ev.milestone_id,
       competencyScore: Number(ev.competency_score) as 1 | 2 | 3 | 4,
@@ -239,6 +283,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const parentReports = rows(rawReports).map((rp) => ({
       id: rp.id,
+      ...ts(rp),
       studentId: rp.student_id,
       cohortId: rp.cohort_id,
       reportPeriod: rp.report_period,
@@ -254,6 +299,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const tasks = rows(rawTasks).map((tk) => ({
       id: tk.id,
+      ...ts(tk),
       teacherId: tk.teacher_id,
       cohortId: tk.cohort_id || undefined,
       title: tk.title,
@@ -267,7 +313,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     return reply(200, {
       success: true,
-      syncedAt: new Date().toISOString(),
+      syncedAt: cursor,
+      cursor,
+      delta: isDelta,
+      deleted: isDelta ? deleted : undefined,
       data: {
         teacher: teachers[0] || null,
         cohorts,
@@ -338,12 +387,103 @@ function validate(payload: any): string[] {
     else {
       for (const [key, ids] of Object.entries(payload.deleted)) {
         if (!(key in TOMBSTONE_TABLES)) problems.push(`deleted.${key} is not a known entity`);
-        else if (!Array.isArray(ids) || ids.some((x) => typeof x !== 'string')) problems.push(`deleted.${key} must be an array of ids`);
+        else if (!Array.isArray(ids) || ids.some((x) => !(typeof x === 'string' || (x && typeof (x as any).id === 'string')))) problems.push(`deleted.${key} must be an array of ids or { id, at }`);
       }
     }
   }
   return problems;
 }
+
+/** Normalises `deleted` entries: legacy `id` strings or `{ id, at }` (at = the client's delete time). */
+function tombstoneEntries(list: unknown[], fallbackAt: string): { id: string; at: string }[] {
+  return list.map((x) => (typeof x === 'string' ? { id: x, at: fallbackAt } : { id: (x as any).id as string, at: ((x as any).at as string) || fallbackAt }));
+}
+
+type ColSpec = [column: string, value: (r: any, ctx: { teacherId: string }) => unknown];
+
+/** camelCase payload key -> table + column mapping used by the generic last-write-wins upsert. */
+const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
+  cohorts: {
+    table: 'cohorts',
+    cols: [
+      ['id', (c) => c.id], ['teacher_id', (c, x) => c.teacherId ?? x.teacherId], ['name', (c) => c.name],
+      ['cefr_level', (c) => c.cefrLevel ?? 'A1'], ['schedule_days', (c) => JSON.stringify(c.scheduleDays ?? [])],
+      ['start_time', (c) => c.startTime ?? '14:00'], ['duration_minutes', (c) => num(c.durationMinutes, 60)],
+      ['room_or_link', (c) => c.roomOrLink ?? null],
+      ['hourly_rate_override', (c) => (c.hourlyRateOverride === undefined || c.hourlyRateOverride === null ? null : Number(c.hourlyRateOverride))],
+      ['is_active', (c) => (c.isActive === false ? 0 : 1)],
+    ],
+  },
+  students: {
+    table: 'students',
+    cols: [
+      ['id', (s) => s.id], ['cohort_id', (s) => s.cohortId], ['full_name', (s) => s.fullName], ['nickname', (s) => s.nickname ?? null],
+      ['gender', (s) => s.gender ?? null], ['date_of_birth', (s) => s.dateOfBirth ?? null], ['guardian_name', (s) => s.guardianName ?? null],
+      ['guardian_phone', (s) => s.guardianPhone ?? null], ['guardian_email', (s) => s.guardianEmail ?? null], ['notes', (s) => s.notes ?? null],
+      ['strengths', (s) => s.strengths ?? null], ['growth_areas', (s) => s.growthAreas ?? null], ['is_active', (s) => (s.isActive === false ? 0 : 1)],
+    ],
+  },
+  lessonPlans: {
+    table: 'lesson_plans',
+    cols: [
+      ['id', (l) => l.id], ['teacher_id', (l, x) => l.teacherId ?? x.teacherId], ['cohort_id', (l) => l.cohortId || null], ['title', (l) => l.title],
+      ['topic', (l) => l.topic ?? null], ['cefr_level', (l) => l.cefrLevel ?? 'A1'], ['duration_minutes', (l) => num(l.durationMinutes, 60)],
+      ['warm_up', (l) => l.warmUp ?? null], ['presentation', (l) => l.presentation ?? null], ['practice', (l) => l.practice ?? null],
+      ['production', (l) => l.production ?? null], ['wrap_up', (l) => l.wrapUp ?? null], ['vocabulary_json', (l) => JSON.stringify(l.vocabulary ?? [])],
+      ['grammar_focus', (l) => l.grammarFocus ?? null], ['materials_links', (l) => JSON.stringify(l.materialsLinks ?? [])],
+      ['homework', (l) => l.homework ?? null], ['is_template', (l) => (l.isTemplate ? 1 : 0)],
+    ],
+  },
+  attendanceRecords: {
+    table: 'attendance_records',
+    cols: [
+      ['id', (a) => a.id], ['cohort_id', (a) => a.cohortId], ['student_id', (a) => a.studentId], ['attendance_date', (a) => a.attendanceDate],
+      ['status', (a) => a.status], ['note', (a) => a.note ?? null],
+    ],
+  },
+  sessions: {
+    table: 'teaching_sessions',
+    cols: [
+      ['id', (s) => s.id], ['teacher_id', (s, x) => s.teacherId ?? x.teacherId], ['cohort_id', (s) => s.cohortId], ['lesson_plan_id', (s) => s.lessonPlanId ?? null],
+      ['session_date', (s) => s.sessionDate], ['start_time', (s) => s.startTime ?? '00:00'], ['duration_minutes', (s) => num(s.durationMinutes, 60)],
+      ['hourly_rate', (s) => num(s.hourlyRate, 0)], ['total_claim_amount', (s) => num(s.totalClaimAmount, 0)], ['status', (s) => s.status ?? 'completed'],
+      ['scratchpad_notes', (s) => s.scratchpadNotes ?? null],
+    ],
+  },
+  claims: {
+    table: 'teaching_claims',
+    cols: [
+      ['id', (c) => c.id], ['teacher_id', (c, x) => c.teacherId ?? x.teacherId], ['claim_period', (c) => c.claimPeriod], ['claim_number', (c) => c.claimNumber ?? null],
+      ['total_sessions', (c) => num(c.totalSessions, 0)], ['total_hours', (c) => num(c.totalHours, 0)], ['base_amount', (c) => num(c.baseAmount, 0)],
+      ['allowance_amount', (c) => num(c.allowanceAmount, 0)], ['total_claim_amount', (c) => num(c.totalClaimAmount, 0)], ['currency', (c) => c.currency ?? 'IDR'],
+      ['status', (c) => c.status ?? 'draft'], ['submitted_at', (c) => c.submittedAt ?? null], ['paid_at', (c) => c.paidAt ?? null], ['notes', (c) => c.notes ?? null],
+    ],
+  },
+  studentEvaluations: {
+    table: 'student_milestone_evaluations',
+    cols: [
+      ['id', (e) => e.id], ['student_id', (e) => e.studentId], ['milestone_id', (e) => e.milestoneId], ['competency_score', (e) => e.competencyScore],
+      ['evaluated_at', (e) => e.evaluatedAt ?? new Date().toISOString()], ['teacher_notes', (e) => e.teacherNotes ?? null],
+    ],
+  },
+  parentReports: {
+    table: 'parent_reports',
+    cols: [
+      ['id', (r) => r.id], ['student_id', (r) => r.studentId], ['cohort_id', (r) => r.cohortId], ['report_period', (r) => r.reportPeriod],
+      ['attendance_rate', (r) => num(r.attendanceRate, 0)], ['total_sessions_count', (r) => num(r.totalSessionsCount, 0)], ['present_count', (r) => num(r.presentCount, 0)],
+      ['milestone_summary_json', (r) => r.milestoneSummaryJson ?? null], ['teacher_narrative_feedback', (r) => r.teacherNarrativeFeedback ?? null],
+      ['whatsapp_brief_text', (r) => r.whatsappBriefText ?? null], ['is_sent', (r) => (r.isSent ? 1 : 0)], ['sent_at', (r) => r.sentAt ?? null],
+    ],
+  },
+  tasks: {
+    table: 'tasks',
+    cols: [
+      ['id', (t) => t.id], ['teacher_id', (t, x) => t.teacherId ?? x.teacherId], ['cohort_id', (t) => t.cohortId || null], ['title', (t) => t.title],
+      ['priority', (t) => t.priority ?? 'medium'], ['due_date', (t) => t.dueDate || null], ['deadline_type', (t) => t.deadlineType ?? 'date'],
+      ['due_lesson_label', (t) => t.dueLessonLabel ?? null], ['is_completed', (t) => (t.isCompleted ? 1 : 0)], ['completed_at', (t) => t.completedAt ?? null],
+    ],
+  },
+};
 
 export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
   if (!env.DB) return unbound();
@@ -364,193 +504,85 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
 
   try {
     const db = env.DB;
-    const teacherId: string = payload.teacher?.id || 'teacher-1';
+    const now = new Date().toISOString(); // one clock for the whole request
+    const ctx = { teacherId: (payload.teacher?.id as string) || 'teacher-1' };
     const statements: D1PreparedStatement[] = [];
-    let upserts = 0;
-    const push = (sql: string, ...values: unknown[]) => statements.push(db.prepare(sql).bind(...values.map(nul)));
-    const upsert = (sql: string, ...values: unknown[]) => {
-      upserts++;
-      push(sql, ...values);
+    const kinds: ('upsert' | 'delete' | 'other')[] = [];
+    const add = (kind: 'upsert' | 'delete' | 'other', sql: string, ...values: unknown[]) => {
+      statements.push(db.prepare(sql).bind(...values.map(nul)));
+      kinds.push(kind);
     };
 
-    // 0. Tombstones first (soft delete; GET filters deleted_at IS NULL)
+    // 0. Tombstones (soft delete). Only applies if newer than the row's last edit.
     let deletedCount = 0;
-    for (const [key, ids] of Object.entries((payload.deleted || {}) as Record<string, string[]>)) {
+    for (const [key, list] of Object.entries((payload.deleted || {}) as Record<string, unknown[]>)) {
       const table = TOMBSTONE_TABLES[key];
-      for (let i = 0; i < ids.length; i += 50) {
-        const chunk = ids.slice(i, i + 50);
-        push(
-          `UPDATE ${table} SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id IN (${chunk.map(() => '?').join(',')})`,
-          ...chunk
+      const entries = tombstoneEntries(list, now);
+      deletedCount += entries.length;
+      for (let i = 0; i < entries.length; i += 50) {
+        const chunk = entries.slice(i, i + 50);
+        const at = chunk.map((e) => e.at).sort().pop() as string;
+        add(
+          'delete',
+          `UPDATE ${table} SET deleted_at = ?, updated_at = ?, client_updated_at = ?
+             WHERE id IN (${chunk.map(() => '?').join(',')}) AND COALESCE(client_updated_at, '') <= ?`,
+          now, now, at, ...chunk.map((e) => e.id), at
         );
       }
-      deletedCount += ids.length;
     }
 
-    // 1. Teacher profile
+    // 1. Teacher profile (single row; always last-write)
     if (payload.teacher) {
       const t = payload.teacher;
-      upsert(
+      add(
+        'other',
         `INSERT INTO teachers (id, email, name, school_name, default_hourly_rate, currency, language_preference, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            email = excluded.email, name = excluded.name, school_name = excluded.school_name,
            default_hourly_rate = excluded.default_hourly_rate, currency = excluded.currency,
-           language_preference = excluded.language_preference, updated_at = datetime('now')`,
-        teacherId, t.email ?? 'teacher@classque.edu', t.name ?? 'Educator', t.schoolName ?? null,
-        num(t.defaultHourlyRate, 150000), t.currency ?? 'IDR', t.languagePreference ?? 'id'
+           language_preference = excluded.language_preference, updated_at = excluded.updated_at`,
+        ctx.teacherId, t.email ?? 'teacher@classque.edu', t.name ?? 'Educator', t.schoolName ?? null,
+        num(t.defaultHourlyRate, 150000), t.currency ?? 'IDR', t.languagePreference ?? 'id', now
       );
     }
 
-    // 2. Cohorts
-    for (const c of payload.cohorts || []) {
-      upsert(
-        `INSERT INTO cohorts (id, teacher_id, name, cefr_level, schedule_days, start_time, duration_minutes, room_or_link, hourly_rate_override, is_active, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           name = excluded.name, cefr_level = excluded.cefr_level, schedule_days = excluded.schedule_days,
-           start_time = excluded.start_time, duration_minutes = excluded.duration_minutes,
-           room_or_link = excluded.room_or_link, hourly_rate_override = excluded.hourly_rate_override,
-           is_active = excluded.is_active, updated_at = datetime('now')`,
-        c.id, c.teacherId ?? teacherId, c.name, c.cefrLevel ?? 'A1', JSON.stringify(c.scheduleDays ?? []),
-        c.startTime ?? '14:00', num(c.durationMinutes, 60), c.roomOrLink ?? null,
-        c.hourlyRateOverride === undefined || c.hourlyRateOverride === null ? null : Number(c.hourlyRateOverride),
-        c.isActive === false ? 0 : 1
-      );
+    // 2. Entities: generic per-record last-write-wins upsert (also revives a soft-deleted row when newer)
+    for (const [key, spec] of Object.entries(UPSERTS)) {
+      for (const rec of payload[key] || []) {
+        const cols = spec.cols.map(([c]) => c);
+        // Records without a client stamp (legacy) get the OLDEST timestamp so they can never override a real edit.
+        const clientTs = (rec.updatedAt as string) || '1970-01-01T00:00:00.000Z';
+        const all = [...cols, 'client_updated_at', 'updated_at'];
+        const setCols = cols.filter((c) => c !== 'id');
+        add(
+          'upsert',
+          `INSERT INTO ${spec.table} (${all.join(', ')}) VALUES (${all.map(() => '?').join(', ')})
+           ON CONFLICT(id) DO UPDATE SET
+             ${setCols.map((c) => `${c} = excluded.${c}`).join(', ')},
+             client_updated_at = excluded.client_updated_at, updated_at = excluded.updated_at, deleted_at = NULL
+           WHERE COALESCE(${spec.table}.client_updated_at, '') <= excluded.client_updated_at`,
+          ...spec.cols.map(([, get]) => get(rec, ctx)), clientTs, now
+        );
+      }
     }
 
-    // 3. Students
-    for (const s of payload.students || []) {
-      upsert(
-        `INSERT INTO students (id, cohort_id, full_name, nickname, gender, date_of_birth, guardian_name, guardian_phone, guardian_email, notes, strengths, growth_areas, is_active, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           cohort_id = excluded.cohort_id, full_name = excluded.full_name, nickname = excluded.nickname,
-           gender = excluded.gender, date_of_birth = excluded.date_of_birth, guardian_name = excluded.guardian_name,
-           guardian_phone = excluded.guardian_phone, guardian_email = excluded.guardian_email, notes = excluded.notes,
-           strengths = excluded.strengths, growth_areas = excluded.growth_areas, is_active = excluded.is_active,
-           updated_at = datetime('now')`,
-        s.id, s.cohortId, s.fullName, s.nickname ?? null, s.gender ?? null, s.dateOfBirth ?? null,
-        s.guardianName ?? null, s.guardianPhone ?? null, s.guardianEmail ?? null, s.notes ?? null,
-        s.strengths ?? null, s.growthAreas ?? null, s.isActive === false ? 0 : 1
-      );
+    let rejected = 0;
+    if (statements.length > 0) {
+      const results = await db.batch(statements);
+      results.forEach((r, i) => {
+        // An upsert/delete that matched no row lost the last-write-wins comparison.
+        if ((kinds[i] === 'upsert' || kinds[i] === 'delete') && (r.meta?.changes ?? 0) === 0) rejected++;
+      });
     }
 
-    // 4. Lesson plans
-    for (const l of payload.lessonPlans || []) {
-      upsert(
-        `INSERT INTO lesson_plans (id, teacher_id, cohort_id, title, topic, cefr_level, duration_minutes, warm_up, presentation, practice, production, wrap_up, vocabulary_json, grammar_focus, materials_links, homework, is_template, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           cohort_id = excluded.cohort_id, title = excluded.title, topic = excluded.topic,
-           cefr_level = excluded.cefr_level, duration_minutes = excluded.duration_minutes,
-           warm_up = excluded.warm_up, presentation = excluded.presentation, practice = excluded.practice,
-           production = excluded.production, wrap_up = excluded.wrap_up, vocabulary_json = excluded.vocabulary_json,
-           grammar_focus = excluded.grammar_focus, materials_links = excluded.materials_links,
-           homework = excluded.homework, is_template = excluded.is_template, updated_at = datetime('now')`,
-        l.id, l.teacherId ?? teacherId, l.cohortId || null, l.title, l.topic ?? null, l.cefrLevel ?? 'A1',
-        num(l.durationMinutes, 60), l.warmUp ?? null, l.presentation ?? null, l.practice ?? null,
-        l.production ?? null, l.wrapUp ?? null, JSON.stringify(l.vocabulary ?? []), l.grammarFocus ?? null,
-        JSON.stringify(l.materialsLinks ?? []), l.homework ?? null, l.isTemplate ? 1 : 0
-      );
-    }
-
-    // 5. Attendance records
-    for (const a of payload.attendanceRecords || []) {
-      upsert(
-        `INSERT INTO attendance_records (id, cohort_id, student_id, attendance_date, status, note, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           attendance_date = excluded.attendance_date, status = excluded.status, note = excluded.note,
-           updated_at = datetime('now')`,
-        a.id, a.cohortId, a.studentId, a.attendanceDate, a.status, a.note ?? null
-      );
-    }
-
-    // 6. Teaching sessions
-    for (const s of payload.sessions || []) {
-      upsert(
-        `INSERT INTO teaching_sessions (id, teacher_id, cohort_id, lesson_plan_id, session_date, start_time, duration_minutes, hourly_rate, total_claim_amount, status, scratchpad_notes, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           cohort_id = excluded.cohort_id, lesson_plan_id = excluded.lesson_plan_id,
-           session_date = excluded.session_date, start_time = excluded.start_time,
-           duration_minutes = excluded.duration_minutes, hourly_rate = excluded.hourly_rate,
-           total_claim_amount = excluded.total_claim_amount, status = excluded.status,
-           scratchpad_notes = excluded.scratchpad_notes, updated_at = datetime('now')`,
-        s.id, s.teacherId ?? teacherId, s.cohortId, s.lessonPlanId ?? null, s.sessionDate, s.startTime ?? '00:00',
-        num(s.durationMinutes, 60), num(s.hourlyRate, 0), num(s.totalClaimAmount, 0), s.status ?? 'completed',
-        s.scratchpadNotes ?? null
-      );
-    }
-
-    // 7. Teaching claims
-    for (const cl of payload.claims || []) {
-      upsert(
-        `INSERT INTO teaching_claims (id, teacher_id, claim_period, claim_number, total_sessions, total_hours, base_amount, allowance_amount, total_claim_amount, currency, status, submitted_at, paid_at, notes, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           total_sessions = excluded.total_sessions, total_hours = excluded.total_hours,
-           base_amount = excluded.base_amount, allowance_amount = excluded.allowance_amount,
-           total_claim_amount = excluded.total_claim_amount, status = excluded.status,
-           submitted_at = excluded.submitted_at, paid_at = excluded.paid_at,
-           notes = excluded.notes, updated_at = datetime('now')`,
-        cl.id, cl.teacherId ?? teacherId, cl.claimPeriod, cl.claimNumber ?? null, num(cl.totalSessions, 0),
-        num(cl.totalHours, 0), num(cl.baseAmount, 0), num(cl.allowanceAmount, 0), num(cl.totalClaimAmount, 0),
-        cl.currency ?? 'IDR', cl.status ?? 'draft', cl.submittedAt ?? null, cl.paidAt ?? null, cl.notes ?? null
-      );
-    }
-
-    // 8. Student milestone evaluations
-    for (const ev of payload.studentEvaluations || []) {
-      upsert(
-        `INSERT INTO student_milestone_evaluations (id, student_id, milestone_id, competency_score, evaluated_at, teacher_notes, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           competency_score = excluded.competency_score, teacher_notes = excluded.teacher_notes,
-           evaluated_at = excluded.evaluated_at, updated_at = datetime('now')`,
-        ev.id, ev.studentId, ev.milestoneId, ev.competencyScore, ev.evaluatedAt ?? new Date().toISOString(), ev.teacherNotes ?? null
-      );
-    }
-
-    // 9. Parent reports (attendance_rate 0 is a real value)
-    for (const rp of payload.parentReports || []) {
-      upsert(
-        `INSERT INTO parent_reports (id, student_id, cohort_id, report_period, attendance_rate, total_sessions_count, present_count, milestone_summary_json, teacher_narrative_feedback, whatsapp_brief_text, is_sent, sent_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           attendance_rate = excluded.attendance_rate, total_sessions_count = excluded.total_sessions_count,
-           present_count = excluded.present_count, milestone_summary_json = excluded.milestone_summary_json,
-           teacher_narrative_feedback = excluded.teacher_narrative_feedback,
-           whatsapp_brief_text = excluded.whatsapp_brief_text, is_sent = excluded.is_sent,
-           sent_at = excluded.sent_at, updated_at = datetime('now')`,
-        rp.id, rp.studentId, rp.cohortId, rp.reportPeriod, num(rp.attendanceRate, 0), num(rp.totalSessionsCount, 0),
-        num(rp.presentCount, 0), rp.milestoneSummaryJson ?? null, rp.teacherNarrativeFeedback ?? null,
-        rp.whatsappBriefText ?? null, rp.isSent ? 1 : 0, rp.sentAt ?? null
-      );
-    }
-
-    // 10. Tasks
-    for (const tk of payload.tasks || []) {
-      upsert(
-        `INSERT INTO tasks (id, teacher_id, cohort_id, title, priority, due_date, deadline_type, due_lesson_label, is_completed, completed_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           cohort_id = excluded.cohort_id, title = excluded.title, priority = excluded.priority,
-           due_date = excluded.due_date, deadline_type = excluded.deadline_type,
-           due_lesson_label = excluded.due_lesson_label, is_completed = excluded.is_completed,
-           completed_at = excluded.completed_at, updated_at = datetime('now')`,
-        tk.id, tk.teacherId ?? teacherId, tk.cohortId || null, tk.title, tk.priority ?? 'medium', tk.dueDate || null,
-        tk.deadlineType ?? 'date', tk.dueLessonLabel ?? null, tk.isCompleted ? 1 : 0, tk.completedAt ?? null
-      );
-    }
-
-    if (statements.length > 0) await db.batch(statements);
-
+    const upserts = kinds.filter((k) => k === 'upsert').length;
     return reply(200, {
       success: true,
       message: `Synchronized ${upserts} records and ${deletedCount} deletions to Cloudflare D1.`,
-      syncedAt: new Date().toISOString(),
+      rejected,
+      cursor: now,
+      syncedAt: now,
     });
   } catch (error: any) {
     return reply(500, { error: error.message || 'D1 batch sync failed' });

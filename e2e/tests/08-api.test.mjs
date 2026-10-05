@@ -88,4 +88,38 @@ check('F1b summary count matches data', r.json?.counts?.students === (await api(
 r = await api('/api/sync?summary=1', { token: null });
 check('F2 summary also requires auth', r.status === 401);
 check('G1 responses are not cacheable', r.headers.get('cache-control') === 'no-store');
+
+// ---- delta sync + per-record last-write-wins (FR-020) -----------------------------------------------------
+const base = { cohortId: 'c9', fullName: 'Delta Student', nickname: 'D' };
+const T1 = '2026-10-06T01:00:00.000Z', T2 = '2026-10-06T02:00:00.000Z', T3 = '2026-10-06T03:00:00.000Z';
+r = await api('/api/sync', { method: 'POST', body: { students: [{ id: 'sd', ...base, notes: 'v2', updatedAt: T2 }] } });
+check('L1 first write accepted', r.status === 200 && r.json.rejected === 0 && !!r.json.cursor, JSON.stringify(r.json));
+r = await api('/api/sync', { method: 'POST', body: { students: [{ id: 'sd', ...base, notes: 'v1-OLD', updatedAt: T1 }] } });
+check('L2 an OLDER edit is rejected (last-write-wins) and reported', r.json.rejected === 1, JSON.stringify(r.json));
+check('L2b the newer value is kept', (await api()).json.data.students.find((x) => x.id === 'sd')?.notes === 'v2');
+r = await api('/api/sync', { method: 'POST', body: { students: [{ id: 'sd', ...base, notes: 'v3', updatedAt: T3 }] } });
+check('L3 a NEWER edit wins', r.json.rejected === 0 && (await api()).json.data.students.find((x) => x.id === 'sd')?.notes === 'v3');
+check('L3b records carry the client edit timestamp back', (await api()).json.data.students.find((x) => x.id === 'sd')?.updatedAt === T3);
+
+const full = (await api()).json;
+check('D1 full response includes a cursor and is not a delta', !!full.cursor && full.delta === false);
+const cur = full.cursor;
+await new Promise((res) => setTimeout(res, 30));
+await api('/api/sync', { method: 'POST', body: { students: [{ id: 'sd', ...base, notes: 'v4', updatedAt: '2026-10-06T04:00:00.000Z' }], tasks: [{ id: 'td', title: 'delta task', updatedAt: T3 }] } });
+const delta = (await api('/api/sync?since=' + encodeURIComponent(cur))).json;
+check('D2 delta returns ONLY what changed after the cursor', delta.delta === true && delta.data.students.length === 1 && delta.data.students[0].id === 'sd' && delta.data.tasks.length === 1 && delta.data.cohorts.length === 0, `students:${delta.data.students.length} tasks:${delta.data.tasks.length} cohorts:${delta.data.cohorts.length}`);
+check('D3 delta skips the static CEFR framework and is far smaller than a full pull', delta.data.cefrMilestones.length === 0 && JSON.stringify(delta).length < JSON.stringify(full).length / 5, `${JSON.stringify(delta).length} vs ${JSON.stringify(full).length} bytes`);
+const d2 = (await api('/api/sync?since=' + encodeURIComponent(delta.cursor))).json;
+check('D4 nothing changed since the new cursor -> empty delta', d2.data.students.length + d2.data.tasks.length + d2.data.cohorts.length === 0);
+
+await api('/api/sync', { method: 'POST', body: { deleted: { students: [{ id: 'sd', at: '2026-10-06T05:00:00.000Z' }] } } });
+const d3 = (await api('/api/sync?since=' + encodeURIComponent(delta.cursor))).json;
+check('D5 deletions arrive as { id, at } in the delta', d3.deleted?.students?.[0]?.id === 'sd' && !d3.data.students.some((x) => x.id === 'sd'), JSON.stringify(d3.deleted));
+r = await api('/api/sync', { method: 'POST', body: { students: [{ id: 'sd', ...base, notes: 'revived', updatedAt: '2026-10-06T06:00:00.000Z' }] } });
+check('R1 a NEWER edit revives a soft-deleted record (undo across devices)', r.json.rejected === 0 && (await api()).json.data.students.find((x) => x.id === 'sd')?.notes === 'revived');
+await api('/api/sync', { method: 'POST', body: { deleted: { students: [{ id: 'sd', at: '2026-10-06T05:45:00.000Z' }] } } });
+check('R2 a delete OLDER than the latest edit is rejected (edit wins)', (await api()).json.data.students.some((x) => x.id === 'sd' && x.notes === 'revived'));
+await api('/api/sync', { method: 'POST', body: { tasks: [{ id: 'tleg', title: 'legacy', updatedAt: '2020-01-01T00:00:00.000Z' }] } });
+r = await api('/api/sync', { method: 'POST', body: { deleted: { tasks: ['tleg'] } } });
+check('R3 legacy string tombstones are still accepted (stamped with server time)', r.status === 200 && !(await api()).json.data.tasks.some((x) => x.id === 'tleg'));
 done();

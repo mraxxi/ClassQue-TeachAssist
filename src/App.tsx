@@ -29,11 +29,23 @@ export const App: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Multi-device freshness: pull (incrementally) when the tab becomes visible and once a minute while it is.
+    let lastPull = Date.now();
+    const pullIfStale = () => {
+      if (document.visibilityState !== 'visible' || !navigator.onLine || Date.now() - lastPull < 20_000) return;
+      lastPull = Date.now();
+      void fetchDatabaseFromEdge();
+    };
+    document.addEventListener('visibilitychange', pullIfStale);
+    const pullTimer = setInterval(pullIfStale, 60_000);
+
     // Keep time-based alerts ("class starts at 14:30", overdue tasks) fresh.
     const alertTimer = setInterval(refreshNotifications, 60_000);
 
     return () => {
       clearInterval(alertTimer);
+      clearInterval(pullTimer);
+      document.removeEventListener('visibilitychange', pullIfStale);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

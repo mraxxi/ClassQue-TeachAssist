@@ -56,22 +56,32 @@
    - Every mutated entity is stamped with `updatedAt`.
    - The **live class** (running stopwatch, scratchpad, start time) is persisted too; elapsed time is derived
      from wall-clock timestamps, so a reload or a throttled tab does not lose or distort it.
-2. **Debounced push (`scheduleAutoSync`)**
-   - ~1.5 s after the last mutation the full dataset (+ deletion tombstones) is `POST`ed to `/api/sync`.
-   - One request at a time (`syncInFlight`). Edits made while a request is on the wire keep `hasUnsyncedChanges`
-     true and trigger another push. Transient failures retry with capped back-off; auth failures do not.
-3. **Pull**
-   - On boot and on the browser `online` event: unsynced local edits are pushed **first**, then `GET /api/sync`
-     replaces local collections with D1's. If edits happen during the download, the pull is abandoned.
+2. **Debounced delta push (`scheduleAutoSync`)**
+   - ~1.5 s after the last mutation the client `POST`s **only the records edited since the last successful push**
+     (the `dirty` id map: `id -> updatedAt`) plus timestamped deletion tombstones. A first sync, an upgrade or seeding
+     an empty D1 sends everything once (`fullPushPending`).
+   - One request at a time (`syncInFlight`). Edits made while a request is on the wire stay dirty and trigger another
+     push. Transient failures retry with capped back-off; auth failures do not.
+3. **Incremental pull**
+   - On boot, on the browser `online` event, when the tab becomes visible and once a minute, unsynced edits are pushed
+     **first**, then `GET /api/sync?since=<cursor>` returns only rows changed after the last cursor, plus the ids
+     deleted since. The first pull (no cursor) is a full download.
+   - Records are merged **per record** (`mergeCollection`): a local copy that is strictly newer than the remote one is
+     kept; remote deletes apply unless a newer local edit exists; local deletes that have not been pushed yet are not
+     resurrected by an incoming copy.
    - A brand-new empty D1 seeds itself from the device instead of wiping it.
 4. **Deletes**
    - Deleting an entity cascades locally (student → attendance/evaluations/reports; cohort → students and their
      data; lesson plans/tasks are un-linked; Teaching Sessions are kept for claim history) and records
-     **tombstones** (`deleted: { <entity>: [id] }`). The edge soft-deletes (`deleted_at`) and `GET` filters them,
-     so deleted rows never resurrect.
-5. **Conflict resolution**
-   - Whole-dataset **last-write-wins**: D1 is authoritative when the device is clean, the device wins while it has
-     unsynced edits. Per-record merge / delta sync is a backlog item (see `feature_req.md`, FR-020).
+     **tombstones** `{ id, at }`. The edge soft-deletes (`deleted_at`), and `GET` reports them in `deleted`, so
+     deleted rows never resurrect and other devices drop them.
+5. **Conflict resolution — per-record last-write-wins**
+   - Every record carries the client's `updatedAt`; the edge stores it as `client_updated_at` and applies an upsert or
+     delete **only if it is newer** than what is stored (`rejected` is reported; the winner arrives with the next
+     pull). A newer upsert also revives a soft-deleted row ("edit beats delete", and what makes *Undo* work across
+     devices). Unstamped legacy records get the oldest timestamp so they can never override a real edit.
+   - Caveat: "newer" compares *client* clocks; a device with a badly wrong clock can win or lose unfairly.
+     Free-tier effect: a typical push writes a handful of rows instead of the whole dataset.
 6. **Restore / reload**
    - JSON restore is validated completely before anything changes, **replaces** the dataset (missing records are
      tombstoned) and is flagged for sync. "Reload from D1" discards local state after a double confirmation.

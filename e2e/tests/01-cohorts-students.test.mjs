@@ -91,7 +91,7 @@ s = await store(p);
 check('7.2 student removed', !s.students.some((x) => x.id === liam.id));
 check('7.3 attendance cascade-deleted', !s.attendanceRecords.some((r) => r.studentId === liam.id));
 check('7.4 evaluations cascade-deleted', !s.studentEvaluations.some((e) => e.studentId === liam.id));
-check('7.5 tombstones queued for D1', (s.tombstones.students || []).includes(liam.id));
+check('7.5 tombstones queued for D1', (s.tombstones.students || []).some((t) => t.id === liam.id));
 
 // ---- delete cohort cascades (F5) ----------------------------------------------------------------------------------------------
 s = await store(p);

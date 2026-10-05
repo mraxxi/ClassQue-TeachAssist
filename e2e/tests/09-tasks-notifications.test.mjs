@@ -34,7 +34,7 @@ check('10.5 completed tasks sink to the bottom', order[order.length - 1] === 'Da
 check('10.6 past-due open tasks carry an overdue marker (4 seeded September tasks)', (await p.locator('[data-testid="task-overdue"]').count()) === 4);
 await row('Lesson task').locator('button[title="Delete task"]').click(); await p.waitForTimeout(300);
 s = await store(p);
-check('10.7 delete task + tombstone', !s.tasks.some((x) => x.title === 'Lesson task') && (s.tombstones.tasks || []).includes(tk.id));
+check('10.7 delete task + tombstone', !s.tasks.some((x) => x.title === 'Lesson task') && (s.tombstones.tasks || []).some((t) => t.id === tk.id));
 await sleep(2500);
 const d1 = (await api()).json.data.tasks;
 check('10.8 D1 round-trip (deadline type, completion) and the deleted task is gone', d1.find((x) => x.title === 'Date task')?.isCompleted === true && !d1.some((x) => x.title === 'Lesson task'));
