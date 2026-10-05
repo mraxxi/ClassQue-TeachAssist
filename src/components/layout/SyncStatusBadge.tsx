@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CloudCheck, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Language } from '../../types';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { SyncDiagnosticsModal } from '../settings/SyncDiagnosticsModal';
 
 interface SyncStatusBadgeProps {
@@ -12,7 +12,8 @@ interface SyncStatusBadgeProps {
 export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, compact = false }) => {
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-  const { isSyncingWithEdge, isEdgeConnected, hasUnsyncedChanges } = useTeacherStore();
+  const { isSyncingWithEdge, isEdgeConnected, hasUnsyncedChanges, syncAuthStatus } = useTeacherStore();
+  const authProblem = syncAuthStatus === 'missing' || syncAuthStatus === 'rejected' || syncAuthStatus === 'unconfigured';
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -37,6 +38,8 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
             ? 'bg-blue-50 text-blue-800 border-blue-200'
             : !isOnline
             ? 'bg-amber-50 text-amber-900 border-amber-300'
+            : authProblem
+            ? 'bg-amber-50 text-amber-900 border-amber-300'
             : hasUnsyncedChanges
             ? 'bg-amber-50/90 text-amber-800 border-amber-300'
             : isEdgeConnected
@@ -46,6 +49,8 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
         title={
           isSyncingWithEdge
             ? 'Sinkronisasi ke Cloudflare D1 sedang berlangsung...'
+            : authProblem
+            ? (syncAuthStatus === 'missing' ? 'Token sinkronisasi belum diisi (Pengaturan)' : syncAuthStatus === 'rejected' ? 'Token sinkronisasi ditolak server' : 'Server belum dikonfigurasi (SYNC_TOKEN)')
             : hasUnsyncedChanges
             ? 'Perubahan lokal tersimpan di browser, menunggu sinkronisasi D1'
             : 'Klik untuk membuka Diagnostik Cloudflare D1'
@@ -61,6 +66,12 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             <CloudOff className="w-3.5 h-3.5 text-amber-600" />
             {!compact && <span>{language === 'id' ? 'Luar Jaringan' : 'Offline'}</span>}
+          </>
+        ) : authProblem ? (
+          <>
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            {!compact && <span>{syncAuthStatus === 'missing' ? (language === 'id' ? 'Perlu Token' : 'Token Needed') : syncAuthStatus === 'rejected' ? (language === 'id' ? 'Token Ditolak' : 'Token Rejected') : (language === 'id' ? 'Server Belum Diatur' : 'Server Not Set')}</span>}
           </>
         ) : hasUnsyncedChanges ? (
           <>

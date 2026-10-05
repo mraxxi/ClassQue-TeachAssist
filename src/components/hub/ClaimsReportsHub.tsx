@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Receipt, MessageSquare, Printer, 
   Copy, UserCheck, Plus, Trash2, Calendar,
-  DollarSign, Award, BookOpen, Send, CheckCircle2, History
+  DollarSign, Award, BookOpen, Send, CheckCircle2, History, Pencil
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
-import { TeachingSession, ClaimStatus, ParentReport, CompetencyScore } from '../../types';
+import { toWhatsAppNumber } from '../../utils/phone';
+import { TeachingSession, TeachingClaim, ClaimStatus, ParentReport } from '../../types';
+import { localMonthStr } from '../../utils/date';
 import { ManualSessionModal } from './ManualSessionModal';
 import { ClaimInvoiceModal } from './ClaimInvoiceModal';
 import { PrintableReportCard } from './PrintableReportCard';
@@ -14,15 +16,15 @@ import { ConfirmModal } from '../common/ConfirmModal';
 
 export const ClaimsReportsHub: React.FC = () => {
   const { 
-    claims, updateClaim, sessions, deleteSession, 
+    claims, updateClaim, upsertClaim, sessions, deleteSession, 
     students, cohorts, teacher, language, addToast,
     studentEvaluations, cefrMilestones, attendanceRecords,
-    parentReports, addParentReport, updateParentReport
+    parentReports, upsertParentReport, updateParentReport
   } = useTeacherStore();
   const t = useTranslation(language);
 
   const [activeTab, setActiveTab] = useState<'claims' | 'parent-reports'>('claims');
-  const [selectedMonth, setSelectedMonth] = useState<string>('2026-09');
+  const [selectedMonth, setSelectedMonth] = useState<string>(localMonthStr());
   const [selectedStudentId, setSelectedStudentId] = useState<string>(students[0]?.id || '');
   const [copyFeedback, setCopyFeedback] = useState(false);
 
@@ -31,70 +33,98 @@ export const ClaimsReportsHub: React.FC = () => {
   const [isInvoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [isReportCardModalOpen, setReportCardModalOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<TeachingSession | null>(null);
+  const [sessionToEdit, setSessionToEdit] = useState<TeachingSession | null>(null);
 
   // Allowance edit state
-  const [allowanceInput, setAllowanceInput] = useState<string>('200000');
+  const [allowanceInput, setAllowanceInput] = useState<string>('0');
 
   // Narrative feedback editor for selected student
   const [narrativeFeedback, setNarrativeFeedback] = useState<string>('');
 
-  // Filter sessions for selected month
+  // Months offered: the current month plus every month that has sessions or a claim (newest first)
+  const monthOptions = useMemo(() => {
+    const set = new Set<string>([localMonthStr(), selectedMonth]);
+    sessions.forEach((x) => x.sessionDate && set.add(x.sessionDate.slice(0, 7)));
+    claims.forEach((c) => c.claimPeriod && set.add(c.claimPeriod));
+    return Array.from(set).sort().reverse();
+  }, [sessions, claims, selectedMonth]);
+
+  const monthLabel = (m: string) => {
+    const [y, mo] = m.split('-').map(Number);
+    return new Intl.DateTimeFormat(language === 'id' ? 'id-ID' : 'en-US', { month: 'long', year: 'numeric' }).format(new Date(y, (mo || 1) - 1, 1));
+  };
+
+  // Totals are always derived from the month's Teaching Sessions
   const monthlySessions = sessions.filter((s) => s.sessionDate.startsWith(selectedMonth));
   const totalMinutes = monthlySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
   const totalHours = (totalMinutes / 60).toFixed(1);
   const baseAmount = monthlySessions.reduce((acc, s) => acc + s.totalClaimAmount, 0);
-  const allowanceNum = parseFloat(allowanceInput) || 0;
-  const grandTotal = baseAmount + allowanceNum;
 
-  // Active claim record
-  const activeClaim = claims.find((c) => c.claimPeriod === selectedMonth) || claims[0];
+  // Active claim record for the month (if one exists yet)
+  const activeClaim = claims.find((c) => c.claimPeriod === selectedMonth);
   const claimStatus: ClaimStatus = activeClaim?.status || 'draft';
+  const isClaimLocked = claimStatus !== 'draft';
+
+  // The allowance input mirrors the claim record; changing month or claim reloads it.
+  useEffect(() => {
+    setAllowanceInput(String(activeClaim?.allowanceAmount ?? 0));
+  }, [selectedMonth, activeClaim?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const allowanceNum = Math.max(0, parseFloat(allowanceInput) || 0);
+  const grandTotal = baseAmount + (isClaimLocked ? activeClaim?.allowanceAmount ?? 0 : allowanceNum);
+
+  const claimTotals = (allowance: number): Partial<TeachingClaim> => ({
+    totalSessions: monthlySessions.length,
+    totalHours: parseFloat(totalHours),
+    baseAmount,
+    allowanceAmount: allowance,
+    totalClaimAmount: baseAmount + allowance,
+  });
+
+  // Keep a DRAFT claim's stored totals in step with its sessions (submitted/approved/paid claims stay frozen).
+  useEffect(() => {
+    if (!activeClaim || activeClaim.status !== 'draft') return;
+    const t = claimTotals(activeClaim.allowanceAmount);
+    if (
+      activeClaim.totalSessions !== t.totalSessions || activeClaim.totalHours !== t.totalHours ||
+      activeClaim.baseAmount !== t.baseAmount || activeClaim.totalClaimAmount !== t.totalClaimAmount
+    ) {
+      updateClaim(activeClaim.id, t);
+    }
+  }, [monthlySessions.length, totalHours, baseAmount, activeClaim?.id, activeClaim?.status, activeClaim?.allowanceAmount]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const commitAllowance = () => {
+    if (isClaimLocked) return;
+    if (allowanceNum === (activeClaim?.allowanceAmount ?? 0) && activeClaim) return;
+    upsertClaim(selectedMonth, claimTotals(allowanceNum));
+  };
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId) || students[0];
   const studentCohort = cohorts.find((c) => c.id === selectedStudent?.cohortId);
 
-  // Sync narrative feedback when student changes
+  // Pre-fill the narrative only from what the teacher actually wrote about the student
   useEffect(() => {
     if (selectedStudent) {
-      setNarrativeFeedback(
-        selectedStudent.notes ||
-        selectedStudent.strengths ||
-        (language === 'id' 
-          ? 'Siswa menunjukkan antusiasme belajar yang sangat baik, berpartisipasi aktif dalam interaksi kelas, dan konsisten menyelesaikan tugas.'
-          : 'Student demonstrates exceptional enthusiasm, actively participates in classroom discussions, and consistently completes practice tasks.')
-      );
+      setNarrativeFeedback(selectedStudent.notes || selectedStudent.strengths || '');
     }
-  }, [selectedStudentId, selectedStudent, language]);
+  }, [selectedStudentId, selectedStudent?.notes, selectedStudent?.strengths]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Compute student attendance statistics
-  const studentAttendanceList = attendanceRecords.filter((r) => r.studentId === selectedStudent?.id);
-  const rawPresent = studentAttendanceList.filter((r) => r.status === 'present' || r.status === 'late').length;
-  const totalSessionsCount = studentAttendanceList.length > 0 ? studentAttendanceList.length : 8;
-  const presentCount = studentAttendanceList.length > 0 ? rawPresent : 8;
-  const attendanceRate = Math.round((presentCount / totalSessionsCount) * 100);
+  // Attendance for the selected month, from RECORDED rows only (no placeholder numbers)
+  const studentAttendanceList = attendanceRecords.filter(
+    (r) => r.studentId === selectedStudent?.id && r.attendanceDate.startsWith(selectedMonth)
+  );
+  const presentCount = studentAttendanceList.filter((r) => r.status === 'present' || r.status === 'late').length;
+  const totalSessionsCount = studentAttendanceList.length;
+  const attendanceRate: number | null = totalSessionsCount > 0 ? Math.round((presentCount / totalSessionsCount) * 100) : null;
 
-  // Get CEFR evaluations for student
-  const rawEvaluations = studentEvaluations.filter((ev) => ev.studentId === selectedStudent?.id);
-  const evaluatedMilestones = rawEvaluations.length > 0
-    ? rawEvaluations.map((ev) => ({
-        milestone: cefrMilestones.find((m) => m.id === ev.milestoneId) || {
-          id: ev.milestoneId,
-          cefrLevel: studentCohort?.cefrLevel || 'A2',
-          skillCategory: 'spoken_production' as const,
-          code: 'A2.SP.1',
-          descriptionEn: 'General speaking',
-          descriptionId: 'Kemampuan bicara umum',
-          canDoStatementEn: 'Can produce simple connected sentences.',
-          canDoStatementId: 'Mampu menyusun kalimat sederhana yang saling terhubung.',
-        },
-        score: ev.competencyScore,
-        notes: ev.teacherNotes,
-      }))
-    : cefrMilestones.slice(0, 3).map((m, idx) => ({
-        milestone: m,
-        score: (3 + (idx % 2 === 0 ? 1 : 0)) as CompetencyScore,
-        notes: 'Sangat baik dan antusias dalam latihan.',
-      }));
+  // CEFR: only real evaluations the teacher has entered
+  const evaluatedMilestones = studentEvaluations
+    .filter((ev) => ev.studentId === selectedStudent?.id)
+    .flatMap((ev) => {
+      const milestone = cefrMilestones.find((m) => m.id === ev.milestoneId);
+      return milestone ? [{ milestone, score: ev.competencyScore, notes: ev.teacherNotes }] : [];
+    });
+  const hasReportData = totalSessionsCount > 0 || evaluatedMilestones.length > 0;
 
   // Auto-generate WhatsApp message for selected student
   const getScoreAbbr = (score: number) => {
@@ -114,21 +144,16 @@ export const ClaimsReportsHub: React.FC = () => {
 
   const whatsappDraft = `*LAPORAN PERKEMBANGAN BELAJAR SISWA* 📚
 ━━━━━━━━━━━━━━━━━━
-Nama Siswa: *${selectedStudent?.fullName || 'Liam Wong'} (${selectedStudent?.nickname || 'Liam'})*
-Kelas: *${studentCohort?.name || 'Primary English'}*
+Nama Siswa: *${selectedStudent?.fullName || '-'}${selectedStudent?.nickname ? ` (${selectedStudent.nickname})` : ''}*
+Kelas: *${studentCohort?.name || '-'}*
 Guru Pengampu: *${teacher.name}*
 Periode: *${selectedMonth}*
-Kehadiran: *${attendanceRate}% (${presentCount}/${totalSessionsCount} Sesi Hadir)*
+Kehadiran: *${attendanceRate === null ? 'belum ada data presensi bulan ini' : `${attendanceRate}% (${presentCount}/${totalSessionsCount} Sesi Hadir)`}*
 
-🎯 *Capaian Kompetensi (CEFR ${studentCohort?.cefrLevel || 'A2'}):*
-${cefrPointsText}
-
-📝 *Catatan & Rekomendasi Guru:*
-"${narrativeFeedback}"
-
+${evaluatedMilestones.length > 0 ? `🎯 *Capaian Kompetensi (CEFR ${studentCohort?.cefrLevel || ''}):*\n${cefrPointsText}\n\n` : ''}${narrativeFeedback.trim() ? `📝 *Catatan & Rekomendasi Guru:*\n"${narrativeFeedback.trim()}"\n` : ''}
 ${selectedStudent?.growthAreas ? `🌱 *Area Fokus:* ${selectedStudent.growthAreas}\n` : ''}
 Terima kasih atas bimbingan dan kerja sama Bapak/Ibu ${selectedStudent?.guardianName || 'Wali Murid'}. 🙏
-_${teacher.schoolName || 'ClassQue Academy'}_`;
+_${teacher.schoolName || ''}_`;
 
   const handleCopyWhatsApp = () => {
     navigator.clipboard.writeText(whatsappDraft);
@@ -139,12 +164,20 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
 
   const handleSaveParentReport = () => {
     if (!selectedStudent) return;
+    if (!hasReportData && !narrativeFeedback.trim()) {
+      addToast(
+        language === 'id' ? 'Belum ada data presensi, capaian CEFR, atau catatan untuk dilaporkan.' : 'There is no attendance, CEFR or narrative data to report yet.',
+        'warning'
+      );
+      return;
+    }
+    const existed = parentReports.some((r) => r.studentId === selectedStudent.id && r.reportPeriod === selectedMonth);
     const newReport: ParentReport = {
       id: `rep_${Date.now()}`,
       studentId: selectedStudent.id,
       cohortId: selectedStudent.cohortId,
       reportPeriod: selectedMonth,
-      attendanceRate,
+      attendanceRate: attendanceRate ?? 0,
       totalSessionsCount,
       presentCount,
       milestoneSummaryJson: JSON.stringify(evaluatedMilestones),
@@ -152,11 +185,11 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
       whatsappBriefText: whatsappDraft,
       isSent: false,
     };
-    addParentReport(newReport);
+    upsertParentReport(newReport);
     addToast(
       language === 'id' 
-        ? `Rapor ${selectedStudent.fullName} berhasil disimpan ke riwayat!` 
-        : `Report for ${selectedStudent.fullName} saved to history!`,
+        ? `Rapor ${selectedStudent.fullName} ${existed ? 'diperbarui' : 'disimpan'} di riwayat!` 
+        : `Report for ${selectedStudent.fullName} ${existed ? 'updated' : 'saved'} in history!`,
       'success'
     );
   };
@@ -175,22 +208,15 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
   };
 
   const handleStatusChange = (newStatus: ClaimStatus) => {
-    if (activeClaim) {
-      updateClaim(activeClaim.id, {
-        status: newStatus,
-        totalSessions: monthlySessions.length,
-        totalHours: parseFloat(totalHours),
-        baseAmount,
-        allowanceAmount: allowanceNum,
-        totalClaimAmount: grandTotal,
-      });
-      addToast(
-        language === 'id' 
-          ? `Status klaim diubah menjadi: ${newStatus.toUpperCase()}` 
-          : `Claim status updated to: ${newStatus.toUpperCase()}`,
-        'success'
-      );
-    }
+    // Creates the month's claim on first use; totals refreshed while it is still a draft.
+    const allowance = isClaimLocked ? activeClaim?.allowanceAmount ?? 0 : allowanceNum;
+    upsertClaim(selectedMonth, { ...(newStatus === 'draft' || !isClaimLocked ? claimTotals(allowance) : {}), status: newStatus });
+    addToast(
+      language === 'id' 
+        ? `Status klaim diubah menjadi: ${newStatus.toUpperCase()}` 
+        : `Claim status updated to: ${newStatus.toUpperCase()}`,
+      'success'
+    );
   };
 
   const handleDeleteSessionConfirm = () => {
@@ -209,6 +235,19 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
   };
 
   const studentReports = parentReports.filter((r) => r.studentId === selectedStudent?.id);
+
+  // What the invoice shows: the stored claim, or a draft built from the month's current numbers
+  const invoiceClaim: TeachingClaim = {
+    ...(activeClaim ?? {
+      id: '',
+      teacherId: teacher.id,
+      claimPeriod: selectedMonth,
+      claimNumber: `CLM-${selectedMonth.replace('-', '')}-001`,
+      currency: teacher.currency || 'IDR',
+      status: 'draft' as ClaimStatus,
+    }),
+    ...claimTotals(isClaimLocked ? activeClaim?.allowanceAmount ?? 0 : allowanceNum),
+  } as TeachingClaim;
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-150">
@@ -270,10 +309,9 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="px-3.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-teal-700"
               >
-                <option value="2026-09">September 2026</option>
-                <option value="2026-08">Agustus 2026</option>
-                <option value="2026-07">Juli 2026</option>
-                <option value="2026-06">Juni 2026</option>
+                {monthOptions.map((m) => (
+                  <option key={m} value={m}>{monthLabel(m)}</option>
+                ))}
               </select>
             </div>
 
@@ -330,8 +368,13 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
                 <input
                   type="number"
                   step="50000"
+                  min={0}
                   value={allowanceInput}
+                  disabled={isClaimLocked}
                   onChange={(e) => setAllowanceInput(e.target.value)}
+                  onBlur={commitAllowance}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  title={isClaimLocked ? (language === 'id' ? 'Klaim sudah diajukan; kembalikan ke Draft untuk mengubah.' : 'Claim already submitted; set it back to Draft to edit.') : undefined}
                   className="w-full px-2.5 py-1 text-sm font-black font-mono text-stone-900 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-700"
                 />
               </div>
@@ -455,7 +498,7 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
                         </div>
                         <div className="truncate">
                           <p className="text-xs font-bold text-stone-900 truncate">
-                            {cohort?.name || 'Class Session'}
+                            {cohort?.name || (language === 'id' ? 'Rombel dihapus' : 'Deleted cohort')}
                           </p>
                           <p className="text-[11px] text-stone-400 font-medium">
                             {sess.sessionDate} • {sess.startTime} - {sess.endTime || 'Done'} ({sess.durationMinutes}m)
@@ -468,6 +511,14 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
                         <span className="text-xs font-black text-stone-900 font-mono">
                           {formatIDR(sess.totalClaimAmount)}
                         </span>
+
+                        <button
+                          onClick={() => setSessionToEdit(sess)}
+                          className="p-1.5 text-stone-300 hover:text-teal-700 rounded-lg transition-colors cursor-pointer"
+                          title="Edit session"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
 
                         <button
                           onClick={() => setSessionToDelete(sess)}
@@ -500,9 +551,16 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
                 <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider block">
                   {language === 'id' ? 'Pilih Siswa' : 'Select Student'} ({students.length})
                 </span>
-                <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md font-bold">
-                  {selectedMonth}
-                </span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  aria-label={language === 'id' ? 'Periode laporan' : 'Report period'}
+                  className="text-[10px] font-mono text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md font-bold border border-teal-100 focus:outline-none cursor-pointer"
+                >
+                  {monthOptions.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-1">
@@ -550,7 +608,7 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
                     <div key={rep.id} className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs flex items-center justify-between">
                       <div>
                         <p className="font-bold text-stone-900 font-mono text-[11px]">{rep.reportPeriod}</p>
-                        <p className="text-[10px] text-stone-500">Kehadiran: {rep.attendanceRate}%</p>
+                        <p className="text-[10px] text-stone-500">Kehadiran: {rep.totalSessionsCount > 0 ? `${rep.attendanceRate}%` : '—'}</p>
                       </div>
                       <button
                         onClick={() => handleToggleReportSent(rep.id, rep.isSent)}
@@ -591,7 +649,9 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <span className="text-[10px] uppercase font-extrabold text-stone-400 block">Kehadiran</span>
-                  <span className="text-sm font-black text-emerald-700 font-mono">{attendanceRate}% ({presentCount}/{totalSessionsCount} Sesi)</span>
+                  <span className="text-sm font-black text-emerald-700 font-mono" data-testid="report-attendance">
+                    {attendanceRate === null ? (language === 'id' ? 'Belum ada data presensi' : 'No attendance data') : `${attendanceRate}% (${presentCount}/${totalSessionsCount} Sesi)`}
+                  </span>
                 </div>
               </div>
             </div>
@@ -639,7 +699,7 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
 
                   {selectedStudent?.guardianPhone && (
                     <a
-                      href={`https://wa.me/${selectedStudent.guardianPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(whatsappDraft)}`}
+                      href={`https://wa.me/${toWhatsAppNumber(selectedStudent.guardianPhone)}?text=${encodeURIComponent(whatsappDraft)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold flex items-center gap-1"
@@ -681,13 +741,13 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
               {/* Compact Mini Preview */}
               <div className="p-4 border border-stone-200 rounded-2xl bg-[#FCFAF7] text-stone-900 text-xs space-y-2">
                 <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-                  <span className="font-extrabold text-stone-700 uppercase">{teacher.schoolName || 'ClassQue Language Academy'}</span>
+                  <span className="font-extrabold text-stone-700 uppercase">{teacher.schoolName}</span>
                   <span className="text-[10px] font-bold text-teal-800 font-mono">Period: {selectedMonth}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div><strong>Siswa:</strong> {selectedStudent?.fullName}</div>
                   <div><strong>Kelas:</strong> {studentCohort?.name}</div>
-                  <div><strong>Kehadiran:</strong> {attendanceRate}% ({presentCount}/{totalSessionsCount} Sesi)</div>
+                  <div><strong>Kehadiran:</strong> {attendanceRate === null ? '—' : `${attendanceRate}% (${presentCount}/${totalSessionsCount} Sesi)`}</div>
                   <div><strong>Guru:</strong> {teacher.name}</div>
                 </div>
               </div>
@@ -701,15 +761,16 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
 
       {/* Manual Session Modal */}
       <ManualSessionModal
-        isOpen={isManualSessionModalOpen}
+        isOpen={isManualSessionModalOpen || !!sessionToEdit}
         cohorts={cohorts}
-        onClose={() => setManualSessionModalOpen(false)}
+        sessionToEdit={sessionToEdit}
+        onClose={() => { setManualSessionModalOpen(false); setSessionToEdit(null); }}
       />
 
       {/* Claim Invoice Modal */}
       <ClaimInvoiceModal
         isOpen={isInvoiceModalOpen}
-        claim={activeClaim}
+        claim={invoiceClaim}
         sessions={monthlySessions}
         cohorts={cohorts}
         teacher={teacher}

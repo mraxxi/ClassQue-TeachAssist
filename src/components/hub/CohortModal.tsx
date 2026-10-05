@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, Clock, MapPin, Award, DollarSign } from 'lucide-react';
 import { Cohort, CEFRLevel } from '../../types';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface CohortModalProps {
   isOpen: boolean;
@@ -59,6 +60,8 @@ export const CohortModal: React.FC<CohortModalProps> = ({
       setIsActive(true);
     }
   }, [cohortToEdit, isOpen]);
+
+  useEscapeKey(onClose, isOpen);
 
   if (!isOpen) return null;
 

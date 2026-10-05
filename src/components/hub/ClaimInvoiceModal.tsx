@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, Printer, Receipt } from 'lucide-react';
 import { TeachingSession, TeachingClaim, Teacher, Cohort } from '../../types';
+import { localMonthStr } from '../../utils/date';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface ClaimInvoiceModalProps {
   isOpen: boolean;
@@ -19,6 +21,8 @@ export const ClaimInvoiceModal: React.FC<ClaimInvoiceModalProps> = ({
   teacher,
   onClose,
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   if (!isOpen) return null;
 
   const handlePrint = () => {
@@ -33,8 +37,8 @@ export const ClaimInvoiceModal: React.FC<ClaimInvoiceModalProps> = ({
     }).format(val);
   };
 
-  const claimNumber = claim?.claimNumber || `CLM-${new Date().toISOString().slice(0, 7).replace('-', '')}-001`;
-  const period = claim?.claimPeriod || '2026-09';
+  const period = claim?.claimPeriod || localMonthStr();
+  const claimNumber = claim?.claimNumber || `CLM-${period.replace('-', '')}-001`;
 
   const totalMinutes = sessions.reduce((acc, s) => acc + s.durationMinutes, 0);
   const totalHours = (totalMinutes / 60).toFixed(1);
@@ -44,7 +48,7 @@ export const ClaimInvoiceModal: React.FC<ClaimInvoiceModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto print:max-w-none print:shadow-none print:border-none print:p-0 print:m-0">
+      <div className="print-sheet bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto print:max-w-none print:shadow-none print:border-none print:p-0 print:m-0">
         
         {/* Action Header (Hidden in Print) */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-4 print:hidden">

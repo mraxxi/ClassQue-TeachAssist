@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { Info, CheckCircle2, AlertTriangle, AlertCircle, X } from 'lucide-react';
 
 export const ToastContainer: React.FC = () => {

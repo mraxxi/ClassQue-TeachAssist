@@ -3,9 +3,12 @@ import {
   CheckSquare2, Square, Plus, Trash2, Calendar, 
   AlertCircle, GraduationCap, ChevronDown, ChevronUp 
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { TaskItem, TaskPriority } from '../../types';
+import { useNow } from '../../hooks/useCockpitCohort';
+import { localDateStr } from '../../utils/date';
+import { getUpcomingLessonSlots } from '../../utils/schedule';
 
 export const UrgentTasksCard: React.FC = () => {
   const { tasks, toggleTask, addTask, deleteTask, cohorts, language, teacher } = useTeacherStore();
@@ -16,43 +19,34 @@ export const UrgentTasksCard: React.FC = () => {
   const [showOptions, setShowOptions] = useState(false);
   const [deadlineMode, setDeadlineMode] = useState<'date' | 'lesson'>('date');
   const [priority, setPriority] = useState<TaskPriority>('high');
-  const [customDate, setCustomDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [customDate, setCustomDate] = useState<string>(() => localDateStr());
   const [selectedCohortId, setSelectedCohortId] = useState<string>(() => cohorts[0]?.id || '');
   const [selectedLessonSlot, setSelectedLessonSlot] = useState<string>('');
 
   // Compute upcoming lesson occurrences for selected cohort
   const selectedCohort = cohorts.find((c) => c.id === selectedCohortId) || cohorts[0];
 
-  const upcomingLessonSlots = useMemo(() => {
-    if (!selectedCohort) return [];
-    const daysOrder = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const scheduleDays = selectedCohort.scheduleDays || ['Mon', 'Wed'];
-    const results: { dateStr: string; label: string; fullLabel: string }[] = [];
-    const now = new Date();
+  const now = useNow(60_000);
+  const todayStr = localDateStr(now);
 
-    for (let i = 0; i < 30 && results.length < 5; i++) {
-      const candidate = new Date();
-      candidate.setDate(now.getDate() + i);
-      const dayCode = daysOrder[candidate.getDay()];
-      if (scheduleDays.includes(dayCode)) {
-        const yyyy = candidate.getFullYear();
-        const mm = String(candidate.getMonth() + 1).padStart(2, '0');
-        const dd = String(candidate.getDate()).padStart(2, '0');
-        const dateStr = `${yyyy}-${mm}-${dd}`;
-        const weekdayFormatted = new Intl.DateTimeFormat(language === 'id' ? 'id-ID' : 'en-US', {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short',
-        }).format(candidate);
-        const isNext = results.length === 0;
-        const tag = isNext ? (language === 'id' ? 'Sesi Terdekat' : 'Next Session') : `+${results.length + 1}`;
-        const timeStr = selectedCohort.startTime || '14:00';
-        const fullLabel = `${weekdayFormatted} (${timeStr}) • ${tag}`;
-        results.push({ dateStr, label: `${selectedCohort.name} (${weekdayFormatted})`, fullLabel });
-      }
-    }
-    return results;
-  }, [selectedCohort, language]);
+  // Upcoming lessons of the selected cohort; a class that already finished today is not offered.
+  const upcomingLessonSlots = useMemo(() => {
+    return getUpcomingLessonSlots(selectedCohort, 5, now).map((slot, i) => {
+      const weekday = new Intl.DateTimeFormat(language === 'id' ? 'id-ID' : 'en-US', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      }).format(slot.start);
+      const tag = i === 0 ? (language === 'id' ? 'Sesi Terdekat' : 'Next Session') : `+${i + 1}`;
+      return {
+        dateStr: slot.dateStr,
+        // Clean label that is stored on the task and shown on its badge.
+        label: `${weekday} (${slot.startTime})`,
+        // Richer label for the picker only.
+        fullLabel: `${weekday} (${slot.startTime}) • ${tag}`,
+      };
+    });
+  }, [selectedCohort, language, now]);
 
   // Set default slot when cohort changes
   const effectiveSlot = selectedLessonSlot || upcomingLessonSlots[0]?.dateStr || '';
@@ -67,7 +61,7 @@ export const UrgentTasksCard: React.FC = () => {
     if (deadlineMode === 'lesson' && selectedCohort) {
       const matchedSlot = upcomingLessonSlots.find((s) => s.dateStr === effectiveSlot) || upcomingLessonSlots[0];
       finalDueDate = matchedSlot ? matchedSlot.dateStr : customDate;
-      dueLessonLabel = matchedSlot ? `${selectedCohort.name} (${matchedSlot.fullLabel})` : selectedCohort.name;
+      dueLessonLabel = matchedSlot ? `${selectedCohort.name} • ${matchedSlot.label}` : selectedCohort.name;
     }
 
     const newTask: TaskItem = {
@@ -81,7 +75,6 @@ export const UrgentTasksCard: React.FC = () => {
       dueLessonLabel,
       isCompleted: false,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
     addTask(newTask);
@@ -90,6 +83,10 @@ export const UrgentTasksCard: React.FC = () => {
   };
 
   const pendingCount = tasks.filter((tk) => !tk.isCompleted).length;
+  // Open tasks first (earliest deadline first), finished ones last.
+  const orderedTasks = [...tasks].sort((a, b) =>
+    a.isCompleted !== b.isCompleted ? (a.isCompleted ? 1 : -1) : (a.dueDate || '9999').localeCompare(b.dueDate || '9999')
+  );
 
   return (
     <div className="bg-white rounded-2xl p-6 border border-stone-200/90 shadow-xs flex flex-col h-full">
@@ -251,9 +248,10 @@ export const UrgentTasksCard: React.FC = () => {
             {language === 'id' ? 'Tidak ada tugas tertunda.' : 'No pending tasks.'}
           </div>
         ) : (
-          tasks.map((task) => (
+          orderedTasks.map((task) => (
             <div
               key={task.id}
+              data-testid="task-row"
               className={`flex items-start justify-between gap-2.5 p-2.5 rounded-xl border transition-all ${
                 task.isCompleted
                   ? 'bg-stone-50/70 border-stone-200/50 opacity-60'
@@ -290,6 +288,12 @@ export const UrgentTasksCard: React.FC = () => {
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {t.cockpit.due} {task.dueDate}
+                    </span>
+                  )}
+
+                  {!task.isCompleted && task.dueDate && task.dueDate < todayStr && (
+                    <span className="text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5" data-testid="task-overdue">
+                      <AlertCircle className="w-2.5 h-2.5" /> {t.cockpit.overdue}
                     </span>
                   )}
 

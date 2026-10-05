@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Printer, BookOpen, Layers } from 'lucide-react';
 import { LessonPlan, Teacher } from '../../types';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface PrintableLessonModalProps {
   isOpen: boolean;
@@ -17,6 +18,8 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
   cohortName,
   onClose,
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   if (!isOpen || !lessonPlan) return null;
 
   const handlePrint = () => {
@@ -33,7 +36,7 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto print:max-w-none print:shadow-none print:border-none print:p-0 print:m-0">
+      <div className="print-sheet bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto print:max-w-none print:shadow-none print:border-none print:p-0 print:m-0">
         
         {/* Action Header (Hidden in Print) */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-4 print:hidden">

@@ -3,16 +3,19 @@ import {
   Settings, Save, Database, Download, Upload, 
   RotateCcw, ShieldCheck, HardDrive, Wifi, RefreshCw
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { localDateStr } from '../../utils/date';
+import { getSyncToken, setSyncToken } from '../../utils/syncAuth';
 
 export const SettingsHub: React.FC = () => {
   const { 
     teacher, updateTeacher, language, setLanguage, addToast,
     cohorts, students, attendanceRecords, lessonPlans, tasks, 
     sessions, claims, studentEvaluations, parentReports, cefrMilestones,
-    importFullDatabase, resetToDemoData 
+    importFullDatabase, reloadFromEdge, syncDatabaseToEdge, fetchDatabaseFromEdge,
+    syncAuthStatus, hasUnsyncedChanges,
   } = useTeacherStore();
   const t = useTranslation(language);
 
@@ -24,8 +27,9 @@ export const SettingsHub: React.FC = () => {
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Backup & Reset modals & refs
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetStep, setResetStep] = useState<0 | 1 | 2>(0); // double confirmation
   const [isSyncing, setIsSyncing] = useState(false);
+  const [tokenInput, setTokenInput] = useState(getSyncToken());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSave = (e: React.FormEvent) => {
@@ -47,7 +51,7 @@ export const SettingsHub: React.FC = () => {
     try {
       const exportPayload = {
         app: 'ClassQue-TeachAssist',
-        version: '1.0.0',
+        version: '1.1.0',
         exportedAt: new Date().toISOString(),
         teacher,
         cohorts,
@@ -66,9 +70,8 @@ export const SettingsHub: React.FC = () => {
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const dateTag = new Date().toISOString().slice(0, 10);
       link.href = url;
-      link.download = `classque_teachassist_backup_${dateTag}.json`;
+      link.download = `classque_backup_${localDateStr()}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -97,27 +100,21 @@ export const SettingsHub: React.FC = () => {
         const text = event.target?.result as string;
         const parsed = JSON.parse(text);
 
-        if (!parsed || (!parsed.cohorts && !parsed.students)) {
-          throw new Error('Invalid ClassQue database schema.');
-        }
-
-        const success = importFullDatabase(parsed);
-        if (success) {
-          addToast(
-            language === 'id'
-              ? 'Database berhasil dipulihkan dari file JSON!'
-              : 'Database successfully restored from JSON file!',
-            'success'
-          );
-        } else {
-          throw new Error('Database import failed.');
-        }
+        // Validated completely BEFORE anything is applied: a bad file never touches your data.
+        const result = importFullDatabase(parsed);
+        if (!result.ok) throw new Error(result.error || 'Invalid backup.');
+        addToast(
+          language === 'id'
+            ? 'Database berhasil dipulihkan dari file JSON! Perubahan akan disinkronkan ke D1.'
+            : 'Database restored from JSON file! Changes will be synced to D1.',
+          'success'
+        );
       } catch (err) {
         console.error('Import failed', err);
         addToast(
-          language === 'id'
-            ? 'Format file tidak valid atau rusak. Pastikan file adalah cadangan ClassQue.'
-            : 'Invalid or corrupt file. Ensure it is a valid ClassQue backup.',
+          (language === 'id'
+            ? 'Format file tidak valid atau rusak. Data Anda tidak diubah. '
+            : 'Invalid or corrupt file. Your data was not changed. ') + (err instanceof SyntaxError ? '' : (err as Error).message),
           'error'
         );
       } finally {
@@ -129,71 +126,41 @@ export const SettingsHub: React.FC = () => {
     reader.readAsText(file);
   };
 
-  // Handle Reset to Demo Seed Data
-  const handleResetConfirm = () => {
-    resetToDemoData();
-    setIsResetModalOpen(false);
+  // Discard local data and re-download everything from D1 (two confirmations)
+  const handleResetConfirm = async () => {
+    setResetStep(0);
+    const ok = await reloadFromEdge();
     addToast(
-      language === 'id' 
-        ? 'Database berhasil dikembalikan ke data percontohan awal.' 
-        : 'Database reset to initial demo seed data.',
-      'info'
+      ok
+        ? (language === 'id' ? 'Data lokal diganti dengan data terbaru dari D1.' : 'Local data replaced with the latest data from D1.')
+        : (language === 'id' ? 'Gagal terhubung ke D1. Data lokal Anda tidak diubah.' : 'Could not reach D1. Your local data was not changed.'),
+      ok ? 'success' : 'error'
     );
   };
 
-  // Cloudflare D1 Real Sync
+  const handleSaveToken = () => {
+    setSyncToken(tokenInput);
+    useTeacherStore.setState({ syncAuthStatus: tokenInput.trim() ? 'unknown' : 'missing' });
+    addToast(language === 'id' ? 'Token sinkronisasi disimpan.' : 'Sync token saved.', 'success');
+    if (tokenInput.trim()) void fetchDatabaseFromEdge();
+  };
+
+  // Cloudflare D1 sync through the store (token, tombstones and flags handled there)
   const handleManualSync = async () => {
     setIsSyncing(true);
-    try {
-      const payload = {
-        teacher,
-        cohorts,
-        students,
-        lessonPlans,
-        attendanceRecords,
-        sessions,
-        claims,
-        studentEvaluations,
-        parentReports,
-        tasks,
-      };
-
-      const res = await fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json() as any;
-        addToast(
-          language === 'id'
-            ? `Sinkronisasi Edge D1 Berhasil: ${data.message || 'Tersinkronisasi!'}`
-            : `Edge D1 Sync Successful: ${data.message || 'Synced!'}`,
-          'success'
-        );
-      } else {
-        const errorData = await res.json().catch(() => ({})) as any;
-        if (res.status === 503 || errorData.status === 'unbound') {
-          addToast(
-            language === 'id'
-              ? 'D1 Cloudflare belum di-bind di wrangler.toml. Berjalan dalam mode Local-First.'
-              : 'D1 binding not yet provisioned in Cloudflare. Running in Local-First mode.',
-            'warning'
-          );
-        } else {
-          throw new Error(errorData.error || 'Server error');
-        }
-      }
-    } catch {
-      addToast(
-        language === 'id'
-          ? 'Mode Offline / Lokal: Data aman tersimpan di Local-First storage.'
-          : 'Offline / Local Mode: Data safely preserved in Local-First storage.',
-        'info'
-      );
-    } finally {
-      setIsSyncing(false);
+    const ok = await syncDatabaseToEdge();
+    const status = useTeacherStore.getState().syncAuthStatus;
+    setIsSyncing(false);
+    if (ok) {
+      addToast(language === 'id' ? 'Sinkronisasi Edge D1 berhasil.' : 'Edge D1 sync successful.', 'success');
+    } else if (status === 'missing') {
+      addToast(language === 'id' ? 'Masukkan token sinkronisasi terlebih dahulu.' : 'Enter the sync token first.', 'warning');
+    } else if (status === 'rejected') {
+      addToast(language === 'id' ? 'Token sinkronisasi ditolak server.' : 'The server rejected the sync token.', 'error');
+    } else if (status === 'unconfigured') {
+      addToast(language === 'id' ? 'Server belum dikonfigurasi (SYNC_TOKEN / D1).' : 'Server is not configured (SYNC_TOKEN / D1).', 'warning');
+    } else {
+      addToast(language === 'id' ? 'Mode Offline: data aman di penyimpanan lokal dan akan disinkronkan nanti.' : 'Offline: data is safe locally and will sync later.', 'info');
     }
   };
 
@@ -208,7 +175,7 @@ export const SettingsHub: React.FC = () => {
       }
       return (total / 1024).toFixed(1);
     } catch {
-      return '120.4';
+      return '—';
     }
   };
 
@@ -401,7 +368,7 @@ export const SettingsHub: React.FC = () => {
           {/* Reset to Demo Data Button */}
           <button
             type="button"
-            onClick={() => setIsResetModalOpen(true)}
+            onClick={() => setResetStep(1)}
             className="p-4 rounded-2xl bg-rose-50/60 hover:bg-rose-100/80 border border-rose-200 text-rose-900 transition-all text-left flex flex-col justify-between group cursor-pointer shadow-xs"
           >
             <div className="flex items-center justify-between">
@@ -409,9 +376,9 @@ export const SettingsHub: React.FC = () => {
               <span className="text-[10px] font-extrabold bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-md">RESET</span>
             </div>
             <div className="mt-3">
-              <p className="text-xs font-black">{language === 'id' ? 'Kembalikan Data Demo' : 'Reset to Demo Data'}</p>
+              <p className="text-xs font-black">{language === 'id' ? 'Muat Ulang dari D1' : 'Reload from D1'}</p>
               <p className="text-[11px] text-rose-700 mt-0.5">
-                {language === 'id' ? 'Muat ulang contoh data kurikulum' : 'Reload sample curriculum data'}
+                {language === 'id' ? 'Ganti data lokal dengan data D1' : 'Replace local data with D1 data'}
               </p>
             </div>
           </button>
@@ -480,7 +447,7 @@ export const SettingsHub: React.FC = () => {
               Penyimpanan Lokal
             </span>
             <span className="font-mono font-bold text-teal-300 mt-1 block text-sm">
-              {storageUsedKb} KB <span className="text-[11px] font-sans text-stone-400">/ IndexedDB</span>
+              {storageUsedKb} KB <span className="text-[11px] font-sans text-stone-400">/ localStorage</span>
             </span>
           </div>
 
@@ -489,8 +456,8 @@ export const SettingsHub: React.FC = () => {
               <Wifi className="w-3 h-3 text-emerald-400" />
               Status Jaringan
             </span>
-            <span className="font-bold text-emerald-400 mt-1 block text-sm">
-              Online (Local-First Active)
+            <span className={`font-bold mt-1 block text-sm ${typeof navigator !== 'undefined' && navigator.onLine ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {typeof navigator !== 'undefined' && navigator.onLine ? 'Online' : 'Offline'} (Local-First)
             </span>
           </div>
 
@@ -499,27 +466,67 @@ export const SettingsHub: React.FC = () => {
               <Database className="w-3 h-3 text-teal-400" />
               Cloudflare D1 Edge
             </span>
-            <span className="font-bold text-teal-300 mt-1 block text-sm">
-              100% Free Tier (Active)
+            <span className="font-bold text-teal-300 mt-1 block text-sm" data-testid="d1-auth-status">
+              {syncAuthStatus === 'ok' ? (language === 'id' ? 'Terhubung' : 'Connected')
+                : syncAuthStatus === 'missing' ? (language === 'id' ? 'Token belum diisi' : 'Token required')
+                : syncAuthStatus === 'rejected' ? (language === 'id' ? 'Token ditolak' : 'Token rejected')
+                : syncAuthStatus === 'unconfigured' ? (language === 'id' ? 'Server belum diatur' : 'Server not configured')
+                : (language === 'id' ? 'Menunggu' : 'Pending')}
+              {hasUnsyncedChanges ? ' • ' + (language === 'id' ? 'ada perubahan' : 'unsynced') : ''}
             </span>
           </div>
         </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-end gap-2 pt-1">
+          <label className="flex-1 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+            {language === 'id' ? 'Token Sinkronisasi (SYNC_TOKEN)' : 'Sync Token (SYNC_TOKEN)'}
+            <input
+              type="password"
+              autoComplete="off"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder={language === 'id' ? 'Tempel token dari Cloudflare...' : 'Paste the token configured in Cloudflare...'}
+              className="mt-1 w-full px-3 py-2 rounded-xl bg-stone-800 border border-stone-700 text-stone-100 text-xs font-mono normal-case tracking-normal focus:ring-2 focus:ring-teal-600 focus:outline-none"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleSaveToken}
+            className="px-4 py-2 rounded-xl bg-stone-700 hover:bg-stone-600 text-white text-xs font-bold cursor-pointer"
+          >
+            {language === 'id' ? 'Simpan Token' : 'Save Token'}
+          </button>
+        </div>
       </div>
 
-      {/* Confirmation Modal for Reset to Demo Data */}
+      {/* Reload from D1: two confirmations because it discards unsynced local edits */}
       <ConfirmModal
-        isOpen={isResetModalOpen}
-        title={language === 'id' ? 'Kembalikan ke Data Demo Awal?' : 'Reset to Initial Demo Data?'}
+        isOpen={resetStep === 1}
+        title={language === 'id' ? 'Ganti data lokal dengan data D1?' : 'Replace local data with D1 data?'}
         message={
           language === 'id'
-            ? 'Tindakan ini akan menggantikan data yang telah Anda ubah dengan dataset percontohan awal ClassQue. Pastikan Anda telah mengekspor cadangan JSON terlebih dahulu jika ingin menyimpan data saat ini.'
-            : 'This will replace your current data with the default sample seed dataset. Ensure you have exported a JSON backup first if you wish to keep current changes.'
+            ? 'Semua data di perangkat ini, termasuk perubahan yang belum tersinkronisasi, akan diganti dengan data terbaru di Cloudflare D1. Ekspor cadangan JSON terlebih dahulu jika ragu.'
+            : 'Everything on this device, including edits that have not synced yet, will be replaced by the latest data in Cloudflare D1. Export a JSON backup first if unsure.'
         }
-        confirmText={language === 'id' ? 'Ya, Kembalikan ke Demo' : 'Yes, Reset to Demo'}
+        confirmText={language === 'id' ? 'Lanjutkan' : 'Continue'}
+        cancelText={language === 'id' ? 'Batal' : 'Cancel'}
+        isDangerous={true}
+        onConfirm={() => setResetStep(2)}
+        onCancel={() => setResetStep(0)}
+      />
+      <ConfirmModal
+        isOpen={resetStep === 2}
+        title={language === 'id' ? 'Konfirmasi terakhir' : 'Final confirmation'}
+        message={
+          language === 'id'
+            ? 'Tindakan ini tidak dapat dibatalkan. Yakin ingin mengganti data lokal?'
+            : 'This cannot be undone. Are you sure you want to replace your local data?'
+        }
+        confirmText={language === 'id' ? 'Ya, Ganti Data Lokal' : 'Yes, Replace Local Data'}
         cancelText={language === 'id' ? 'Batal' : 'Cancel'}
         isDangerous={true}
         onConfirm={handleResetConfirm}
-        onCancel={() => setIsResetModalOpen(false)}
+        onCancel={() => setResetStep(0)}
       />
 
     </div>

@@ -1,26 +1,25 @@
 import React from 'react';
 import { CheckCheck } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { AttendanceStatus } from '../../types';
+import { useCockpitCohort } from '../../hooks/useCockpitCohort';
+import { localDateStr } from '../../utils/date';
 
 export const RollCallQuickCard: React.FC = () => {
   const { 
-    cohorts, students, attendanceRecords, setAttendance, 
+    students, attendanceRecords, setAttendance, 
     batchMarkAllPresent, language 
   } = useTeacherStore();
   const t = useTranslation(language);
 
-  const activeCohort = cohorts[0] || null;
-  const cohortStudents = students.filter((s) => s.cohortId === activeCohort?.id);
-  const todayDate = new Date().toISOString().split('T')[0];
+  const { active: activeCohort, now } = useCockpitCohort();
+  const cohortStudents = students.filter((s) => s.cohortId === activeCohort?.id && s.isActive !== false);
+  const todayDate = localDateStr(now);
 
-  const getStudentStatus = (studentId: string): AttendanceStatus => {
-    const record = attendanceRecords.find(
-      (r) => r.studentId === studentId && r.attendanceDate === todayDate
-    );
-    return record?.status || 'present';
-  };
+  /** Unrecorded students have NO selected status (never silently "present"). */
+  const getStudentStatus = (studentId: string): AttendanceStatus | undefined =>
+    attendanceRecords.find((r) => r.studentId === studentId && r.attendanceDate === todayDate)?.status;
 
   const statusOptions: { key: AttendanceStatus; label: string; activeClass: string; inactiveClass: string }[] = [
     { key: 'present', label: 'Hadir', activeClass: 'bg-emerald-500 text-white font-bold shadow-xs', inactiveClass: 'bg-stone-100 text-stone-600 hover:bg-stone-200' },

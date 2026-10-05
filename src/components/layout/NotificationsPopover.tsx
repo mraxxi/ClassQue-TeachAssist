@@ -1,9 +1,10 @@
 import React, { useRef, useEffect } from 'react';
+import { formatRelative } from '../../utils/date';
 import { 
   Bell, Clock, CheckSquare, Receipt, Users, 
   CheckCheck, Trash2, X, ChevronRight, AlertCircle 
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { NotificationItem } from '../../types';
 
 interface NotificationsPopoverProps {
@@ -134,7 +135,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({ isOp
                     {item.title}
                   </p>
                   <span className="text-[10px] text-stone-400 font-medium shrink-0">
-                    {item.timestamp}
+                    {formatRelative(item.timestamp, language)}
                   </span>
                 </div>
                 <p className="text-[11px] text-stone-500 leading-relaxed mt-0.5 line-clamp-2">

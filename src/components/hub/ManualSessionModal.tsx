@@ -1,34 +1,62 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Clock, Calendar, DollarSign, Plus } from 'lucide-react';
 import { TeachingSession, Cohort } from '../../types';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { addMinutesToTime, localDateStr } from '../../utils/date';
 
 interface ManualSessionModalProps {
   isOpen: boolean;
   cohorts: Cohort[];
+  /** When set, the modal edits this session instead of creating a new one. */
+  sessionToEdit?: TeachingSession | null;
   onClose: () => void;
 }
 
 export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
   isOpen,
   cohorts,
+  sessionToEdit = null,
   onClose,
 }) => {
-  const { teacher, addManualSession, addToast, language } = useTeacherStore();
+  const { teacher, addManualSession, updateSession, addToast, language } = useTeacherStore();
 
   const [cohortId, setCohortId] = useState<string>(cohorts[0]?.id || '');
-  const [sessionDate, setSessionDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [sessionDate, setSessionDate] = useState<string>(localDateStr());
   const [startTime, setStartTime] = useState<string>('14:00');
   const [durationMinutes, setDurationMinutes] = useState<number>(60);
   const [customRate, setCustomRate] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+
+  useEscapeKey(onClose, isOpen);
+
+  // (Re)initialise the form every time the modal opens: blank for a new session, prefilled for an edit.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (sessionToEdit) {
+      setCohortId(sessionToEdit.cohortId);
+      setSessionDate(sessionToEdit.sessionDate);
+      setStartTime(sessionToEdit.startTime || '14:00');
+      setDurationMinutes(sessionToEdit.durationMinutes);
+      setCustomRate(String(sessionToEdit.hourlyRate));
+      setNotes(sessionToEdit.scratchpadNotes || '');
+    } else {
+      setCohortId(cohorts[0]?.id || '');
+      setSessionDate(localDateStr());
+      setStartTime('14:00');
+      setDurationMinutes(60);
+      setCustomRate('');
+      setNotes('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, sessionToEdit]);
 
   if (!isOpen) return null;
 
   const selectedCohort = cohorts.find((c) => c.id === cohortId) || cohorts[0];
   const effectiveHourlyRate = customRate.trim() 
     ? parseFloat(customRate) 
-    : (selectedCohort?.hourlyRateOverride || teacher.defaultHourlyRate);
+    : (selectedCohort?.hourlyRateOverride ?? teacher.defaultHourlyRate);
 
   const calculatedTotal = Math.round((durationMinutes / 60) * effectiveHourlyRate);
 
@@ -39,12 +67,23 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
       return;
     }
 
-    const startH = parseInt(startTime.split(':')[0] || '14');
-    const startM = parseInt(startTime.split(':')[1] || '00');
-    const endTotalM = startH * 60 + startM + durationMinutes;
-    const endH = Math.floor(endTotalM / 60) % 24;
-    const endM = endTotalM % 60;
-    const endTimeStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+    const endTimeStr = addMinutesToTime(startTime, durationMinutes);
+
+    if (sessionToEdit) {
+      updateSession(sessionToEdit.id, {
+        cohortId,
+        sessionDate,
+        startTime,
+        endTime: endTimeStr,
+        durationMinutes,
+        hourlyRate: effectiveHourlyRate,
+        totalClaimAmount: calculatedTotal,
+        scratchpadNotes: notes.trim() || undefined,
+      });
+      addToast(language === 'id' ? 'Sesi berhasil diperbarui!' : 'Teaching session updated!', 'success');
+      onClose();
+      return;
+    }
 
     const newSession: TeachingSession = {
       id: `sess-${Date.now()}`,
@@ -82,7 +121,9 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-black text-stone-900 tracking-tight">
-                {language === 'id' ? 'Catat Sesi Mengajar Manual' : 'Log Teaching Session'}
+                {sessionToEdit
+                  ? (language === 'id' ? 'Ubah Sesi Mengajar' : 'Edit Teaching Session')
+                  : (language === 'id' ? 'Catat Sesi Mengajar Manual' : 'Log Teaching Session')}
               </h3>
               <p className="text-xs text-stone-500 font-medium">
                 {language === 'id'
@@ -156,17 +197,25 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
               <label className="block text-xs font-bold text-stone-700 mb-1">
                 {language === 'id' ? 'Durasi Mengajar' : 'Duration'}
               </label>
-              <select
+              <input
+                type="number"
+                min={1}
+                max={720}
+                step={5}
+                list="session-duration-presets"
                 value={durationMinutes}
-                onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
+                onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value) || 1))}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800 font-bold"
-              >
-                <option value={45}>45 Menit / Mins</option>
-                <option value={60}>60 Menit / Mins (1 Jam)</option>
-                <option value={90}>90 Menit / Mins (1.5 Jam)</option>
-                <option value={120}>120 Menit / Mins (2 Jam)</option>
-                <option value={180}>180 Menit / Mins (3 Jam)</option>
-              </select>
+                aria-label={language === 'id' ? 'Durasi (menit)' : 'Duration (minutes)'}
+              />
+              <datalist id="session-duration-presets">
+                <option value="45" />
+                <option value="60" />
+                <option value="90" />
+                <option value="120" />
+                <option value="180" />
+              </datalist>
+              <p className="text-[10px] text-stone-400 mt-1">{language === 'id' ? 'menit' : 'minutes'}</p>
             </div>
 
             <div>

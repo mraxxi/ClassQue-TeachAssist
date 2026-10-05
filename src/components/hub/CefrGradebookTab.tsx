@@ -4,7 +4,8 @@ import {
   FileEdit, X, Sparkles, BookOpen, MessageSquare
 } from 'lucide-react';
 import { Cohort, Student, SkillCategory, CEFRLevel, CompetencyScore } from '../../types';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface CefrGradebookTabProps {
   activeCohort: Cohort;
@@ -79,6 +80,8 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
     );
   };
 
+  useEscapeKey(() => setEditingNoteMilestoneId(null), !!editingNoteMilestoneId);
+
   const handleOpenNote = (milestoneId: string) => {
     const existing = studentEvals.find((e) => e.milestoneId === milestoneId);
     setEditingNoteMilestoneId(milestoneId);
@@ -88,8 +91,12 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
   const handleSaveNote = () => {
     if (!currentStudent || !editingNoteMilestoneId) return;
     const existing = studentEvals.find((e) => e.milestoneId === editingNoteMilestoneId);
-    const score = existing?.competencyScore || 3; // default to 3 if not yet rated
-    setStudentMilestoneScore(currentStudent.id, editingNoteMilestoneId, score, noteInput.trim());
+    // A note never creates an evaluation by itself: the teacher must rate the descriptor first.
+    if (!existing) {
+      addToast(language === 'id' ? 'Beri tingkat capaian (1–4) terlebih dahulu, lalu tambahkan catatan.' : 'Rate the descriptor (1–4) first, then add a note.', 'warning');
+      return;
+    }
+    setStudentMilestoneScore(currentStudent.id, editingNoteMilestoneId, existing.competencyScore, noteInput.trim());
     setEditingNoteMilestoneId(null);
     setNoteInput('');
     addToast(language === 'id' ? 'Catatan capaian berhasil disimpan' : 'Evaluation note saved', 'success');

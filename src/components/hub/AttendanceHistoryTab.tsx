@@ -4,8 +4,9 @@ import {
   Clock, AlertCircle, CheckCircle2, XCircle, FileEdit
 } from 'lucide-react';
 import { Cohort, Student, AttendanceStatus } from '../../types';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
+import { addDaysStr, localDateStr } from '../../utils/date';
 
 interface AttendanceHistoryTabProps {
   activeCohort: Cohort;
@@ -19,27 +20,15 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
   const { attendanceRecords, setAttendance, batchMarkAllPresent, language, addToast } = useTeacherStore();
   const t = useTranslation(language);
 
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(localDateStr());
   const [viewMode, setViewMode] = useState<'daily' | 'matrix'>('daily');
   const [editingNoteStudentId, setEditingNoteStudentId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>('');
 
-  // Date navigation helpers
-  const handlePrevDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
-
-  const handleNextDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
-
-  const handleToday = () => {
-    setSelectedDate(new Date().toISOString().split('T')[0]);
-  };
+  // Date navigation helpers (local calendar dates, never UTC)
+  const handlePrevDay = () => setSelectedDate(addDaysStr(selectedDate, -1));
+  const handleNextDay = () => setSelectedDate(addDaysStr(selectedDate, 1));
+  const handleToday = () => setSelectedDate(localDateStr());
 
   const getStudentStatusRecord = (studentId: string, date: string) => {
     return attendanceRecords.find(
@@ -47,10 +36,9 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
     );
   };
 
-  const getStudentStatus = (studentId: string, date: string): AttendanceStatus => {
-    const rec = getStudentStatusRecord(studentId, date);
-    return rec?.status || 'present';
-  };
+  /** `undefined` = not recorded yet. Unrecorded never counts as present. */
+  const getStudentStatus = (studentId: string, date: string): AttendanceStatus | undefined =>
+    getStudentStatusRecord(studentId, date)?.status;
 
   const statusConfigs: { key: AttendanceStatus; label: string; activeClass: string; badgeClass: string; icon: any }[] = [
     { key: 'present', label: language === 'id' ? 'Hadir (H)' : 'Present (P)', activeClass: 'bg-emerald-600 text-white shadow-xs', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
@@ -64,20 +52,22 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
   const absentCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'absent').length;
   const lateCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'late').length;
   const excusedCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'excused').length;
-  const attendanceRate = cohortStudents.length > 0 
-    ? Math.round(((presentCount + lateCount) / cohortStudents.length) * 100) 
-    : 100;
+  const unmarkedCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === undefined).length;
+  const recordedCount = cohortStudents.length - unmarkedCount;
+  // Rate is computed from recorded students only; "—" while nothing is recorded.
+  const attendanceRate: number | null = recordedCount > 0 ? Math.round(((presentCount + lateCount) / recordedCount) * 100) : null;
 
-  // Recent 7 dates for matrix view
+  // Recent 7 dates for matrix view (oldest -> today)
+  const today = localDateStr();
   const recentDates: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    recentDates.push(d.toISOString().split('T')[0]);
-  }
+  for (let i = 6; i >= 0; i--) recentDates.push(addDaysStr(today, -i));
 
   const handleSaveNote = (studentId: string) => {
     const currentStatus = getStudentStatus(studentId, selectedDate);
+    if (!currentStatus) {
+      addToast(language === 'id' ? 'Tandai status presensi terlebih dahulu.' : 'Mark an attendance status first.', 'warning');
+      return;
+    }
     setAttendance(studentId, activeCohort.id, selectedDate, currentStatus, noteText.trim());
     setEditingNoteStudentId(null);
     setNoteText('');
@@ -164,12 +154,12 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
       </div>
 
       {/* Date KPI Summary Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
           <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
             {language === 'id' ? 'Tingkat Kehadiran' : 'Attendance Rate'}
           </span>
-          <span className="text-xl font-black text-teal-900 mt-0.5 block">{attendanceRate}%</span>
+          <span className="text-xl font-black text-teal-900 mt-0.5 block">{attendanceRate === null ? '—' : `${attendanceRate}%`}</span>
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
           <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
@@ -189,11 +179,17 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{lateCount}</span>
         </div>
-        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center col-span-2 sm:col-span-1">
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
           <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider block">
             {language === 'id' ? 'Izin' : 'Excused'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{excusedCount}</span>
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center col-span-2 sm:col-span-1" data-testid="unmarked-kpi">
+          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+            {language === 'id' ? 'Belum Dicatat' : 'Not Recorded'}
+          </span>
+          <span className="text-xl font-black text-stone-900 mt-0.5 block">{unmarkedCount}</span>
         </div>
       </div>
 
@@ -289,6 +285,10 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                         value={noteText}
                         onChange={(e) => setNoteText(e.target.value)}
                         placeholder="e.g. Izin sakit flu / Datang terlambat 15 menit..."
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveNote(st.id);
+                          if (e.key === 'Escape') setEditingNoteStudentId(null);
+                        }}
                         className="flex-1 px-3 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
                         autoFocus
                       />
@@ -341,6 +341,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
             <tbody className="divide-y divide-stone-100">
               {cohortStudents.map((st) => {
                 let stPresent = 0;
+                let stRecorded = 0;
                 return (
                   <tr key={st.id} className="hover:bg-stone-50/60 transition-colors">
                     <td className="py-3 px-3 font-bold text-stone-900">
@@ -354,10 +355,13 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
 
                     {recentDates.map((dt) => {
                       const status = getStudentStatus(st.id, dt);
+                      if (status) stRecorded++;
                       if (status === 'present' || status === 'late') stPresent++;
 
-                      const letter = status === 'present' ? 'H' : status === 'absent' ? 'A' : status === 'late' ? 'T' : 'I';
-                      const color = status === 'present' 
+                      const letter = !status ? '·' : status === 'present' ? 'H' : status === 'absent' ? 'A' : status === 'late' ? 'T' : 'I';
+                      const color = !status
+                        ? 'bg-stone-50 text-stone-300 border-stone-200'
+                        : status === 'present' 
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
                         : status === 'absent' 
                         ? 'bg-rose-100 text-rose-800 border-rose-300' 
@@ -367,7 +371,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
 
                       const cycleNext = () => {
                         const order: AttendanceStatus[] = ['present', 'late', 'excused', 'absent'];
-                        const nextIdx = (order.indexOf(status) + 1) % order.length;
+                        const nextIdx = status ? (order.indexOf(status) + 1) % order.length : 0;
                         setAttendance(st.id, activeCohort.id, dt, order[nextIdx]);
                       };
 
@@ -376,7 +380,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                           <button
                             onClick={cycleNext}
                             className={`w-7 h-7 rounded-lg text-xs font-black border transition-all cursor-pointer ${color}`}
-                            title={`${dt}: ${status.toUpperCase()} (Click to toggle)`}
+                            title={`${dt}: ${status ? status.toUpperCase() : 'NOT RECORDED'} (Click to toggle)`}
                           >
                             {letter}
                           </button>
@@ -385,7 +389,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                     })}
 
                     <td className="py-3 px-3 text-right font-mono font-bold text-teal-900">
-                      {Math.round((stPresent / recentDates.length) * 100)}%
+                      {stRecorded > 0 ? `${Math.round((stPresent / stRecorded) * 100)}%` : '—'}
                     </td>
                   </tr>
                 );

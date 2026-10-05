@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { 
   Database, Cloud, RefreshCw, X, 
   CheckCircle2, AlertTriangle, ShieldCheck, Activity, Download, Upload 
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { getSyncToken, syncHeaders } from '../../utils/syncAuth';
+
+interface RemoteSummary {
+  counts: Record<string, number>;
+  lastUpdatedAt: string | null;
+}
 
 interface SyncDiagnosticsModalProps {
   isOpen: boolean;
@@ -16,32 +23,55 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     hasUnsyncedChanges, lastLocalMutationAt, syncDatabaseToEdge, 
     fetchDatabaseFromEdge, cohorts, students, tasks, 
     lessonPlans, attendanceRecords, sessions, claims, 
-    language, addToast 
+    language, addToast, syncAuthStatus 
   } = useTeacherStore();
 
   const [isPinging, setIsPinging] = useState(false);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [remote, setRemote] = useState<RemoteSummary | null>(null);
+
+  useEscapeKey(onClose, isOpen);
+
+  const loadSummary = useCallback(async () => {
+    if (!getSyncToken()) return;
+    const start = performance.now();
+    try {
+      const res = await fetch('/api/sync?summary=1', { cache: 'no-store', headers: syncHeaders() });
+      if (!res.ok) {
+        setRemote(null);
+        setLatencyMs(null);
+        return false;
+      }
+      const json = (await res.json()) as RemoteSummary;
+      setRemote({ counts: json.counts || {}, lastUpdatedAt: json.lastUpdatedAt ?? null });
+      setLatencyMs(Math.round(performance.now() - start));
+      return true;
+    } catch {
+      setRemote(null);
+      setLatencyMs(null);
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) void loadSummary();
+  }, [isOpen, loadSummary]);
 
   if (!isOpen) return null;
 
   const handlePingTest = async () => {
     setIsPinging(true);
-    const start = performance.now();
-    try {
-      const res = await fetch('/api/sync', { method: 'GET', cache: 'no-store' });
-      const elapsed = Math.round(performance.now() - start);
-      if (res.ok) {
-        setLatencyMs(elapsed);
-        addToast(language === 'id' ? `Ping D1 sukses: ${elapsed}ms` : `D1 ping success: ${elapsed}ms`, 'success');
-      } else {
-        setLatencyMs(null);
-        addToast(language === 'id' ? 'Koneksi ke edge gagal' : 'Edge connection failed', 'error');
-      }
-    } catch {
-      setLatencyMs(null);
-      addToast(language === 'id' ? 'Edge tidak dapat dijangkau' : 'Edge unreachable', 'error');
-    } finally {
-      setIsPinging(false);
+    const ok = await loadSummary();
+    setIsPinging(false);
+    if (ok) {
+      addToast(language === 'id' ? 'Ping D1 sukses' : 'D1 ping success', 'success');
+    } else {
+      addToast(
+        !getSyncToken()
+          ? (language === 'id' ? 'Isi token sinkronisasi di Pengaturan' : 'Enter the sync token in Settings')
+          : (language === 'id' ? 'Koneksi ke edge gagal' : 'Edge connection failed'),
+        'error'
+      );
     }
   };
 
@@ -49,6 +79,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     const ok = await syncDatabaseToEdge();
     if (ok) {
       addToast(language === 'id' ? 'Berhasil menyinkronkan data ke Cloudflare D1' : 'Successfully pushed data to Cloudflare D1', 'success');
+      void loadSummary();
     } else {
       addToast(language === 'id' ? 'Gagal menyinkronkan ke D1' : 'Failed to push to D1', 'error');
     }
@@ -58,20 +89,30 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     const ok = await fetchDatabaseFromEdge();
     if (ok) {
       addToast(language === 'id' ? 'Berhasil memperbarui data dari Cloudflare D1' : 'Successfully pulled truth from Cloudflare D1', 'success');
+      void loadSummary();
     } else {
       addToast(language === 'id' ? 'Gagal mengambil data dari D1' : 'Failed to pull from D1', 'error');
     }
   };
 
   const entities = [
-    { label: language === 'id' ? 'Kelas Cohort' : 'Cohorts', count: cohorts.length },
-    { label: language === 'id' ? 'Siswa' : 'Students', count: students.length },
-    { label: language === 'id' ? 'Rencana Ajar' : 'Lesson Plans', count: lessonPlans.length },
-    { label: language === 'id' ? 'Catatan Kehadiran' : 'Attendance', count: attendanceRecords.length },
-    { label: language === 'id' ? 'Tugas Prioritas' : 'Tasks', count: tasks.length },
-    { label: language === 'id' ? 'Sesi Mengajar' : 'Teaching Sessions', count: sessions.length },
-    { label: language === 'id' ? 'Klaim Honor' : 'Teaching Claims', count: claims.length },
+    { label: language === 'id' ? 'Kelas Cohort' : 'Cohorts', count: cohorts.length, remote: remote?.counts.cohorts },
+    { label: language === 'id' ? 'Siswa' : 'Students', count: students.length, remote: remote?.counts.students },
+    { label: language === 'id' ? 'Rencana Ajar' : 'Lesson Plans', count: lessonPlans.length, remote: remote?.counts.lessonPlans },
+    { label: language === 'id' ? 'Catatan Kehadiran' : 'Attendance', count: attendanceRecords.length, remote: remote?.counts.attendance },
+    { label: language === 'id' ? 'Tugas Prioritas' : 'Tasks', count: tasks.length, remote: remote?.counts.tasks },
+    { label: language === 'id' ? 'Sesi Mengajar' : 'Teaching Sessions', count: sessions.length, remote: remote?.counts.sessions },
+    { label: language === 'id' ? 'Klaim Honor' : 'Teaching Claims', count: claims.length, remote: remote?.counts.claims },
   ];
+
+  const authMessage =
+    syncAuthStatus === 'missing'
+      ? (language === 'id' ? 'Token sinkronisasi belum diisi (Pengaturan).' : 'Sync token not set (Settings).')
+      : syncAuthStatus === 'rejected'
+      ? (language === 'id' ? 'Server menolak token sinkronisasi.' : 'The server rejected the sync token.')
+      : syncAuthStatus === 'unconfigured'
+      ? (language === 'id' ? 'Server belum dikonfigurasi (SYNC_TOKEN).' : 'Server is not configured (SYNC_TOKEN).')
+      : null;
 
   const formatTime = (isoString?: string | null) => {
     if (!isoString) return language === 'id' ? 'Belum pernah' : 'Never';
@@ -148,9 +189,18 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
               <p className="text-[11px] text-teal-800/90 leading-tight">
                 {language === 'id' ? 'Pusat Kebenaran Data Utama (Serverless SQLite di 300+ lokasi Edge).' : 'Authoritative Central Source of Truth (Serverless Edge SQLite).'}
               </p>
+              {authMessage && (
+                <p className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1" data-testid="diag-auth-message">
+                  {authMessage}
+                </p>
+              )}
               <div className="pt-2 border-t border-teal-200/60 flex items-center justify-between text-[10px] text-teal-900 font-medium">
                 <span>{language === 'id' ? 'Sinkronisasi Terakhir:' : 'Last Synced:'}</span>
                 <span className="font-bold">{formatTime(lastSyncedAt)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-teal-900 font-medium">
+                <span>{language === 'id' ? 'Update Terakhir di D1:' : 'Last Updated in D1:'}</span>
+                <span className="font-bold" data-testid="diag-remote-updated">{remote?.lastUpdatedAt ? formatTime(remote.lastUpdatedAt.replace(' ', 'T') + 'Z') : '—'}</span>
               </div>
             </div>
 
@@ -189,7 +239,8 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
             <h4 className="text-xs font-bold text-stone-900 mb-3 flex items-center justify-between">
               <span>{language === 'id' ? 'Daftar Entitas Terkelola' : 'Managed Entity Inventory'}</span>
               <span className="text-[10px] text-stone-500 font-normal">
-                {entities.reduce((acc, e) => acc + e.count, 0)} {language === 'id' ? 'total rekaman lokal' : 'total local records'}
+                {entities.reduce((acc, e) => acc + e.count, 0)} {language === 'id' ? 'rekaman lokal' : 'local records'}
+                {remote ? ` • ${entities.reduce((acc, e) => acc + (e.remote ?? 0), 0)} ${language === 'id' ? 'di D1' : 'in D1'}` : ''}
               </span>
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
@@ -200,6 +251,9 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                   </span>
                   <span className="text-[10px] font-semibold text-stone-500 block truncate">
                     {item.label}
+                  </span>
+                  <span className="text-[10px] font-mono text-teal-700 block" data-testid={`diag-remote-${item.label}`}>
+                    {item.remote === undefined ? '—' : `D1: ${item.remote}`}
                   </span>
                 </div>
               ))}

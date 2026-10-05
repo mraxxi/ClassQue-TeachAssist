@@ -3,9 +3,11 @@ import {
   X, Play, Pause, CheckCircle2, 
   BookOpen, Users, StickyNote, Award, ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { useTeacherStore, useZustandStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { AttendanceStatus, CompetencyScore } from '../../types';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { localDateStr } from '../../utils/date';
 
 export const LiveCockpitModal: React.FC = () => {
   const { 
@@ -13,13 +15,28 @@ export const LiveCockpitModal: React.FC = () => {
     cohorts, students, lessonPlans, attendanceRecords, setAttendance,
     cefrMilestones, studentEvaluations, setStudentMilestoneScore,
     stopwatchSeconds, isStopwatchRunning, pauseLiveSession, resumeLiveSession,
-    tickStopwatch, finishLiveSession, language, addToast 
+    tickStopwatch, finishLiveSession, liveScratchpad, setLiveScratchpad, language, addToast 
   } = useTeacherStore();
   const t = useTranslation(language);
 
   const [activeStageIndex, setActiveStageIndex] = useState(0);
-  const [scratchpadText, setScratchpadText] = useState('');
   const [selectedStudentForGrading, setSelectedStudentForGrading] = useState<string | null>(null);
+
+  const currentCohort = cohorts.find((c) => c.id === activeSessionCohortId) || cohorts[0];
+  const cohortStudents = students.filter((s) => s.cohortId === currentCohort?.id && s.isActive !== false);
+  const linkedLesson =
+    lessonPlans.find((lp) => lp.cohortId === currentCohort?.id) || lessonPlans.find((lp) => !lp.cohortId);
+  const todayDate = localDateStr();
+  const activeGradingStudent = cohortStudents.find((s) => s.id === (selectedStudentForGrading || cohortStudents[0]?.id));
+
+  // Esc: ask before leaving the cockpit view (the class keeps running in the background)
+  useEscapeKey(() => {
+    if (window.confirm(language === 'id'
+      ? 'Tutup tampilan Kokpit? Sesi tetap berjalan dan dapat dibuka kembali.'
+      : 'Close the Cockpit view? The class keeps running and can be reopened.')) {
+      setLiveCockpitOpen(false);
+    }
+  }, isLiveCockpitOpen);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -36,12 +53,24 @@ export const LiveCockpitModal: React.FC = () => {
         } else {
           resumeLiveSession();
         }
+        return;
+      }
+
+      // 1-4: Roll-Call for the highlighted student (Present / Absent / Late / Excused), then advance
+      const quick: Record<string, AttendanceStatus> = { '1': 'present', '2': 'absent', '3': 'late', '4': 'excused' };
+      const status = quick[e.key];
+      if (status && activeGradingStudent && currentCohort && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setAttendance(activeGradingStudent.id, currentCohort.id, todayDate, status);
+        const idx = cohortStudents.findIndex((s) => s.id === activeGradingStudent.id);
+        const next = cohortStudents[idx + 1];
+        if (next) setSelectedStudentForGrading(next.id);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLiveCockpitOpen, isStopwatchRunning, pauseLiveSession, resumeLiveSession]);
+  }, [isLiveCockpitOpen, isStopwatchRunning, pauseLiveSession, resumeLiveSession, activeGradingStudent, currentCohort, cohortStudents, todayDate, setAttendance]);
 
   // Ticking effect
   useEffect(() => {
@@ -57,11 +86,6 @@ export const LiveCockpitModal: React.FC = () => {
   }, [isLiveCockpitOpen, isStopwatchRunning, tickStopwatch]);
 
   if (!isLiveCockpitOpen) return null;
-
-  const currentCohort = cohorts.find((c) => c.id === activeSessionCohortId) || cohorts[0];
-  const cohortStudents = students.filter((s) => s.cohortId === currentCohort?.id);
-  const linkedLesson = lessonPlans.find((lp) => lp.cohortId === currentCohort?.id) || lessonPlans[0];
-  const todayDate = new Date().toISOString().split('T')[0];
 
   // Stopwatch format HH:MM:SS
   const formatTime = (secs: number) => {
@@ -79,12 +103,9 @@ export const LiveCockpitModal: React.FC = () => {
     { title: t.liveModal.stageWrapUp, desc: linkedLesson?.wrapUp, suggestedMins: '5–10m' },
   ];
 
-  const getStudentStatus = (studentId: string): AttendanceStatus => {
-    const record = attendanceRecords.find(
-      (r) => r.studentId === studentId && r.attendanceDate === todayDate
-    );
-    return record?.status || 'present';
-  };
+  /** Unrecorded students show no status (never silently "present"). */
+  const getStudentStatus = (studentId: string): AttendanceStatus | undefined =>
+    attendanceRecords.find((r) => r.studentId === studentId && r.attendanceDate === todayDate)?.status;
 
   const statusOptions: { key: AttendanceStatus; label: string; activeClass: string; inactiveClass: string }[] = [
     { key: 'present', label: 'Hadir (H)', activeClass: 'bg-emerald-600 text-white font-bold shadow-xs', inactiveClass: 'bg-stone-100 text-stone-600 hover:bg-stone-200' },
@@ -95,7 +116,7 @@ export const LiveCockpitModal: React.FC = () => {
 
   const handleFinish = () => {
     if (window.confirm(language === 'id' ? 'Akhiri sesi mengajar dan simpan klaim honorarium?' : 'Finish teaching session and save claim calculation?')) {
-      const savedSession = finishLiveSession(scratchpadText);
+      const savedSession = finishLiveSession(liveScratchpad);
       addToast(
         language === 'id' 
           ? `Sesi selesai! Durasi ${savedSession.durationMinutes} menit tersimpan ke klaim.` 
@@ -105,7 +126,6 @@ export const LiveCockpitModal: React.FC = () => {
     }
   };
 
-  const activeGradingStudent = cohortStudents.find((s) => s.id === (selectedStudentForGrading || cohortStudents[0]?.id));
   const activeCohortMilestones = cefrMilestones.filter((m) => m.cefrLevel === currentCohort?.cefrLevel);
 
   return (
@@ -193,9 +213,12 @@ export const LiveCockpitModal: React.FC = () => {
                 <h3 className="font-extrabold text-stone-900 text-xs uppercase tracking-wider flex items-center gap-2">
                   <Users className="w-4 h-4 text-teal-700" />
                   {t.cockpit.rollCallTitle} ({cohortStudents.length})
+                  <span className="ml-2 text-[10px] font-medium text-stone-400" title="Keyboard: 1 Hadir • 2 Alpa • 3 Terlambat • 4 Izin">
+                    {language === 'id' ? 'Tombol 1–4' : 'Keys 1–4'}
+                  </span>
                 </h3>
                 <button
-                  onClick={() => currentCohort && useZustandStore.getState().batchMarkAllPresent(currentCohort.id, todayDate)}
+                  onClick={() => currentCohort && useTeacherStore.getState().batchMarkAllPresent(currentCohort.id, todayDate)}
                   className="text-[11px] font-bold text-teal-800 hover:underline cursor-pointer"
                 >
                   {t.cockpit.markAllPresent}
@@ -395,8 +418,8 @@ export const LiveCockpitModal: React.FC = () => {
                 {t.liveModal.scratchpad}
               </h3>
               <textarea
-                value={scratchpadText}
-                onChange={(e) => setScratchpadText(e.target.value)}
+                value={liveScratchpad}
+                onChange={(e) => setLiveScratchpad(e.target.value)}
                 placeholder={t.liveModal.scratchpadPlaceholder}
                 className="w-full flex-1 min-h-[90px] p-3 text-xs bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 resize-none font-medium"
               />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Printer, Award, UserCheck, BookOpen } from 'lucide-react';
 import { Student, Cohort, Teacher, CefrMilestone, CompetencyScore, Language } from '../../types';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface PrintableReportCardProps {
   isOpen: boolean;
@@ -8,7 +9,7 @@ interface PrintableReportCardProps {
   cohort: Cohort | null | undefined;
   teacher: Teacher;
   reportPeriod: string;
-  attendanceRate: number;
+  attendanceRate: number | null;
   presentCount: number;
   totalSessionsCount: number;
   evaluations: Array<{ milestone: CefrMilestone; score: CompetencyScore; notes?: string }>;
@@ -31,6 +32,8 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   language,
   onClose,
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   if (!isOpen || !student) return null;
 
   const handlePrint = () => {
@@ -108,13 +111,13 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         </div>
 
         {/* Printable Sheet Body */}
-        <div className="space-y-6 text-stone-900 print:text-black">
+        <div className="print-sheet space-y-6 text-stone-900 print:text-black">
           
           {/* Institution & Report Header */}
           <div className="border-b-2 border-stone-900 pb-4 flex items-center justify-between">
             <div>
               <h1 className="text-lg sm:text-xl font-black tracking-wide uppercase text-stone-900">
-                {teacher.schoolName || 'ClassQue Language Academy'}
+                {teacher.schoolName}
               </h1>
               <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mt-0.5">
                 {language === 'id' 
@@ -127,7 +130,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                 {reportPeriod}
               </span>
               <p className="text-[11px] text-stone-400 mt-1">
-                Ref: {student.id.slice(0, 8).toUpperCase()}
+                Ref: {reportPeriod}-{student.id.slice(-6).toUpperCase()}
               </p>
             </div>
           </div>
@@ -178,19 +181,23 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                   {language === 'id' ? 'Tingkat Kehadiran & Partisipasi Sesi' : 'Attendance & Participation Rate'}
                 </h4>
                 <p className="text-[11px] text-emerald-700 font-medium">
-                  {language === 'id'
-                    ? `Hadir dalam ${presentCount} dari total ${totalSessionsCount} sesi pembelajaran yang dijadwalkan.`
-                    : `Attended ${presentCount} out of ${totalSessionsCount} total scheduled sessions.`}
+                  {attendanceRate === null
+                    ? (language === 'id' ? 'Belum ada data presensi pada periode ini.' : 'No attendance has been recorded for this period.')
+                    : language === 'id'
+                    ? `Hadir dalam ${presentCount} dari total ${totalSessionsCount} sesi pembelajaran yang dicatat.`
+                    : `Attended ${presentCount} out of ${totalSessionsCount} recorded sessions.`}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <div className="text-right">
-                <span className="text-2xl font-black text-emerald-900 font-mono">{attendanceRate}%</span>
+                <span className="text-2xl font-black text-emerald-900 font-mono">{attendanceRate === null ? '—' : `${attendanceRate}%`}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-200/80 text-emerald-900 font-extrabold text-[11px]">
-                {attendanceRate >= 80 ? (language === 'id' ? 'Sangat Baik' : 'Excellent') : (language === 'id' ? 'Perlu Ditingkatkan' : 'Needs Improvement')}
-              </span>
+              {attendanceRate !== null && (
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-200/80 text-emerald-900 font-extrabold text-[11px]">
+                  {attendanceRate >= 80 ? (language === 'id' ? 'Sangat Baik' : 'Excellent') : (language === 'id' ? 'Perlu Ditingkatkan' : 'Needs Improvement')}
+                </span>
+              )}
             </div>
           </div>
 
@@ -262,9 +269,15 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             <h4 className="font-extrabold text-stone-900 uppercase tracking-wider text-[11px]">
               {language === 'id' ? 'Catatan Observasi & Rekomendasi Guru' : 'Educator Narrative & Growth Recommendations'}
             </h4>
-            <p className="text-stone-700 leading-relaxed italic bg-stone-50 p-3 rounded-xl border border-stone-200/70 whitespace-pre-wrap">
-              "{narrativeFeedback || student.strengths || student.notes || 'Siswa menunjukkan antusiasme belajar yang sangat baik, berpartisipasi aktif dalam kegiatan interaksi kelas, serta terus menunjukkan peningkatan penguasaan kosakata baru.'}"
-            </p>
+            {(narrativeFeedback || student.strengths || student.notes) ? (
+              <p className="text-stone-700 leading-relaxed italic bg-stone-50 p-3 rounded-xl border border-stone-200/70 whitespace-pre-wrap">
+                "{narrativeFeedback || student.strengths || student.notes}"
+              </p>
+            ) : (
+              <p className="text-stone-400 text-[11px] italic p-3 rounded-xl border border-dashed border-stone-200">
+                {language === 'id' ? 'Belum ada catatan guru.' : 'No teacher narrative has been written yet.'}
+              </p>
+            )}
             {student.growthAreas && (
               <p className="text-[11px] text-stone-500 font-medium">
                 🎯 <strong>{language === 'id' ? 'Area Pengembangan' : 'Focus for Growth'}:</strong> {student.growthAreas}
@@ -295,7 +308,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                 <p className="border-b border-stone-400 w-44 mx-auto pb-1 font-bold text-stone-900">
                   ( {teacher.name} )
                 </p>
-                <p className="text-[10px] text-stone-400 mt-1">{teacher.schoolName || 'ClassQue Academy'}</p>
+                <p className="text-[10px] text-stone-400 mt-1">{teacher.schoolName}</p>
               </div>
             </div>
           </div>

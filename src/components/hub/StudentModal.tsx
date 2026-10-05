@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Phone, Mail, Sparkles, TrendingUp, FileText } from 'lucide-react';
 import { Student } from '../../types';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface StudentModalProps {
   isOpen: boolean;
@@ -60,6 +61,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({
       setIsActive(true);
     }
   }, [studentToEdit, defaultCohortId, isOpen]);
+
+  useEscapeKey(onClose, isOpen);
 
   if (!isOpen) return null;
 

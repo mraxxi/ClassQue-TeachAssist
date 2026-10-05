@@ -5,40 +5,39 @@ import { ClassesStudentsHub } from './components/hub/ClassesStudentsHub';
 import { LessonPlannerHub } from './components/hub/LessonPlannerHub';
 import { ClaimsReportsHub } from './components/hub/ClaimsReportsHub';
 import { SettingsHub } from './components/hub/SettingsHub';
-import { useTeacherStore, useZustandStore } from './store/facade';
+import { useTeacherStore } from './store/useTeacherStore';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastContainer } from './components/common/ToastContainer';
 import { ClassroomClock } from './components/common/ClassroomClock';
 import { SyncStatusBadge } from './components/layout/SyncStatusBadge';
 
-import { populateDemoData } from './db/seed';
-
 export const App: React.FC = () => {
-  const { activeTab, language, fetchDatabaseFromEdge } = useTeacherStore();
+  const { activeTab, language, fetchDatabaseFromEdge, refreshNotifications } = useTeacherStore();
 
   useEffect(() => {
-    // Populate demo data into Dexie if empty
-    populateDemoData().then(() => {
-      // Fetch initial dataset from Cloudflare D1 Edge database on load
-      fetchDatabaseFromEdge();
-    });
+    // Fetch initial dataset from Cloudflare D1 Edge database on load
+    fetchDatabaseFromEdge();
 
     // Reconnection listener: automatically flush pending local changes when back online
     const handleOnline = () => {
       fetchDatabaseFromEdge();
     };
     const handleOffline = () => {
-      useZustandStore.setState({ isEdgeConnected: false });
+      useTeacherStore.setState({ isEdgeConnected: false });
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Keep time-based alerts ("class starts at 14:30", overdue tasks) fresh.
+    const alertTimer = setInterval(refreshNotifications, 60_000);
+
     return () => {
+      clearInterval(alertTimer);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [fetchDatabaseFromEdge]);
+  }, [fetchDatabaseFromEdge, refreshNotifications]);
 
   return (
     <ErrorBoundary>

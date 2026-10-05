@@ -5,14 +5,16 @@ import {
   ArrowRightLeft, Sparkles, TrendingUp, Phone, Mail, FileText,
   CalendarCheck2, Star
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
+import { toWhatsAppNumber } from '../../utils/phone';
 import { Student, Cohort } from '../../types';
 import { CohortModal } from './CohortModal';
 import { StudentModal } from './StudentModal';
 import { AttendanceHistoryTab } from './AttendanceHistoryTab';
 import { CefrGradebookTab } from './CefrGradebookTab';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 export const ClassesStudentsHub: React.FC = () => {
   const { 
@@ -65,6 +67,13 @@ export const ClassesStudentsHub: React.FC = () => {
     : [];
   const countMastered = studentEvals.filter((e) => e.competencyScore === 4).length;
   const countAchieved = studentEvals.filter((e) => e.competencyScore === 3).length;
+
+  // Numbers shown in the delete confirmations (what exactly will be removed)
+  const cohortDeleteCount = confirmDeleteCohort ? students.filter((s) => s.cohortId === confirmDeleteCohort.id).length : 0;
+  const studentDeleteAttendance = confirmDeleteStudent ? attendanceRecords.filter((r) => r.studentId === confirmDeleteStudent.id).length : 0;
+  const studentDeleteEvals = confirmDeleteStudent ? studentEvaluations.filter((e) => e.studentId === confirmDeleteStudent.id).length : 0;
+
+  useEscapeKey(() => setTransferModalStudent(null), !!transferModalStudent);
 
   const handleOpenAddCohort = () => {
     setCohortToEdit(null);
@@ -186,15 +195,13 @@ export const ClassesStudentsHub: React.FC = () => {
                 <span>{language === 'id' ? 'Edit Kelas' : 'Edit Cohort'}</span>
               </button>
 
-              {cohorts.length > 1 && (
-                <button
-                  onClick={() => setConfirmDeleteCohort(activeCohort)}
-                  className="p-2 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
-                  title="Delete cohort"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button
+                onClick={() => setConfirmDeleteCohort(activeCohort)}
+                className="p-2 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                title="Delete cohort"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
         </div>
@@ -205,12 +212,12 @@ export const ClassesStudentsHub: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4">
               <span className="flex items-center gap-1 font-semibold text-stone-800">
                 <Clock className="w-3.5 h-3.5 text-teal-700" />
-                {activeCohort.scheduleDays?.join(', ') || 'Mon, Wed'} • {activeCohort.startTime || '14:00'} ({activeCohort.durationMinutes || 60}m)
+                {activeCohort.scheduleDays?.join(', ') || '—'} • {activeCohort.startTime || '—'} ({activeCohort.durationMinutes || 60}m)
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-stone-400" />
-                {activeCohort.roomOrLink || 'Room 101'}
+                {activeCohort.roomOrLink || '—'}
               </span>
             </div>
 
@@ -371,7 +378,7 @@ export const ClassesStudentsHub: React.FC = () => {
                   <div className="flex items-center gap-2">
                     {currentStudent.guardianPhone && (
                       <a
-                        href={`https://wa.me/${currentStudent.guardianPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                        href={`https://wa.me/${toWhatsAppNumber(currentStudent.guardianPhone)}?text=${encodeURIComponent(
                           language === 'id'
                             ? `Halo Bapak/Ibu ${currentStudent.guardianName}, saya ${teacher.name} guru pengampu ${currentStudent.fullName}.`
                             : `Hello Mr/Mrs ${currentStudent.guardianName}, this is ${teacher.name}, teacher of ${currentStudent.fullName}.`
@@ -580,8 +587,8 @@ export const ClassesStudentsHub: React.FC = () => {
         title={language === 'id' ? 'Hapus Kelas / Rombel?' : 'Delete Cohort?'}
         message={
           language === 'id'
-            ? `Apakah Anda yakin ingin menghapus rombel "${confirmDeleteCohort?.name}"? Tindakan ini akan memengaruhi siswa terdaftar.`
-            : `Are you sure you want to delete "${confirmDeleteCohort?.name}"? Enrolled students will need to be reassigned.`
+            ? `Hapus rombel "${confirmDeleteCohort?.name}"? ${cohortDeleteCount} siswa beserta riwayat presensi, capaian CEFR, dan laporan wali mereka akan dihapus permanen. Rencana ajar dan tugas terkait tetap disimpan (tanpa rombel); riwayat sesi mengajar & klaim honor tidak diubah.`
+            : `Delete "${confirmDeleteCohort?.name}"? Its ${cohortDeleteCount} student(s) and their attendance, CEFR evaluations and parent reports will be permanently deleted. Related lesson plans and tasks are kept (unlinked); Teaching Session and claim history is not changed.`
         }
         confirmText={language === 'id' ? 'Ya, Hapus Kelas' : 'Yes, Delete Cohort'}
         cancelText={language === 'id' ? 'Batal' : 'Cancel'}
@@ -596,8 +603,8 @@ export const ClassesStudentsHub: React.FC = () => {
         title={language === 'id' ? 'Hapus Siswa dari Roster?' : 'Remove Student?'}
         message={
           language === 'id'
-            ? `Apakah Anda yakin ingin menghapus data siswa "${confirmDeleteStudent?.fullName}"? Riwayat presensi dan capaian akan dihapus.`
-            : `Are you sure you want to remove "${confirmDeleteStudent?.fullName}"? All attendance and evaluation history for this student will be removed.`
+            ? `Hapus siswa "${confirmDeleteStudent?.fullName}"? ${studentDeleteAttendance} catatan presensi, ${studentDeleteEvals} evaluasi CEFR, dan laporan wali siswa ini akan dihapus permanen.`
+            : `Remove "${confirmDeleteStudent?.fullName}"? ${studentDeleteAttendance} attendance record(s), ${studentDeleteEvals} CEFR evaluation(s) and this student's parent reports will be permanently deleted.`
         }
         confirmText={language === 'id' ? 'Ya, Hapus Siswa' : 'Yes, Remove Student'}
         cancelText={language === 'id' ? 'Batal' : 'Cancel'}

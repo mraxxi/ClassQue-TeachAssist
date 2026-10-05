@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, Users, CheckSquare, Receipt } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { ClassroomClock } from '../common/ClassroomClock';
 import { NextClassCard } from './NextClassCard';
@@ -8,42 +8,44 @@ import { RollCallQuickCard } from './RollCallQuickCard';
 import { ScheduleTimeline } from './ScheduleTimeline';
 import { UrgentTasksCard } from './UrgentTasksCard';
 import { LiveCockpitModal } from './LiveCockpitModal';
+import { useCockpitCohort } from '../../hooks/useCockpitCohort';
+import { formatRelative, localDateStr, localMonthStr } from '../../utils/date';
 
 export const DashboardCockpit: React.FC = () => {
-  const { language, tasks, sessions, cohorts, teacher, isStopwatchRunning } = useTeacherStore();
+  const { language, tasks, sessions, teacher, isStopwatchRunning } = useTeacherStore();
   const t = useTranslation(language);
 
-  const todayDate = new Date().toISOString().split('T')[0];
-  const currentMonth = todayDate.slice(0, 7); // e.g. "2026-09"
+  const { slots, next, now } = useCockpitCohort();
+  const todayDate = localDateStr(now);
+  const currentMonth = localMonthStr(now); // e.g. "2026-09"
 
-  // 1. Calculate Today's completed hours
-  const todayCompletedSessions = sessions.filter(
-    (s) => s.sessionDate === todayDate && s.status === 'completed'
-  );
-  const todayMinutes = todayCompletedSessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
-  const todayHoursFormatted = `${(todayMinutes / 60).toFixed(1)} hrs`;
+  // 1. Today's completed teaching time
+  const todayMinutes = sessions
+    .filter((s) => s.sessionDate === todayDate && s.status === 'completed')
+    .reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+  const todayHoursFormatted = todayMinutes < 60 ? `${todayMinutes} min` : `${(todayMinutes / 60).toFixed(1)} hrs`;
 
-  // 2. Next class countdown / status
-  const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const todayDayName = daysMap[new Date().getDay()];
-  const todayScheduledCohort = cohorts.find((c) => c.scheduleDays?.includes(todayDayName)) || cohorts[0];
-  const nextClassStatus = isStopwatchRunning
+  // 2. Next class: live now, else the next one today (with countdown), else none
+  const nextClassStatus = isStopwatchRunning || next?.status === 'live'
     ? (language === 'id' ? 'Sedang Berlangsung' : 'Live Now')
-    : todayScheduledCohort
-    ? `${todayScheduledCohort.startTime || '14:00'} (${todayScheduledCohort.cefrLevel})`
+    : next
+    ? `${next.startTime} (${next.cohort.cefrLevel}) • ${formatRelative(next.start.toISOString(), language, now)}`
+    : slots.length > 0
+    ? (language === 'id' ? 'Selesai Hari Ini' : 'Done for Today')
     : (language === 'id' ? 'Tidak Ada Hari Ini' : 'None Today');
 
   // 3. Pending tasks count
   const pendingTasksCount = tasks.filter((tk) => !tk.isCompleted).length;
 
-  // 4. Monthly Claim calculation
-  const monthlySessions = sessions.filter((s) => s.sessionDate.startsWith(currentMonth));
-  const monthlyClaimSum = monthlySessions.reduce((acc, s) => acc + (s.totalClaimAmount || 0), 0);
+  // 4. Monthly claim: sum of this month's completed Teaching Sessions (no placeholder amounts)
+  const monthlyClaimSum = sessions
+    .filter((s) => s.sessionDate.startsWith(currentMonth) && s.status === 'completed')
+    .reduce((acc, s) => acc + (s.totalClaimAmount || 0), 0);
   const claimFormatted = new Intl.NumberFormat(language === 'id' ? 'id-ID' : 'en-US', {
     style: 'currency',
     currency: teacher.currency || 'IDR',
     maximumFractionDigits: 0,
-  }).format(monthlyClaimSum > 0 ? monthlyClaimSum : 4250000); // fallback to active claim baseline for instant demo feel
+  }).format(monthlyClaimSum);
 
   const kpis = [
     {

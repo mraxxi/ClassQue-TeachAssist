@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  useEscapeKey(onCancel, isOpen);
+
   if (!isOpen) return null;
 
   return (

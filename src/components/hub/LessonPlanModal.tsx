@@ -4,7 +4,8 @@ import {
   Award, Clock, Layers, Link as LinkIcon
 } from 'lucide-react';
 import { LessonPlan, CEFRLevel, VocabularyItem } from '../../types';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface LessonPlanModalProps {
   isOpen: boolean;
@@ -78,6 +79,8 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
       setMaterialsLinks([]);
     }
   }, [planToEdit, cohorts, isOpen]);
+
+  useEscapeKey(onClose, isOpen);
 
   if (!isOpen) return null;
 

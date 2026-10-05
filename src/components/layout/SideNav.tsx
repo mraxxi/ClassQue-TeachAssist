@@ -3,7 +3,7 @@ import {
   BookOpen, LayoutDashboard, Users, FileText, 
   ReceiptText, Settings, Bell, ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import { NotificationsPopover } from './NotificationsPopover';

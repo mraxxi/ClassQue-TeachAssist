@@ -3,7 +3,7 @@ import {
   FileText, Plus, BookOpen, Edit2, Copy, Trash2, 
   Printer, ExternalLink, Search, Layers, CheckCircle2
 } from 'lucide-react';
-import { useTeacherStore } from '../../store/facade';
+import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { LessonPlan } from '../../types';
 import { LessonPlanModal } from './LessonPlanModal';
@@ -198,7 +198,6 @@ export const LessonPlannerHub: React.FC = () => {
                     <Edit2 className="w-4 h-4" />
                   </button>
 
-                  {lessonPlans.length > 1 && (
                     <button
                       onClick={() => setConfirmDeletePlan(activePlan)}
                       className="p-2.5 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
@@ -206,7 +205,6 @@ export const LessonPlannerHub: React.FC = () => {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                  )}
                 </div>
               </div>
 
