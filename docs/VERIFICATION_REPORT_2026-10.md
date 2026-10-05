@@ -4,7 +4,7 @@
 browser (Playwright + Chromium, clock pinned to Asia/Jakarta, fresh local D1 per run) against commit `8c9e05f`.
 **Outcome:** the previous "[x] verified" checkboxes were not reliable. The shipped build was unusable and several
 spec items were never implemented. All findings below are tracked and fixed by
-[`plans-tasks/working_on/16_VERIFICATION_REMEDIATION.md`](../plans-tasks/working_on/16_VERIFICATION_REMEDIATION.md).
+[`plans-tasks/finished_tested/16_VERIFICATION_REMEDIATION.md`](../plans-tasks/working_on/16_VERIFICATION_REMEDIATION.md).
 
 Severity: **S0** blocker / security / data loss · **S1** wrong or fabricated data, spec feature missing · **S2** minor.
 
@@ -67,6 +67,51 @@ claim maths & invoice, WhatsApp copy/link formatting, clock/timezone, lesson-bas
 cookie persistence, notification UI mechanics, debounced auto-sync, offline queue + reconnect push, the 10-entity
 POST/GET round-trip, migration 0003, parameterised SQL, `tsc -b` + `vite build` (0 errors).
 
+---
+
+## Resolution (Stage 16, 2026-10-06)
+
+All findings were fixed on branch `fix/stage-16-verification-remediation`; `npm run test:e2e` runs **270 checks in
+10 files, all green**, against the production build + local D1. Each row names the test that proves it.
+
+| Finding | Resolution | Proven by |
+|---|---|---|
+| F1 empty Dexie read layer | Layer removed; Zustand + `localStorage` is the only local source (also dropped 4 dependencies, bundle −120 kB) | every UI suite |
+| F2 wrangler compat date | `compatibility_date = "2026-04-01"` in `wrangler.toml(.example)` | `run.sh` starts the server |
+| F3 / BUG-03 notifications | `src/utils/notifications.ts` + store `refreshNotifications` (read/dismissed state kept) | `09` 13.x |
+| F36 no authentication | `functions/api/_middleware.ts` bearer `SYNC_TOKEN`, constant-time, **fails closed**; token UI in Settings | `08`, `08b`, `06` A5–A9 |
+| F37 `\|\| 100` defaults | `??` / `num()` helper; 0 stays 0 | `08` C1–C2 |
+| F38 validation | 400 + problem list; `undefined→null` | `08` D1–D6 |
+| F4 / F5 cascades | store cascades; confirmations state exact counts; sessions kept for billing history | `01` 7.x–8.x |
+| F6 delete resurrection | tombstones → soft delete on D1; pull replaces collections | `01` 9.x |
+| F26 restore lost | restore flagged for sync, replaces dataset (tombstones the rest) | `06` 8.3–8.5 |
+| F27 malformed backup | `validateBackup()` before any state change | `06` 8.6 |
+| F28 reset | honest "Reload from D1", double confirmation | `06` 8.7 |
+| F23 / F24 / F25 reports | recorded data only, per-month, upsert; printed card has empty states | `05` 7.x |
+| F9 / F10 attendance | unrecorded ≠ present, "Belum Dicatat" KPI, Enter saves note | `02` |
+| F8 UTC dates | `src/utils/date.ts` local helpers used everywhere | `02` F8, `04` F8, `06` 8.1 |
+| F7 WhatsApp | `src/utils/phone.ts` (`08…` → `628…`) | `01` 5.x, `05` 7.5 |
+| F11 / F12 cockpit | no fake fallback; `getTodaySlots` (sorted, live/upcoming/missed), countdown | `04` 5.x |
+| F13 / F22 hotkeys | `useEscapeKey` in every modal; `1–4` roll-call; Esc confirm in Live Cockpit | `01` 1.3d, `03`, `05`, `04` 5.17/5.19 |
+| F14 live persistence | wall-clock stopwatch, persisted session + notes; focus follows the running class | `04` 7.x |
+| F15 start time | real start/end time and local date | `04` F15, F8 |
+| F16 / F31 tasks | overdue marker, ordering, `completedAt`, time-aware slots, clean label | `09` 10.x |
+| F17–F21 claims | dynamic months, allowance persisted, timestamps, derived totals, edit session | `05` 6.x |
+| F30 proximity | `data-proximity` + pulse only ≤ 30 min | `04` 9.x |
+| F32 diagnostics | D1 counts, last-updated via `?summary=1` | `07` 11.x |
+| F34 offline shell | `public/sw.js` | `07` 14.9 |
+| F35 updatedAt | stamped on every entity mutation | `01`/`02`/`07` |
+| Minor (CEFR note score, print leaks/2 pages, last-plan delete, file name) | fixed | `03`, `05`, `06` |
+
+### Deliberate deviations / not done
+- **F33 `cq_theme`** — no theme feature exists, so nothing to persist; deferred as FR-021 (plan 12 amended).
+- **Database UUID in the diagnostics modal** — intentionally not exposed to the browser (name only).
+- **Per-record merge / delta sync** — sync is still whole-dataset last-write-wins (documented in `ARCHITECTURE.md` §3); FR-020.
+- **Billing history on cohort delete** — Teaching Sessions are kept (claims stay intact); the cohort name then shows as "Rombel dihapus".
+- **Not verified here:** the live Cloudflare deployment and the *remote* D1 (no credentials used). Before deploying:
+  set the `SYNC_TOKEN` secret (`docs/CLOUDFLARE_SETUP.md` §5), otherwise the edge API correctly answers 503.
+- `deploy.sh` still auto-commits with `git add .`; consider replacing that with an explicit commit step.
+
 ## Reproducing the tests
 
-See [`e2e/README.md`](../e2e/README.md).
+See [`e2e/README.md`](../e2e/README.md). One command: `npm run test:e2e`.

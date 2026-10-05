@@ -16,7 +16,7 @@
              |  (React/Vite SPA)  |              | (Edge Workers API) |
              +---------+----------+              +---------+----------+
                        |                                   |
-                       | Local Cache / IndexedDB           | SQLite Edge Queries
+                       | Zustand + localStorage            | SQLite Edge Queries
                        v                                   v
              +--------------------+              +--------------------+
              | Browser Client     | <=== Sync ===> |   Cloudflare D1    |
@@ -37,7 +37,7 @@
 |---|---|---|---|
 | **Frontend UI** | React 19 / Vite + TypeScript | Blazing fast DX, component ecosystem, type safety | Unlimited requests on Cloudflare Pages |
 | **Styling** | Vanilla CSS / Tailored CSS Modules | Zero runtime bloat, precise control over print/A4 styles | N/A |
-| **Client Storage** | IndexedDB (`idb` or Dexie wrapper) | True offline-first classroom usability | Client-side memory |
+| **Client Storage** | Zustand store persisted to `localStorage` (+ service-worker app shell) | One synchronous source of truth; survives reloads and Wi-Fi drops | Client-side memory |
 | **Edge API** | Cloudflare Pages Functions | Native edge routing without managing separate server | 100,000 req/day |
 | **Relational DB** | Cloudflare D1 (SQLite) | Edge-replicated ACID relational database | 5M read rows / 100k write rows per day |
 | **KV Storage** | Cloudflare KV | Fast session tokens, cached CEFR standard rubrics | 100k reads / 1k writes per day |
@@ -47,14 +47,37 @@
 
 ## 3. Data Synchronization Strategy (Local-First)
 
-1. **Client State**:
-   - All mutations (taking attendance, logging lesson notes, stopwatch ticks) update local client IndexedDB **immediately** (optimistic UI).
-2. **Background Sync Queue**:
-   - Every mutation produces a structured change event added to a persistent `sync_queue`.
-   - When network connectivity is healthy, `sync_queue` flushes in batches to `/api/sync` on Pages Functions.
-3. **Conflict Resolution**:
-   - Every record carries `updated_at` (ISO timestamp) and `sync_version`.
-   - Resolution algorithm: **Last-Write-Wins (LWW)** with field-level merging where applicable.
+> Implemented in `src/store/useTeacherStore.ts` and `functions/api/sync.ts`. An earlier Dexie/IndexedDB
+> read layer was removed in Stage 16: it was never written to, so every screen rendered empty.
+
+1. **Client state (single source of truth)**
+   - The Zustand store is persisted to `localStorage` (`classque_teacher_os_v1`) on every mutation, synchronously.
+     No roll-call, note or lesson edit can be lost to a network failure.
+   - Every mutated entity is stamped with `updatedAt`.
+   - The **live class** (running stopwatch, scratchpad, start time) is persisted too; elapsed time is derived
+     from wall-clock timestamps, so a reload or a throttled tab does not lose or distort it.
+2. **Debounced push (`scheduleAutoSync`)**
+   - ~1.5 s after the last mutation the full dataset (+ deletion tombstones) is `POST`ed to `/api/sync`.
+   - One request at a time (`syncInFlight`). Edits made while a request is on the wire keep `hasUnsyncedChanges`
+     true and trigger another push. Transient failures retry with capped back-off; auth failures do not.
+3. **Pull**
+   - On boot and on the browser `online` event: unsynced local edits are pushed **first**, then `GET /api/sync`
+     replaces local collections with D1's. If edits happen during the download, the pull is abandoned.
+   - A brand-new empty D1 seeds itself from the device instead of wiping it.
+4. **Deletes**
+   - Deleting an entity cascades locally (student → attendance/evaluations/reports; cohort → students and their
+     data; lesson plans/tasks are un-linked; Teaching Sessions are kept for claim history) and records
+     **tombstones** (`deleted: { <entity>: [id] }`). The edge soft-deletes (`deleted_at`) and `GET` filters them,
+     so deleted rows never resurrect.
+5. **Conflict resolution**
+   - Whole-dataset **last-write-wins**: D1 is authoritative when the device is clean, the device wins while it has
+     unsynced edits. Per-record merge / delta sync is a backlog item (see `feature_req.md`, FR-020).
+6. **Restore / reload**
+   - JSON restore is validated completely before anything changes, **replaces** the dataset (missing records are
+     tombstoned) and is flagged for sync. "Reload from D1" discards local state after a double confirmation.
+7. **Offline app shell**
+   - `public/sw.js` caches the shell (network-first for HTML, cache-first for hashed assets, `/api/*` never
+     intercepted) so the app opens when the school Wi-Fi is down.
 
 ---
 
@@ -95,6 +118,21 @@
 
 ## 5. Security & Authentication
 
-- **Session Management**: Lightweight edge HMAC-signed JWT cookies or Cloudflare Access token validation.
-- **Data Isolation**: Multi-tenant or single-tenant partitioning enforced at SQL query level using parameterized `WHERE teacher_id = ?`.
+- **Edge API authentication**: every `/api/*` request must carry `Authorization: Bearer <SYNC_TOKEN>`
+  (`functions/api/_middleware.ts`). The secret is compared in constant time. The API **fails closed**: when
+  `SYNC_TOKEN` is not configured on the server, every request is answered `503`. The token is entered once in
+  *Settings → Cloudflare D1* and stored only in this browser (`classque_sync_token`); it is never part of the
+  synced dataset or of JSON backups. See `docs/CLOUDFLARE_SETUP.md` §5.
+- **Why**: the dataset contains minors' names and guardian contact details. A public Pages URL must never expose them.
+- **Validation**: `POST /api/sync` rejects malformed JSON / shapes with `400` and a problem list; optional fields
+  are normalised (`undefined → null`) and numeric defaults only apply to missing values (`0` is a real value).
 - **Prepared Statements**: Zero raw SQL concatenation; 100% prepared bindings via `db.prepare(...).bind(...)`.
+- **Future**: multi-teacher tenancy would need per-user tokens / Cloudflare Access and `WHERE teacher_id = ?` isolation.
+
+---
+
+## 6. Printing
+
+Printable sheets (report card, lesson scaffold, claim invoice) render through a React portal into `<body>`
+(class `print-portal`) so `@media print` can hide `#root` entirely and print only the A4 sheet
+(`src/index.css`). Toasts, sidebar and modal chrome can never leak into a printout.

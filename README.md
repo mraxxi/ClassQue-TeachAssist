@@ -8,8 +8,8 @@ Teachers face immense cognitive friction switching between isolated tools for ro
 ## 🏗️ Architecture & Stack
 Designed for **Cloudflare's 100% Free Tier**:
 - **Frontend**: React 19, Vite, TailwindCSS v4, Zustand.
-- **Backend/Data** (WIP): Cloudflare Pages Functions, Cloudflare D1 (Edge SQLite), Cloudflare KV.
-- **Local-First Sync**: IndexedDB caching ensures classroom usage is offline-resilient.
+- **Backend/Data**: Cloudflare Pages Functions (`functions/api/sync.ts`, bearer-token protected), Cloudflare D1 (Edge SQLite).
+- **Local-First Sync**: every edit is written to `localStorage` immediately and pushed to D1 in the background; a service worker lets the app open offline. See `docs/ARCHITECTURE.md` §3.
 
 ## 🚀 Quick Start (Local Development)
 
@@ -25,10 +25,28 @@ npm install
 npm run dev
 ```
 
+### Run the full stack locally (Pages Functions + D1)
+```bash
+cp wrangler.toml.example wrangler.toml      # then set your d1 database_id
+cp .dev.vars.example .dev.vars              # SYNC_TOKEN for the edge API
+npx wrangler d1 migrations apply classque_db --local
+npm run build && npx wrangler pages dev ./dist --d1 DB=<database_id>
+```
+Enter the same token in **Settings → Sync Token**. Without a token the app still works (offline-only).
+
+### Test
+```bash
+npm run typecheck
+npm run test:e2e        # Playwright suite, fresh local D1 per file (see e2e/README.md)
+```
+
 ### Build & Deploy
 ```bash
 # Build for production
 npm run build
+
+# One-time: protect the edge API (see docs/CLOUDFLARE_SETUP.md §5)
+npx wrangler pages secret put SYNC_TOKEN --project-name classque-teachassist
 
 # Deploy to Cloudflare Pages (Requires Wrangler authenticated)
 npm run deploy

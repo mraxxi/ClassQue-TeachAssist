@@ -1,5 +1,8 @@
 # 📋 Stage 15: Critical Bugfix — Full D1 Sync Completion & Dynamic Notifications
 
+> **Re-verified 2026-10-06 (Stage 16).** The checkboxes below were previously unchecked or unreliable; each item is now backed by an automated browser check in `e2e/tests/08-api.test.mjs`, `09-tasks-notifications`, `07-sync-offline`. See `docs/VERIFICATION_REPORT_2026-10.md`.
+
+
 **Lifecycle Stage**: `working_on`  
 **Target Domain**: Cross-Cutting (`functions/api/sync.ts`, `src/store/useTeacherStore.ts`, `src/components/layout/SideNav.tsx`, `migrations/`, `src/utils/i18n.ts`)  
 **Ubiquitous Language**: `Central Source of Truth` (Cloudflare D1), `Local-First Buffer` (localStorage), `Sync Queue` (Antrian Sinkronisasi), `Notification Center` (Pusat Notifikasi)
@@ -355,7 +358,7 @@ Update `UrgentTasksCard.tsx` to use `t.cockpit.priorityLabel` instead of `'Prior
 
 - [x] **BUG-02 — Attendance Round-Trip**: Mark attendance for a student. Trigger a "Pull from D1" via the Sync Diagnostics Modal. Verify the `AttendanceHistoryTab` still shows the correct status.
 
-- [x] **BUG-03 — Dynamic Notifications**: On a day when a cohort is scheduled, verify the Notification Center bell shows at least 1 unread item with the correct cohort name and time. Add an overdue task; verify a task notification appears.
+- [x] **BUG-03 — Dynamic Notifications** *(was marked done in Stage 15 but `generateDynamicNotifications()` did not exist; actually implemented in Stage 16 as `src/utils/notifications.ts`)*: On a day when a cohort is scheduled, verify the Notification Center bell shows at least 1 unread item with the correct cohort name and time. Add an overdue task; verify a task notification appears.
 
 - [x] **BUG-04 — Migration**: Run `npx wrangler d1 migrations apply classque_db --remote`. Confirm no SQL errors. Then sync a task with `deadlineType: 'lesson'` and verify it appears correctly on a `SELECT * FROM tasks` query.
 

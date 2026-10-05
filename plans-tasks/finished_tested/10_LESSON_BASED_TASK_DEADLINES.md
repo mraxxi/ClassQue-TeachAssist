@@ -1,5 +1,8 @@
 # 📋 Stage 10: Lesson-Based Task Deadlines (Due by Cohort Lesson)
 
+> **Re-verified 2026-10-06 (Stage 16).** The checkboxes below were previously unchecked or unreliable; each item is now backed by an automated browser check in `e2e/tests/09-tasks-notifications.test.mjs`. See `docs/VERIFICATION_REPORT_2026-10.md`.
+
+
 **Lifecycle Stage**: `working_on`  
 **Target Domain**: Domain 1: Today's Cockpit (`src/components/cockpit/UrgentTasksCard.tsx`)  
 **Ubiquitous Language**: `Task Deadline` (Batas Waktu Tugas), `Cohort Lesson Due Date` (Batas Sesi Kelas Pengajar)
@@ -10,7 +13,7 @@
 Enable teachers to set task deadlines linked directly to upcoming teaching sessions (e.g., "Due before next class with Cambridge Flyers A2" or any future scheduled lesson slot) rather than only picking arbitrary calendar dates.
 
 ### 1. Data Model & Store Updates
-- [ ] In `src/types/index.ts`:
+- [x] In `src/types/index.ts`:
   - Enhance `TaskItem` with:
     - `deadlineType?: 'date' | 'lesson'`
     - `cohortId?: string` (linked cohort)
@@ -18,7 +21,7 @@ Enable teachers to set task deadlines linked directly to upcoming teaching sessi
     - `dueTimestamp?: string` (ISO computed deadline)
 
 ### 2. Task Creator & Card UI Enhancements
-- [ ] In `src/components/cockpit/UrgentTasksCard.tsx`:
+- [x] In `src/components/cockpit/UrgentTasksCard.tsx`:
   - Add deadline mode toggle button: `📅 Specific Date` ↔ `🎓 Cohort Lesson`.
   - When "Cohort Lesson" is selected:
     - Display cohort dropdown (select target class cohort).
@@ -29,7 +32,7 @@ Enable teachers to set task deadlines linked directly to upcoming teaching sessi
 ---
 
 ## 🧪 Verification & Testing Checklist
-- [ ] Create a task with "Cohort Lesson" deadline and select a future lesson slot.
-- [ ] Verify the deadline badge shows the cohort name and chosen lesson time.
-- [ ] Verify tasks can still be created with standard calendar dates.
-- [ ] Verify completion toggle and task deletion work seamlessly.
+- [x] Create a task with "Cohort Lesson" deadline and select a future lesson slot.
+- [x] Verify the deadline badge shows the cohort name and chosen lesson time.
+- [x] Verify tasks can still be created with standard calendar dates.
+- [x] Verify completion toggle and task deletion work seamlessly.

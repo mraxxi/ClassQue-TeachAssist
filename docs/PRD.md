@@ -68,7 +68,7 @@ Teachers juggle 5–8 disparate apps every single day:
     2. **WhatsApp / Chat Format**: Ready-to-copy emoji-formatted text message for instant guardian updates.
 
 ### 4.5. Domain 5: Settings & Local-First Sync
-- **Offline Mode**: Full functionality without internet connection via IndexedDB; changes queue up and auto-sync to Cloudflare D1 when online.
+- **Offline Mode**: Full functionality without internet connection via `localStorage` + a service-worker app shell; changes are flagged as unsynced and auto-sync to Cloudflare D1 (bearer-token protected) when online.
 - **Data Export & Backup**: Complete JSON / SQLite backup export for data ownership.
 - **Customizable CEFR / Grading Rubrics**: Ability to add custom competencies.
 
