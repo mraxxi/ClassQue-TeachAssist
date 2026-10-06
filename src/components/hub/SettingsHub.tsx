@@ -8,6 +8,7 @@ import { useTranslation } from '../../utils/i18n';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { localDateStr } from '../../utils/date';
 import { getSyncToken, setSyncToken } from '../../utils/syncAuth';
+import { getIdentity, SIGN_OUT_URL } from '../../utils/identity';
 
 export const SettingsHub: React.FC = () => {
   const { 
@@ -20,7 +21,9 @@ export const SettingsHub: React.FC = () => {
   const t = useTranslation(language);
 
   const [name, setName] = useState(teacher.name);
-  const [email, setEmail] = useState(teacher.email);
+  const identity = getIdentity();
+  // The login email is the account; it is not editable here once known.
+  const [email, setEmail] = useState(identity.email ?? teacher.email);
   const [schoolName, setSchoolName] = useState(teacher.schoolName);
   const [hourlyRate, setHourlyRate] = useState(teacher.defaultHourlyRate.toString());
   const [currency] = useState(teacher.currency);
@@ -157,6 +160,8 @@ export const SettingsHub: React.FC = () => {
       addToast(language === 'id' ? 'Masukkan token sinkronisasi terlebih dahulu.' : 'Enter the sync token first.', 'warning');
     } else if (status === 'rejected') {
       addToast(language === 'id' ? 'Token sinkronisasi ditolak server.' : 'The server rejected the sync token.', 'error');
+    } else if (status === 'unauthenticated') {
+      addToast(language === 'id' ? 'Belum masuk. Masuk lewat Cloudflare Access untuk sinkronisasi.' : 'Not signed in. Sign in through Cloudflare Access to sync.', 'warning');
     } else if (status === 'unbound') {
       addToast(language === 'id' ? 'Database D1 belum terhubung ke server (binding DB).' : 'The D1 database is not linked to the server (DB binding).', 'warning');
     } else if (status === 'unconfigured') {
@@ -201,6 +206,33 @@ export const SettingsHub: React.FC = () => {
         </div>
       </div>
 
+      {/* Signed-in account */}
+      <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
+            {language === 'id' ? 'Masuk sebagai' : 'Signed in as'}
+          </p>
+          <p className="text-sm font-extrabold text-stone-900 truncate">
+            {identity.email ?? (language === 'id' ? 'Tamu (hanya perangkat ini)' : 'Guest (this device only)')}
+          </p>
+          {identity.email && !identity.verified && (
+            <p className="text-[11px] text-amber-700 font-medium mt-0.5">
+              {language === 'id'
+                ? 'Belum terverifikasi: data tersimpan di perangkat ini dan akan disinkronkan setelah login terkonfirmasi.'
+                : 'Not verified yet: data is kept on this device and will sync once your login is confirmed.'}
+            </p>
+          )}
+        </div>
+        {identity.email && (
+          <a
+            href={SIGN_OUT_URL}
+            className="px-4 py-2 text-xs font-bold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-xl transition-colors"
+          >
+            {language === 'id' ? 'Keluar' : 'Sign out'}
+          </a>
+        )}
+      </div>
+
       {/* Profile & Rates Form */}
       <form onSubmit={handleSave} className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-5">
         <h3 className="text-sm font-extrabold text-stone-900 border-b border-stone-100 pb-2">
@@ -229,9 +261,15 @@ export const SettingsHub: React.FC = () => {
               aria-label={language === 'id' ? 'Email guru' : 'Teacher email'}
               type="email"
               value={email}
+              readOnly={Boolean(identity.email)}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
+              className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 read-only:text-stone-500 read-only:cursor-not-allowed"
             />
+            {identity.email && (
+              <p className="text-[11px] text-stone-500 mt-1">
+                {language === 'id' ? 'Email login Anda; tidak dapat diubah di sini.' : 'Your login email; it cannot be changed here.'}
+              </p>
+            )}
           </div>
 
           <div>
@@ -503,6 +541,7 @@ export const SettingsHub: React.FC = () => {
               {syncAuthStatus === 'ok' ? (language === 'id' ? 'Terhubung' : 'Connected')
                 : syncAuthStatus === 'missing' ? (language === 'id' ? 'Token belum diisi' : 'Token required')
                 : syncAuthStatus === 'rejected' ? (language === 'id' ? 'Token ditolak' : 'Token rejected')
+                : syncAuthStatus === 'unauthenticated' ? (language === 'id' ? 'Belum masuk' : 'Not signed in')
                 : syncAuthStatus === 'unbound' ? (language === 'id' ? 'D1 belum terhubung' : 'D1 not linked')
                 : syncAuthStatus === 'unconfigured' ? (language === 'id' ? 'Server belum diatur' : 'Server not configured')
                 : (language === 'id' ? 'Menunggu' : 'Pending')}

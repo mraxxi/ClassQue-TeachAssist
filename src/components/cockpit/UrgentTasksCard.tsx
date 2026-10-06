@@ -9,6 +9,7 @@ import { TaskItem, TaskPriority } from '../../types';
 import { useNow } from '../../hooks/useCockpitCohort';
 import { localDateStr } from '../../utils/date';
 import { getUpcomingLessonSlots } from '../../utils/schedule';
+import { newId } from '../../utils/id';
 
 export const UrgentTasksCard: React.FC = () => {
   const { tasks, toggleTask, addTask, deleteTask, cohorts, language, teacher } = useTeacherStore();
@@ -66,7 +67,7 @@ export const UrgentTasksCard: React.FC = () => {
     }
 
     const newTask: TaskItem = {
-      id: `task-${Date.now()}`,
+      id: newId('task'),
       teacherId: teacher.id,
       cohortId: deadlineMode === 'lesson' ? selectedCohort?.id : undefined,
       title: newTitle.trim(),

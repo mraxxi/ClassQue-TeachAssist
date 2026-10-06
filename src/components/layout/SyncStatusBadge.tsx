@@ -13,7 +13,7 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const { isSyncingWithEdge, isEdgeConnected, hasUnsyncedChanges, syncAuthStatus } = useTeacherStore();
-  const authProblem = syncAuthStatus === 'missing' || syncAuthStatus === 'rejected' || syncAuthStatus === 'unconfigured' || syncAuthStatus === 'unbound';
+  const authProblem = syncAuthStatus === 'missing' || syncAuthStatus === 'rejected' || syncAuthStatus === 'unconfigured' || syncAuthStatus === 'unbound' || syncAuthStatus === 'unauthenticated';
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -51,14 +51,14 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
             ? isSyncingWithEdge
               ? 'Sinkronisasi ke Cloudflare D1 sedang berlangsung...'
               : authProblem
-              ? (syncAuthStatus === 'missing' ? 'Token sinkronisasi belum diisi (Pengaturan)' : syncAuthStatus === 'rejected' ? 'Token sinkronisasi ditolak server' : syncAuthStatus === 'unbound' ? 'Database D1 belum terhubung ke server (binding DB)' : 'Server belum dikonfigurasi (SYNC_TOKEN)')
+              ? (syncAuthStatus === 'missing' ? 'Token sinkronisasi belum diisi (Pengaturan)' : syncAuthStatus === 'rejected' ? 'Token sinkronisasi ditolak server' : syncAuthStatus === 'unbound' ? 'Database D1 belum terhubung ke server (binding DB)' : syncAuthStatus === 'unauthenticated' ? 'Belum masuk. Masuk lewat Cloudflare Access untuk sinkronisasi' : 'Server belum dikonfigurasi (SYNC_TOKEN)')
               : hasUnsyncedChanges
               ? 'Perubahan lokal tersimpan di browser, menunggu sinkronisasi D1'
               : 'Klik untuk membuka Diagnostik Cloudflare D1'
             : isSyncingWithEdge
             ? 'Syncing to Cloudflare D1...'
             : authProblem
-            ? (syncAuthStatus === 'missing' ? 'Sync token not set (Settings)' : syncAuthStatus === 'rejected' ? 'The server rejected the sync token' : syncAuthStatus === 'unbound' ? 'The D1 database is not linked to the server (DB binding)' : 'Server is not configured (SYNC_TOKEN)')
+            ? (syncAuthStatus === 'missing' ? 'Sync token not set (Settings)' : syncAuthStatus === 'rejected' ? 'The server rejected the sync token' : syncAuthStatus === 'unbound' ? 'The D1 database is not linked to the server (DB binding)' : syncAuthStatus === 'unauthenticated' ? 'Not signed in. Sign in through Cloudflare Access to sync' : 'Server is not configured (SYNC_TOKEN)')
             : hasUnsyncedChanges
             ? 'Local changes are saved in this browser, waiting to sync to D1'
             : 'Click to open Cloudflare D1 diagnostics'
@@ -79,7 +79,7 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-            {!compact && <span>{syncAuthStatus === 'missing' ? (language === 'id' ? 'Perlu Token' : 'Token Needed') : syncAuthStatus === 'rejected' ? (language === 'id' ? 'Token Ditolak' : 'Token Rejected') : syncAuthStatus === 'unbound' ? (language === 'id' ? 'D1 Belum Terhubung' : 'D1 Not Linked') : (language === 'id' ? 'Server Belum Diatur' : 'Server Not Set')}</span>}
+            {!compact && <span>{syncAuthStatus === 'missing' ? (language === 'id' ? 'Perlu Token' : 'Token Needed') : syncAuthStatus === 'rejected' ? (language === 'id' ? 'Token Ditolak' : 'Token Rejected') : syncAuthStatus === 'unbound' ? (language === 'id' ? 'D1 Belum Terhubung' : 'D1 Not Linked') : syncAuthStatus === 'unauthenticated' ? (language === 'id' ? 'Perlu Masuk' : 'Sign-in Needed') : (language === 'id' ? 'Server Belum Diatur' : 'Server Not Set')}</span>}
           </>
         ) : hasUnsyncedChanges ? (
           <>

@@ -23,6 +23,7 @@ CHROMIUM=/usr/bin/chromium-browser npm run test:e2e
 | `08-api` / `08b-api-unconfigured` | Stage 15, W2 (auth, fail-closed, validation, falsy values, tombstones, summary) |
 | `09-tasks-notifications` | Stages 10 + 13 (lesson deadlines, overdue, dynamic notifications) |
 | `10-delta-sync` | FR-020: two devices sharing one D1 — delta payloads, incremental pull, offline edits, last-write-wins, delete propagation, edit-beats-delete |
+| `13-multi-user` / `13b-api-no-login` | Teacher login: a second teacher (from `13-multi-user.seed.sql`) in every table stays unreadable and unchangeable, spoofed `teacherId`s are replaced, per-login local buffer, random ids, no login = 401 |
 | `11-ux` | Stage 17: roll-call control, phone layouts, Undo (cross-device), onboarding, dark mode, fonts, shortcuts, offline lazy chunks, axe-core audit |
 
 ## Conventions
@@ -30,5 +31,8 @@ CHROMIUM=/usr/bin/chromium-browser npm run test:e2e
   midnight UTC (before 07:00 WIB).
 - The UI is Indonesian by default; `open({ lang: 'en' })` presets the language cookie.
 - `window.confirm` dialogs are auto-accepted and recorded in `page.dialogs`.
-- A file whose first line is `// e2e: no-token` runs against a server **without** `SYNC_TOKEN`.
+- A file whose first line is `// e2e: no-token` runs against a server **without** `SYNC_TOKEN`; `// e2e: no-login` runs
+  with **no signed-in teacher** (no `DEV_USER_EMAIL`). Every other file is signed in as `E2E_USER_EMAIL`
+  (`e2e.teacher@classque.test`), who inherits the demo data through `LEGACY_OWNER_EMAIL`.
+- A sibling `<name>.seed.sql` is applied to that file's fresh D1 before the server starts.
 - Never `pkill -f` a pattern that also appears in your own command line (it kills your shell).

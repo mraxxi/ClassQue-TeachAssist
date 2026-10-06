@@ -111,6 +111,8 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
       ? (language === 'id' ? 'Token sinkronisasi belum diisi (Pengaturan).' : 'Sync token not set (Settings).')
       : syncAuthStatus === 'rejected'
       ? (language === 'id' ? 'Server menolak token sinkronisasi.' : 'The server rejected the sync token.')
+      : syncAuthStatus === 'unauthenticated'
+      ? (language === 'id' ? 'Belum masuk. Masuk lewat Cloudflare Access untuk sinkronisasi.' : 'Not signed in. Sign in through Cloudflare Access to sync.')
       : syncAuthStatus === 'unbound'
       ? (language === 'id' ? 'Database D1 belum terhubung ke server (binding DB).' : 'The D1 database is not linked to the server (DB binding).')
       : syncAuthStatus === 'unconfigured'

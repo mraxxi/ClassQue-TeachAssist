@@ -4,7 +4,8 @@ import { chromium } from 'playwright-core';
 export const BASE = process.env.E2E_BASE || 'http://localhost:8789';
 export const TOKEN = process.env.E2E_TOKEN || 'e2e-token';
 export const CHROMIUM = process.env.CHROMIUM || '/usr/bin/chromium';
-export const STORAGE_KEY = 'classque_teacher_os_v1';
+// Each login has its own local-first buffer (see src/utils/identity.ts); run.sh signs the tests in as this teacher.
+export const STORAGE_KEY = 'classque_teacher_os_v1:' + (process.env.E2E_USER_EMAIL || 'e2e.teacher@classque.test');
 
 let failures = 0;
 let total = 0;
@@ -71,7 +72,8 @@ export async function open({ time, tz = 'Asia/Jakarta', token = TOKEN, lang, wid
 }
 
 export const txt = async (p, sel = 'body') => (await p.innerText(sel)).replace(/\n+/g, ' | ');
-export const store = (p) => p.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), STORAGE_KEY);
+// Reads the local buffer: the signed-in teacher's, or the guest buffer when no login was confirmed (e.g. no sync token yet).
+export const store = (p) => p.evaluate(([k, guest]) => JSON.parse(localStorage.getItem(k) || localStorage.getItem(guest) || 'null'), [STORAGE_KEY, 'classque_teacher_os_v1:guest']);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Authenticated call to the edge API. */

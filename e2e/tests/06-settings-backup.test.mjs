@@ -100,6 +100,8 @@ await p.fill('input[type=password]', 'definitely-wrong'); await p.click('main bu
 check('A8 a wrong token is reported as rejected', /Token ditolak/.test(await txt(p, 'main')), (await txt(p, 'main')).match(/Cloudflare D1 Edge \| [^|]*/)?.[0]);
 check('A8b badge reflects the rejected token', /Token Ditolak/.test(await txt(p, 'header')));
 await p.fill('input[type=password]', 'e2e-token'); await p.click('main button:has-text("Simpan Token")'); await p.waitForTimeout(3500);
+// A new device was a guest until now: confirming the login reloads the page into the teacher's own buffer (the guest work moves with it).
+await p.waitForLoadState('load'); await p.waitForTimeout(3500); await goto.settings(p); await p.waitForTimeout(500);
 s = await store(p);
 check('A9 correct token -> connected and the pending local edit is pushed to D1', /Terhubung/.test(await txt(p, 'main')) && (await api()).json.data.tasks.some((t) => t.title === 'works offline without token') && s.hasUnsyncedChanges === false);
 check('A10 no page errors', p.errs.length === 0, p.errs.join(' | '));
