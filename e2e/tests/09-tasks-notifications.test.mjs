@@ -10,7 +10,9 @@ const add = async () => p.click('main button[type=submit]:has-text("Tambah")');
 await p.fill('input[placeholder^="Tambah tugas"]', 'Plain task'); await add(); await p.waitForTimeout(300);
 { const pt = (await store(p)).tasks.find((x) => x.title === 'Plain task');
   check('10.0 a task added without picking a deadline has NO due date', !!pt && pt.dueDate === '', JSON.stringify(pt));
-  check('10.0b it shows no "Batas" chip and is never overdue', !/Batas|Overdue|Terlambat/.test(await p.locator('p:text-is("Plain task")').locator('xpath=..').innerText()), await p.locator('p:text-is("Plain task")').locator('xpath=..').innerText() && (await p.locator('[data-testid="task-overdue"]').count()) === 0); }
+  const card = p.locator('p:text-is("Plain task")').locator('xpath=..'); await card.waitFor();
+  const cardText = await card.innerText();
+  check('10.0b it shows no "Batas" chip and is never overdue', !/Batas|Overdue|Terlambat/.test(cardText) && (await card.locator('[data-testid="task-overdue"]').count()) === 0, cardText.replace(/\n+/g, ' | ')); }
 await p.fill('input[placeholder^="Tambah tugas"]', 'Date task'); await p.click('main button:has-text("Tanpa Batas")'); await p.click('main button:has-text("Tanggal Kalender")'); await p.waitForTimeout(200);
 await p.fill('main input[type=date]', '2026-10-10'); await p.click('main button:has-text("High")'); await add(); await p.waitForTimeout(400);
 let s = await store(p); let tk = s.tasks.find((x) => x.title === 'Date task');
