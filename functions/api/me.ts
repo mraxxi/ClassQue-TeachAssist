@@ -1,14 +1,41 @@
 // Cloudflare Pages Function: /api/me
-// Returns the email of the teacher signed in through Cloudflare Access.
+// Returns the teacher signed in through Cloudflare Access, creating their
+// teacher record the first time they log in.
 
 import { getAuthenticatedEmail, unauthorizedResponse, type AuthEnv } from '../_lib/auth';
+import { getOrCreateTeacher } from '../_lib/teacher';
 
-export const onRequestGet: PagesFunction<AuthEnv> = async (context) => {
-  const email = await getAuthenticatedEmail(context.request, context.env);
+interface Env extends AuthEnv {
+  DB: D1Database;
+}
+
+const json = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { env, request } = context;
+
+  const email = await getAuthenticatedEmail(request, env);
   if (!email) return unauthorizedResponse();
 
-  return new Response(
-    JSON.stringify({ email }),
-    { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } }
-  );
+  if (!env.DB) {
+    return json(
+      {
+        error: 'Cloudflare D1 binding (DB) is not configured in wrangler.toml or Cloudflare dashboard.',
+        status: 'unbound',
+      },
+      503
+    );
+  }
+
+  try {
+    const teacher = await getOrCreateTeacher(env.DB, email);
+    if (!teacher) return json({ error: 'This account has been disabled.', status: 'disabled' }, 403);
+    return json({ email, teacher }, 200);
+  } catch (error: any) {
+    return json({ error: error.message || 'Failed to load teacher account' }, 500);
+  }
 };
