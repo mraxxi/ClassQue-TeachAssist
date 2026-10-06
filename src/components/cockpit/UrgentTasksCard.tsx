@@ -17,7 +17,7 @@ export const UrgentTasksCard: React.FC = () => {
   // Form State
   const [newTitle, setNewTitle] = useState('');
   const [showOptions, setShowOptions] = useState(false);
-  const [deadlineMode, setDeadlineMode] = useState<'date' | 'lesson'>('date');
+  const [deadlineMode, setDeadlineMode] = useState<'none' | 'date' | 'lesson'>('none');
   const [priority, setPriority] = useState<TaskPriority>('high');
   const [customDate, setCustomDate] = useState<string>(() => localDateStr());
   const [selectedCohortId, setSelectedCohortId] = useState<string>(() => cohorts[0]?.id || '');
@@ -55,7 +55,8 @@ export const UrgentTasksCard: React.FC = () => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    let finalDueDate = customDate;
+    // No deadline unless the teacher picked one: an empty date, never an implicit "today".
+    let finalDueDate = deadlineMode === 'date' ? customDate : '';
     let dueLessonLabel: string | undefined = undefined;
 
     if (deadlineMode === 'lesson' && selectedCohort) {
@@ -71,7 +72,7 @@ export const UrgentTasksCard: React.FC = () => {
       title: newTitle.trim(),
       priority,
       dueDate: finalDueDate,
-      deadlineType: deadlineMode,
+      deadlineType: deadlineMode === 'lesson' ? 'lesson' : 'date',
       dueLessonLabel,
       isCompleted: false,
       createdAt: new Date().toISOString(),
@@ -80,6 +81,7 @@ export const UrgentTasksCard: React.FC = () => {
     addTask(newTask);
     setNewTitle('');
     setShowOptions(false);
+    setDeadlineMode('none');
   };
 
   const pendingCount = tasks.filter((tk) => !tk.isCompleted).length;
@@ -105,7 +107,7 @@ export const UrgentTasksCard: React.FC = () => {
           onClick={() => setShowOptions(!showOptions)}
           className="text-xs font-medium text-teal-800 hover:text-teal-900 flex items-center gap-1 cursor-pointer"
         >
-          <span>{deadlineMode === 'lesson' ? '🎓 ' + t.cockpit.cohortLesson : '📅 ' + t.cockpit.calendarDate}</span>
+          <span>{deadlineMode === 'lesson' ? '🎓 ' + t.cockpit.cohortLesson : deadlineMode === 'date' ? '📅 ' + t.cockpit.calendarDate : '∅ ' + t.cockpit.noDeadline}</span>
           {showOptions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </button>
       </div>
@@ -139,6 +141,17 @@ export const UrgentTasksCard: React.FC = () => {
               <div className="flex items-center bg-stone-200/70 p-0.5 rounded-lg">
                 <button
                   type="button"
+                  onClick={() => setDeadlineMode('none')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                    deadlineMode === 'none'
+                      ? 'bg-white text-stone-900 shadow-xs'
+                      : 'text-stone-500 hover:text-stone-800'
+                  }`}
+                >
+                  ∅ {t.cockpit.noDeadline}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setDeadlineMode('date')}
                   className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                     deadlineMode === 'date'
@@ -162,7 +175,7 @@ export const UrgentTasksCard: React.FC = () => {
               </div>
             </div>
 
-            {deadlineMode === 'date' ? (
+            {deadlineMode === 'none' ? null : deadlineMode === 'date' ? (
               <div className="flex items-center gap-2">
                 <span className="text-stone-500 text-[11px] shrink-0">
                   {t.cockpit.pickDate}
@@ -286,12 +299,12 @@ export const UrgentTasksCard: React.FC = () => {
                       <GraduationCap className="w-3 h-3 text-teal-600 shrink-0" />
                       <span className="truncate max-w-[210px]">{task.dueLessonLabel || task.dueDate}</span>
                     </span>
-                  ) : (
+                  ) : task.dueDate ? (
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {t.cockpit.due} {task.dueDate}
                     </span>
-                  )}
+                  ) : null}
 
                   {!task.isCompleted && task.dueDate && task.dueDate < todayStr && (
                     <span className="text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5" data-testid="task-overdue">

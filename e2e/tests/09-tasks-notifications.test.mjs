@@ -7,13 +7,17 @@ const popover = async (p) => (await p.locator('div.absolute').filter({ hasText: 
 // ============================ Stage 10: tasks ============================
 let { browser, p } = await open({ time: '2026-10-05T03:00:00Z' }); // Mon 10:00 WIB
 const add = async () => p.click('main button[type=submit]:has-text("Tambah")');
-await p.fill('input[placeholder^="Tambah tugas"]', 'Date task'); await p.click('main button:has-text("Kalender")'); await p.waitForTimeout(200);
+await p.fill('input[placeholder^="Tambah tugas"]', 'Plain task'); await add(); await p.waitForTimeout(300);
+{ const pt = (await store(p)).tasks.find((x) => x.title === 'Plain task');
+  check('10.0 a task added without picking a deadline has NO due date', !!pt && pt.dueDate === '', JSON.stringify(pt));
+  check('10.0b it shows no "Batas" chip and is never overdue', !/Batas|Overdue|Terlambat/.test(await p.locator('p:text-is("Plain task")').locator('xpath=..').innerText()), await p.locator('p:text-is("Plain task")').locator('xpath=..').innerText() && (await p.locator('[data-testid="task-overdue"]').count()) === 0); }
+await p.fill('input[placeholder^="Tambah tugas"]', 'Date task'); await p.click('main button:has-text("Tanpa Batas")'); await p.click('main button:has-text("Tanggal Kalender")'); await p.waitForTimeout(200);
 await p.fill('main input[type=date]', '2026-10-10'); await p.click('main button:has-text("High")'); await add(); await p.waitForTimeout(400);
 let s = await store(p); let tk = s.tasks.find((x) => x.title === 'Date task');
 check('10.1 calendar-date task', tk?.deadlineType === 'date' && tk.dueDate === '2026-10-10' && tk.priority === 'high' && !!tk.updatedAt, JSON.stringify(tk));
 check('10.1b shows "Batas 2026-10-10"', (await txt(p, 'main')).includes('Batas 2026-10-10'));
 
-await p.fill('input[placeholder^="Tambah tugas"]', 'Lesson task'); await p.click('main button:has-text("Kalender")'); await p.waitForTimeout(200);
+await p.fill('input[placeholder^="Tambah tugas"]', 'Lesson task'); await p.click('main button:has-text("Tanpa Batas")'); await p.click('main button:has-text("Tanggal Kalender")'); await p.waitForTimeout(200);
 await p.click('main button:has-text("Sesi Kelas")'); await p.waitForTimeout(300);
 await p.locator('main select').nth(1).selectOption('cohort-1'); await p.waitForTimeout(200);
 const slotSel = p.locator('main select').nth(2);
@@ -28,7 +32,7 @@ const row = (title) => p.locator(`xpath=//*[normalize-space(text())="${title}"]/
 await row('Date task').locator('button').first().click(); await p.waitForTimeout(300);
 s = await store(p);
 check('10.4 completion toggle stamps completedAt', s.tasks.find((x) => x.title === 'Date task').isCompleted === true && !!s.tasks.find((x) => x.title === 'Date task').completedAt);
-check('10.4b pending KPI counts open tasks only', /TUGAS TERTUNDA \| 5/.test(await txt(p, 'main')), (await txt(p, 'main')).match(/TUGAS TERTUNDA \| \d+/)?.[0]);
+check('10.4b pending KPI counts open tasks only', /TUGAS TERTUNDA \| 6/.test(await txt(p, 'main')), (await txt(p, 'main')).match(/TUGAS TERTUNDA \| \d+/)?.[0]);
 const order = await p.$$eval('[data-testid="task-row"]', (e) => e.map((x) => x.innerText.split('\n')[0]));
 check('10.5 completed tasks sink to the bottom', order[order.length - 1] === 'Date task', order.join('|'));
 check('10.6 past-due open tasks carry an overdue marker (4 seeded September tasks)', (await p.locator('[data-testid="task-overdue"]').count()) === 4);
@@ -42,7 +46,7 @@ await browser.close();
 
 // time-of-day awareness (F31): at 16:00 the 14:30 class is over
 ({ browser, p } = await open({ time: '2026-10-05T09:00:00Z' }));
-await p.fill('input[placeholder^="Tambah tugas"]', 'x'); await p.click('main button:has-text("Kalender")'); await p.click('main button:has-text("Sesi Kelas")'); await p.waitForTimeout(300);
+await p.fill('input[placeholder^="Tambah tugas"]', 'x'); await p.click('main button:has-text("Tanpa Batas")'); await p.click('main button:has-text("Tanggal Kalender")'); await p.click('main button:has-text("Sesi Kelas")'); await p.waitForTimeout(300);
 await p.locator('main select').nth(1).selectOption('cohort-1'); await p.waitForTimeout(200);
 const late = await p.locator('main select').nth(2).locator('option').evaluateAll((o) => o.map((x) => x.value));
 check('10.9 after the class finished today, the nearest slot is the NEXT lesson (Wed 7 Oct)', late[0] === '2026-10-07', late.join());
@@ -50,7 +54,7 @@ await browser.close();
 
 // English UI has no Indonesian strings in the task card
 ({ browser, p } = await open({ time: '2026-10-05T03:00:00Z', lang: 'en' }));
-await p.fill('input[placeholder^="Add a quick"]', 'x'); await p.click('main button:has-text("Calendar")'); await p.waitForTimeout(300);
+await p.fill('input[placeholder^="Add a quick"]', 'x'); await p.click('main button:has-text("No Deadline")'); await p.click('main button:has-text("Calendar Date")'); await p.waitForTimeout(300);
 const card = (await txt(p, 'main')).match(/Urgent Tasks.*/)?.[0] || '';
 check('10.10 EN task card is fully translated (incl. Overdue)', /Overdue/.test(card) && !/(Prioritas|Metode Batas|Tanggal Kalender|Sesi Kelas|Pilih Tanggal|Batas |Terlambat|Tambah|Tugas Mendesak)/.test(card), card.slice(0, 200));
 await browser.close();
@@ -74,7 +78,7 @@ check('13.7 Esc closes the popover', !/Tandai Dibaca/.test(await txt(p, 'body'))
 await p.reload(); await p.waitForTimeout(2500);
 check('13.8 read state survives regeneration and reload', !/bg-rose/.test(await bell(p).innerHTML()));
 // new overdue task -> new unread alert; completing it removes the alert
-await p.fill('input[placeholder^="Tambah tugas"]', 'Fresh overdue'); await p.click('main button:has-text("Kalender")'); await p.fill('main input[type=date]', '2026-10-01'); await add(); await p.waitForTimeout(500);
+await p.fill('input[placeholder^="Tambah tugas"]', 'Fresh overdue'); await p.click('main button:has-text("Tanpa Batas")'); await p.click('main button:has-text("Tanggal Kalender")'); await p.fill('main input[type=date]', '2026-10-01'); await add(); await p.waitForTimeout(500);
 check('13.9 a newly overdue task raises an unread alert', /bg-rose/.test(await bell(p).innerHTML()));
 await bell(p).click(); await p.waitForTimeout(400);
 check('13.9b the alert names the task', /Fresh overdue/.test(await popover(p)));
