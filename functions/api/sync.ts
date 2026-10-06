@@ -1,7 +1,10 @@
 // Cloudflare Pages Function: /api/sync
 // Bidirectional D1 Sync Endpoint with camelCase <-> snake_case translation
 
-interface Env {
+import { getAuthenticatedEmail, unauthorizedResponse, type AuthEnv } from '../_lib/auth';
+import { getOrCreateTeacher } from '../_lib/teacher';
+
+interface Env extends AuthEnv {
   DB: D1Database;
 }
 
@@ -18,18 +21,36 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
+  const email = await getAuthenticatedEmail(context.request, env);
+  if (!email) return unauthorizedResponse();
+
   try {
-    const rawTeachers = await env.DB.prepare('SELECT * FROM teachers WHERE deleted_at IS NULL').all();
-    const rawCohorts = await env.DB.prepare('SELECT * FROM cohorts WHERE deleted_at IS NULL').all();
-    const rawStudents = await env.DB.prepare('SELECT * FROM students WHERE deleted_at IS NULL').all();
+    const me = await getOrCreateTeacher(env.DB, email);
+    if (!me) {
+      return new Response(
+        JSON.stringify({ error: 'This account has been disabled.', status: 'disabled' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const tid = me.id;
+
+    // Every row returned belongs to the signed-in teacher: directly via teacher_id,
+    // or through their cohorts / students. CEFR milestones are shared reference data.
+    const myCohorts = 'SELECT id FROM cohorts WHERE teacher_id = ?';
+    const myStudents = `SELECT id FROM students WHERE cohort_id IN (${myCohorts})`;
+    const scoped = (sql: string) => env.DB.prepare(sql).bind(tid).all();
+
+    const rawTeachers = await scoped('SELECT * FROM teachers WHERE id = ? AND deleted_at IS NULL');
+    const rawCohorts = await scoped('SELECT * FROM cohorts WHERE teacher_id = ? AND deleted_at IS NULL');
+    const rawStudents = await scoped(`SELECT * FROM students WHERE cohort_id IN (${myCohorts}) AND deleted_at IS NULL`);
     const rawMilestones = await env.DB.prepare('SELECT * FROM cefr_milestones').all();
-    const rawLessons = await env.DB.prepare('SELECT * FROM lesson_plans WHERE deleted_at IS NULL').all();
-    const rawAttendance = await env.DB.prepare('SELECT * FROM attendance_records WHERE deleted_at IS NULL').all();
-    const rawSessions = await env.DB.prepare('SELECT * FROM teaching_sessions WHERE deleted_at IS NULL').all();
-    const rawClaims = await env.DB.prepare('SELECT * FROM teaching_claims WHERE deleted_at IS NULL').all();
-    const rawEvals = await env.DB.prepare('SELECT * FROM student_milestone_evaluations WHERE deleted_at IS NULL').all();
-    const rawReports = await env.DB.prepare('SELECT * FROM parent_reports WHERE deleted_at IS NULL').all();
-    const rawTasks = await env.DB.prepare('SELECT * FROM tasks WHERE deleted_at IS NULL').all();
+    const rawLessons = await scoped('SELECT * FROM lesson_plans WHERE teacher_id = ? AND deleted_at IS NULL');
+    const rawAttendance = await scoped(`SELECT * FROM attendance_records WHERE cohort_id IN (${myCohorts}) AND deleted_at IS NULL`);
+    const rawSessions = await scoped('SELECT * FROM teaching_sessions WHERE teacher_id = ? AND deleted_at IS NULL');
+    const rawClaims = await scoped('SELECT * FROM teaching_claims WHERE teacher_id = ? AND deleted_at IS NULL');
+    const rawEvals = await scoped(`SELECT * FROM student_milestone_evaluations WHERE student_id IN (${myStudents}) AND deleted_at IS NULL`);
+    const rawReports = await scoped(`SELECT * FROM parent_reports WHERE cohort_id IN (${myCohorts}) AND deleted_at IS NULL`);
+    const rawTasks = await scoped('SELECT * FROM tasks WHERE teacher_id = ? AND deleted_at IS NULL');
 
     // Map Teachers
     const teachers = (rawTeachers.results || []).map((t: any) => ({
