@@ -12,13 +12,13 @@ interface CohortModalProps {
 
 const CEFR_LEVELS: CEFRLevel[] = ['Pre-A1', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const DAYS_OF_WEEK = [
-  { key: 'Mon', label: 'Sen / Mon' },
-  { key: 'Tue', label: 'Sel / Tue' },
-  { key: 'Wed', label: 'Rab / Wed' },
-  { key: 'Thu', label: 'Kam / Thu' },
-  { key: 'Fri', label: 'Jum / Fri' },
-  { key: 'Sat', label: 'Sab / Sat' },
-  { key: 'Sun', label: 'Min / Sun' },
+  { key: 'Mon', id: 'Sen', en: 'Mon' },
+  { key: 'Tue', id: 'Sel', en: 'Tue' },
+  { key: 'Wed', id: 'Rab', en: 'Wed' },
+  { key: 'Thu', id: 'Kam', en: 'Thu' },
+  { key: 'Fri', id: 'Jum', en: 'Fri' },
+  { key: 'Sat', id: 'Sab', en: 'Sat' },
+  { key: 'Sun', id: 'Min', en: 'Sun' },
 ];
 
 export const CohortModal: React.FC<CohortModalProps> = ({
@@ -141,7 +141,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            aria-label="Tutup / Close"
+            aria-label={language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-stone-600 p-2 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -161,7 +161,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Cambridge Flyers A2 - Saturday"
+              placeholder={language === 'id' ? 'mis. Cambridge Flyers A2 - Sabtu' : 'e.g. Cambridge Flyers A2 - Saturday'}
               className="w-full px-3.5 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-medium"
             />
           </div>
@@ -198,10 +198,10 @@ export const CohortModal: React.FC<CohortModalProps> = ({
                 onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-medium"
               >
-                <option value={45}>45 Menit / Mins</option>
-                <option value={60}>60 Menit / Mins (1 Jam)</option>
-                <option value={90}>90 Menit / Mins (1.5 Jam)</option>
-                <option value={120}>120 Menit / Mins (2 Jam)</option>
+                <option value={45}>{language === 'id' ? '45 Menit' : '45 min'}</option>
+                <option value={60}>{language === 'id' ? '60 Menit (1 Jam)' : '60 min (1 hr)'}</option>
+                <option value={90}>{language === 'id' ? '90 Menit (1,5 Jam)' : '90 min (1.5 hr)'}</option>
+                <option value={120}>{language === 'id' ? '120 Menit (2 Jam)' : '120 min (2 hr)'}</option>
               </select>
             </div>
           </div>
@@ -225,7 +225,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
                         : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}
                   >
-                    {d.label}
+                    {language === 'id' ? d.id : d.en}
                   </button>
                 );
               })}
@@ -256,7 +256,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
                 type="text"
                 value={roomOrLink}
                 onChange={(e) => setRoomOrLink(e.target.value)}
-                placeholder="e.g. Room 204 or https://meet.google.com/..."
+                placeholder={language === 'id' ? 'mis. Ruang 204 atau https://meet.google.com/...' : 'e.g. Room 204 or https://meet.google.com/...'}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
               />
             </div>
@@ -275,7 +275,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
                 type="number"
                 value={hourlyRateOverride}
                 onChange={(e) => setHourlyRateOverride(e.target.value)}
-                placeholder={`Default: ${new Intl.NumberFormat('id-ID').format(teacher.defaultHourlyRate)} ${teacher.currency}`}
+                placeholder={`Default: ${new Intl.NumberFormat(language === 'id' ? 'id-ID' : 'en-US').format(teacher.defaultHourlyRate)} ${teacher.currency}`}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-mono"
               />
               <span className="text-xs font-bold text-stone-500 bg-stone-100 px-3 py-2 rounded-xl border border-stone-200">

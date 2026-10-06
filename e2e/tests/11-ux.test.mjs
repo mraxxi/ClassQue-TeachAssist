@@ -50,7 +50,7 @@ await goto.classes(p); await p.click(sel('Cambridge Flyers A2')); await p.click(
 await p.click('main button:has-text("Direktori Siswa (")'); await p.waitForTimeout(300);
 s = await store(p); const liam = s.students.find((x) => x.fullName === 'Liam Wong');
 const had = { att: s.attendanceRecords.filter((r) => r.studentId === liam.id).length, ev: s.studentEvaluations.filter((e) => e.studentId === liam.id).length };
-await p.click('main :text("Liam Wong") >> nth=0'); await p.click('button[title="Delete student"]'); await p.click('button:has-text("Ya, Hapus Siswa")'); await p.waitForTimeout(500);
+await p.click('main :text("Liam Wong") >> nth=0'); await p.click('button[title="Hapus siswa"]'); await p.click('button:has-text("Ya, Hapus Siswa")'); await p.waitForTimeout(500);
 check('U5 deleting shows ONE toast with an Undo action', (await p.locator('[role=status] button:has-text("Urungkan")').count()) === 1 && /Liam Wong.*dihapus/.test(await txt(p, '[role=status]')), await txt(p, '[role=status]'));
 await sleep(2800);
 const bPull = async () => { await B.p.click('header button').catch(() => {}); await B.p.waitForTimeout(500); await B.p.click('div.fixed button:has-text("Tarik Data dari D1")'); await B.p.waitForTimeout(1500); await B.p.keyboard.press('Escape'); await B.p.waitForTimeout(300); };
@@ -67,14 +67,14 @@ check('U5f the restore is pushed to D1 (a newer edit revives the soft-deleted ro
 await bPull();
 check('U5g and device B gets the student back through its next delta pull', (await store(B.p)).students.some((x) => x.id === liam.id));
 // cohort delete + undo
-await p.click(sel('Cambridge Starters A1')); await p.click('button[title="Delete cohort"]'); await p.click('button:has-text("Ya, Hapus Kelas")'); await p.waitForTimeout(400);
+await p.click(sel('Cambridge Starters A1')); await p.click('button[title="Hapus kelas"]'); await p.click('button:has-text("Ya, Hapus Kelas")'); await p.waitForTimeout(400);
 check('U5h deleting a cohort also offers Undo', await p.locator('[role=status] button:has-text("Urungkan")').count() === 1);
 await p.locator('[role=status] button:has-text("Urungkan")').click(); await p.waitForTimeout(400);
 s = await store(p);
 check('U5i Undo brings the cohort and its student back', s.cohorts.some((c) => c.id === 'cohort-2') && s.students.some((x) => x.cohortId === 'cohort-2'));
 // tasks
 await goto.cockpit(p); await p.fill('input[placeholder^="Tambah tugas"]', 'undo me'); await p.click('main button[type=submit]:has-text("Tambah")'); await p.waitForTimeout(300);
-await p.locator('xpath=//*[normalize-space(text())="undo me"]/ancestor::div[@data-testid="task-row"][1]').locator('button[title="Delete task"]').click(); await p.waitForTimeout(300);
+await p.locator('xpath=//*[normalize-space(text())="undo me"]/ancestor::div[@data-testid="task-row"][1]').locator('button[title="Hapus tugas"]').click(); await p.waitForTimeout(300);
 check('U5j task delete (no confirm dialog) is protected by Undo', !(await store(p)).tasks.some((t) => t.title === 'undo me') && (await p.locator('[role=status] button:has-text("Urungkan")').count()) === 1);
 await p.locator('[role=status] button:has-text("Urungkan")').click(); await p.waitForTimeout(300);
 check('U5k the task is back', (await store(p)).tasks.some((t) => t.title === 'undo me'));
@@ -89,7 +89,7 @@ check('U6b the greeting says there are no classes (not an empty void)', /Tidak a
 await p.click('[data-testid="onboarding"] button:has-text("Buat rombel pertama")'); await p.waitForTimeout(400);
 check('U6c the first step navigates to the hub, which shows a purposeful empty state', await p.locator('[data-testid="cohorts-empty"]').count() === 1 && /Buat Rombel Pertama/.test(await txt(p, 'main')));
 await p.click('[data-testid="cohorts-empty"] button'); await p.waitForTimeout(300);
-await p.fill('input[placeholder^="e.g. Cambridge Flyers"]', 'First Cohort'); await p.click('div.fixed button:has-text("Buat Kelas")'); await p.waitForTimeout(500);
+await p.fill('input[placeholder^="mis. Cambridge Flyers"]', 'First Cohort'); await p.click('div.fixed button:has-text("Buat Kelas")'); await p.waitForTimeout(500);
 check('U6d empty state disappears once a cohort exists', await p.locator('[data-testid="cohorts-empty"]').count() === 0);
 await goto.lessons(p); await p.waitForTimeout(700); check('U6e lesson planner empty state has a call to action', await p.locator('[data-testid="plans-empty"] button').count() === 1);
 await goto.cockpit(p);
@@ -114,7 +114,7 @@ check('U7c cards re-light too (not only the page background)', (await p.evaluate
 await p.goto(BASE, { waitUntil: 'domcontentloaded' });
 check('U7d no flash on reload: the theme is applied before React renders', (await p.evaluate(() => document.documentElement.dataset.theme)) === 'dark');
 await p.waitForTimeout(2000);
-await goto.classes(p); await p.click('button[title="Delete cohort"]'); await p.waitForTimeout(300);
+await goto.classes(p); await p.click('button[title="Hapus kelas"]'); await p.waitForTimeout(300);
 const scrim = await p.evaluate(() => { const el = document.querySelector('.scrim'); const c = getComputedStyle(el).backgroundColor.match(/[\d.]+/g).map(Number); return c.slice(0, 3); });
 check('U7e modal backdrops stay a DARK scrim in dark mode (they used to invert to light)', scrim.every((v) => v < 40), scrim.join());
 await p.keyboard.press('Escape');

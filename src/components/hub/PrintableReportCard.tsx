@@ -104,7 +104,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             </button>
             <button
               onClick={onClose}
-              aria-label="Tutup / Close"
+              aria-label={language === 'id' ? 'Tutup' : 'Close'}
               className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -165,7 +165,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
 
             <div>
               <span className="text-[10px] font-extrabold text-stone-400 uppercase tracking-wider block">
-                {language === 'id' ? 'Guru Pengampu' : 'Educator / Teacher'}
+                {language === 'id' ? 'Guru Pengampu' : 'Teacher'}
               </span>
               <p className="font-bold text-stone-900 mt-0.5">{teacher.name}</p>
               <p className="text-[11px] text-stone-500">{teacher.email}</p>
@@ -226,7 +226,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
               <table className="w-full border-collapse border border-stone-200 text-xs">
                 <thead>
                   <tr className="bg-stone-100 text-stone-700 text-left">
-                    <th className="p-2.5 border border-stone-200 font-extrabold w-16">Kode</th>
+                    <th className="p-2.5 border border-stone-200 font-extrabold w-16">{language === 'id' ? 'Kode' : 'Code'}</th>
                     <th className="p-2.5 border border-stone-200 font-extrabold w-36">{language === 'id' ? 'Kategori Keterampilan' : 'Skill Category'}</th>
                     <th className="p-2.5 border border-stone-200 font-extrabold">{language === 'id' ? 'Deskriptor Capaian (Can-Do)' : 'Can-Do Descriptor'}</th>
                     <th className="p-2.5 border border-stone-200 font-extrabold w-32 text-center">{language === 'id' ? 'Tingkat Capaian' : 'Competency'}</th>
@@ -269,7 +269,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
           {/* Teacher Narrative Feedback & Observations */}
           <div className="p-4 rounded-2xl bg-white border border-stone-200 space-y-2 text-xs">
             <h4 className="font-extrabold text-stone-900 uppercase tracking-wider text-[11px]">
-              {language === 'id' ? 'Catatan Observasi & Rekomendasi Guru' : 'Educator Narrative & Growth Recommendations'}
+              {language === 'id' ? 'Catatan Observasi & Rekomendasi Guru' : 'Teacher Narrative & Growth Recommendations'}
             </h4>
             {(narrativeFeedback || student.strengths || student.notes) ? (
               <p className="text-stone-700 leading-relaxed italic bg-stone-50 p-3 rounded-xl border border-stone-200/70 whitespace-pre-wrap">
@@ -291,7 +291,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
           <div className="pt-6 border-t border-stone-200 grid grid-cols-2 gap-8 text-xs text-center">
             <div className="space-y-14">
               <p className="font-bold text-stone-700">
-                {language === 'id' ? 'Orang Tua / Wali Murid,' : 'Parent / Guardian,'}
+                {language === 'id' ? 'Orang Tua / Wali Murid,' : 'Guardian,'}
               </p>
               <div>
                 <p className="border-b border-stone-400 w-44 mx-auto pb-1 font-bold text-stone-900">
@@ -304,7 +304,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             <div className="space-y-14">
               <p className="font-bold text-stone-700">
                 {todayFormatted},<br />
-                {language === 'id' ? 'Guru Pengampu / Fasilitator,' : 'Educator / Facilitator,'}
+                {language === 'id' ? 'Guru Pengampu / Fasilitator,' : 'Teacher / Facilitator,'}
               </p>
               <div>
                 <p className="border-b border-stone-400 w-44 mx-auto pb-1 font-bold text-stone-900">

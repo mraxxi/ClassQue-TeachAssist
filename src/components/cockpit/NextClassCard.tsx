@@ -134,11 +134,11 @@ export const NextClassCard: React.FC = () => {
         <button 
           onClick={() => addToast(
             language === 'id' 
-              ? '💡 Tips Pedagogi: Awali kelas dengan apersepsi 5 menit untuk membangkitkan fokus siswa!' 
-              : '💡 Pedagogical Prompt: Start with a 5-min warm-up flashcard drill to activate student schema!',
+              ? '💡 Tips Mengajar: Awali kelas dengan apersepsi 5 menit untuk membangkitkan fokus siswa!' 
+              : '💡 Teaching Tip: Start with a 5-min warm-up flashcard drill to activate student schema!',
             'info'
           )}
-          title="Classroom Pedagogical Prompt / Tip"
+          title={language === 'id' ? 'Tips pedagogi untuk kelas' : 'Classroom teaching tip'}
           className="p-3.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 transition-colors cursor-pointer"
         >
           <Sparkles className="w-4 h-4 text-teal-700" />

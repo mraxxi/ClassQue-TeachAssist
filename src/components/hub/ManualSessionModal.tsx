@@ -122,8 +122,8 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
             <div>
               <h3 className="text-lg font-black text-stone-900 tracking-tight">
                 {sessionToEdit
-                  ? (language === 'id' ? 'Ubah Sesi Mengajar' : 'Edit Teaching Session')
-                  : (language === 'id' ? 'Catat Sesi Mengajar Manual' : 'Log Teaching Session')}
+                  ? (language === 'id' ? 'Ubah Sesi Pembelajaran' : 'Edit Teaching Session')
+                  : (language === 'id' ? 'Catat Sesi Pembelajaran Manual' : 'Log Teaching Session')}
               </h3>
               <p className="text-xs text-stone-500 font-medium">
                 {language === 'id'
@@ -134,7 +134,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            aria-label="Tutup / Close"
+            aria-label={language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-stone-600 p-2 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -255,7 +255,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Unit 4 Review, Midterm Preparation..."
+              placeholder={language === 'id' ? 'mis. Review Unit 4, Persiapan Ujian Tengah Semester...' : 'e.g. Unit 4 Review, Midterm Preparation...'}
               className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
             />
           </div>

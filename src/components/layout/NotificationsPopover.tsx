@@ -94,7 +94,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({ isOp
             <button
               onClick={() => markAllNotificationsAsRead()}
               className="text-[11px] font-semibold text-teal-700 hover:text-teal-900 px-2 py-1 rounded-md hover:bg-teal-50 transition-colors flex items-center gap-1 cursor-pointer"
-              title="Tandai semua dibaca"
+              title={language === 'id' ? 'Tandai semua dibaca' : 'Mark all as read'}
             >
               <CheckCheck className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{language === 'id' ? 'Tandai Dibaca' : 'Mark Read'}</span>
@@ -102,7 +102,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({ isOp
           )}
           <button
             onClick={onClose}
-            aria-label="Tutup / Close"
+            aria-label={language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />

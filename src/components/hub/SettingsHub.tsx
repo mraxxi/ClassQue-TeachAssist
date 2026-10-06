@@ -432,7 +432,7 @@ export const SettingsHub: React.FC = () => {
           </div>
           <div>
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-              {language === 'id' ? 'Rencana Ajar' : 'Lesson Plans'}
+              {language === 'id' ? 'RPP' : 'Lesson Plans'}
             </span>
             <span className="font-extrabold text-stone-900 font-mono text-sm">{lessonPlans.length}</span>
           </div>
@@ -451,7 +451,7 @@ export const SettingsHub: React.FC = () => {
           <div>
             <h4 className="font-extrabold flex items-center gap-2 text-sm text-teal-400">
               <Database className="w-4 h-4" />
-              Cloudflare D1 Edge & Offline Engine
+              {language === 'id' ? 'Cloudflare D1 Edge & Mesin Offline' : 'Cloudflare D1 Edge & Offline Engine'}
             </h4>
             <p className="text-xs text-stone-400 mt-0.5">
               {language === 'id'
@@ -475,7 +475,7 @@ export const SettingsHub: React.FC = () => {
           <div className="bg-stone-800/80 p-3.5 rounded-2xl border border-stone-700/80">
             <span className="text-[10px] text-stone-400 font-bold uppercase block flex items-center justify-center gap-1">
               <HardDrive className="w-3 h-3 text-stone-400" />
-              Penyimpanan Lokal
+              {language === 'id' ? 'Penyimpanan Lokal' : 'Local Storage'}
             </span>
             <span className="font-mono font-bold text-teal-300 mt-1 block text-sm">
               {storageUsedKb} KB <span className="text-[11px] font-sans text-stone-400">/ localStorage</span>
@@ -485,10 +485,10 @@ export const SettingsHub: React.FC = () => {
           <div className="bg-stone-800/80 p-3.5 rounded-2xl border border-stone-700/80">
             <span className="text-[10px] text-stone-400 font-bold uppercase block flex items-center justify-center gap-1">
               <Wifi className="w-3 h-3 text-emerald-400" />
-              Status Jaringan
+              {language === 'id' ? 'Status Jaringan' : 'Network Status'}
             </span>
             <span className={`font-bold mt-1 block text-sm ${typeof navigator !== 'undefined' && navigator.onLine ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {typeof navigator !== 'undefined' && navigator.onLine ? 'Online' : 'Offline'} (Local-First)
+              {typeof navigator !== 'undefined' && navigator.onLine ? 'Online' : (language === 'id' ? 'Luar Jaringan' : 'Offline')} (Local-First)
             </span>
           </div>
 

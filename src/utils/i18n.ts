@@ -45,19 +45,19 @@ export const translations = {
       pickDate: 'Pick Date:',
     },
     attendance: {
-      present: 'Hadir',
-      absent: 'Alpa',
-      late: 'Terlambat',
-      excused: 'Izin',
+      present: 'Present',
+      absent: 'Absent',
+      late: 'Late',
+      excused: 'Excused',
     },
     liveModal: {
-      title: 'Live Classroom Cockpit',
+      title: 'Live Cockpit',
       stopwatch: 'SESSION STOPWATCH',
       pause: 'Pause',
       resume: 'Resume',
       finish: 'Finish & Log Claim',
       close: 'Exit Cockpit',
-      activeStage: 'Active Pedagogical Stage',
+      activeStage: 'Active Lesson Stage',
       stageWarmUp: '1. Warm-up / Hook (5-10m)',
       stagePresentation: '2. Presentation (15-20m)',
       stagePractice: '3. Controlled Practice (15-20m)',
@@ -69,7 +69,7 @@ export const translations = {
       confirmFinish: 'Confirm Finish Class',
     },
     hubs: {
-      classesTab: 'Cohorts / Classes',
+      classesTab: 'Cohorts',
       studentsTab: 'Student Directory',
       cefrTab: 'CEFR Milestone Gradebook',
       attendanceTab: 'Attendance History',
@@ -160,6 +160,47 @@ export const translations = {
     },
   },
 };
+
+/** Claim workflow status in the active language (Draft -> Submitted -> Approved -> Paid). */
+export const claimStatusLabel = (status: string, lang: Language): string => {
+  const map: Record<string, { id: string; en: string }> = {
+    draft: { id: 'Draf', en: 'Draft' },
+    submitted: { id: 'Diajukan', en: 'Submitted' },
+    approved: { id: 'Disetujui', en: 'Approved' },
+    paid: { id: 'Terbayar', en: 'Paid' },
+  };
+  const m = map[status];
+  return m ? m[lang] : status;
+};
+
+/** Attendance status in the active language (spec: Hadir / Alpa / Terlambat / Izin). */
+export const attendanceStatusLabel = (status: string, lang: Language): string => {
+  const map: Record<string, { id: string; en: string }> = {
+    present: { id: 'Hadir', en: 'Present' },
+    absent: { id: 'Alpa', en: 'Absent' },
+    late: { id: 'Terlambat', en: 'Late' },
+    excused: { id: 'Izin', en: 'Excused' },
+  };
+  const m = map[status];
+  return m ? m[lang] : status;
+};
+
+/** CEFR skill category names (spec: Mendengarkan / Membaca / Interaksi Lisan / Produksi Lisan / Menulis). */
+export const skillLabel = (skill: string, lang: Language): string => {
+  const map: Record<string, { id: string; en: string }> = {
+    listening: { id: 'Mendengarkan', en: 'Listening' },
+    reading: { id: 'Membaca', en: 'Reading' },
+    spoken_interaction: { id: 'Interaksi Lisan', en: 'Spoken Interaction' },
+    spoken_production: { id: 'Produksi Lisan', en: 'Spoken Production' },
+    writing: { id: 'Menulis', en: 'Writing' },
+  };
+  const m = map[skill];
+  return m ? m[lang] : skill.replace(/_/g, ' ');
+};
+
+/** The built-in placeholder teacher name ("Educator") is shown in the active language instead. */
+export const displayTeacherName = (name: string, lang: Language): string =>
+  !name || name === 'Educator' ? (lang === 'id' ? 'Guru' : 'Teacher') : name;
 
 export const useTranslation = (lang: Language) => {
   return translations[lang] || translations.en;

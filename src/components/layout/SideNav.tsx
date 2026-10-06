@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { resolveTheme } from '../../utils/theme';
 import { useTeacherStore } from '../../store/useTeacherStore';
-import { useTranslation } from '../../utils/i18n';
+import { useTranslation, displayTeacherName } from '../../utils/i18n';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import { NotificationsPopover } from './NotificationsPopover';
 import { getCookie, setCookie, COOKIE_KEYS } from '../../utils/cookies';
@@ -96,7 +96,7 @@ export const SideNav: React.FC = () => {
               <button
                 onClick={() => setLanguage(language === 'id' ? 'en' : 'id')}
                 className="flex items-center justify-center w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 transition-colors cursor-pointer"
-                title="Ganti Bahasa / Switch Language"
+                title={language === 'id' ? 'Ganti bahasa' : 'Switch language'}
               >
                 <span className="text-[10px] font-bold">{language.toUpperCase()}</span>
               </button>
@@ -149,8 +149,8 @@ export const SideNav: React.FC = () => {
             </div>
             {isExpanded && (
               <div className="overflow-hidden">
-                <p className="text-sm font-semibold text-stone-800 leading-tight truncate">{teacher.name}</p>
-                <p className="text-xs text-stone-500 truncate">{teacher.schoolName || 'Educator'}</p>
+                <p className="text-sm font-semibold text-stone-800 leading-tight truncate">{displayTeacherName(teacher.name, language)}</p>
+                <p className="text-xs text-stone-500 truncate">{teacher.schoolName || (language === 'id' ? 'Guru' : 'Teacher')}</p>
               </div>
             )}
           </div>

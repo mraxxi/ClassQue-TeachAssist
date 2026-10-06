@@ -7,11 +7,11 @@ await goto.classes(p); await p.click('main button:has-text("Riwayat Presensi")')
 const dateOnPage = async () => (await txt(p, 'main')).match(/Sesi: (\d{4}-\d{2}-\d{2})/)?.[1];
 
 check('F8 default date is the LOCAL date (2026-10-06 at 03:00 WIB)', (await dateOnPage()) === '2026-10-06', await dateOnPage());
-await p.click('button[title="Previous Day"]'); await p.waitForTimeout(200);
+await p.click('button[title="Hari sebelumnya"]'); await p.waitForTimeout(200);
 check('2.1 previous day', (await dateOnPage()) === '2026-10-05');
-await p.click('button[title="Next Day"]'); await p.waitForTimeout(200);
+await p.click('button[title="Hari berikutnya"]'); await p.waitForTimeout(200);
 check('2.2 next day', (await dateOnPage()) === '2026-10-06');
-await p.click('button[title="Previous Day"]'); await p.click('button[title="Previous Day"]'); await p.click('main button:has-text("Hari Ini")'); await p.waitForTimeout(200);
+await p.click('button[title="Hari sebelumnya"]'); await p.click('button[title="Hari sebelumnya"]'); await p.click('main button:has-text("Hari Ini")'); await p.waitForTimeout(200);
 check('2.3 Today button returns to today', (await dateOnPage()) === '2026-10-06');
 await p.fill('input[type=date]', '2026-09-28'); await p.waitForTimeout(300);
 check('2.4 date picker jump', (await dateOnPage()) === '2026-09-28');
@@ -29,13 +29,13 @@ let rec = s.attendanceRecords.find((r) => r.studentId === liam.id && r.attendanc
 check('2.5 mark Late', rec?.status === 'late' && !!rec.updatedAt, JSON.stringify(rec));
 // note: Enter saves (F10)
 await row('Liam Wong').locator('button[title*="catatan"]').click();
-await p.fill('main input[placeholder^="e.g. Izin"]', 'Traffic jam'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+await p.fill('main input[placeholder^="mis. Izin"]', 'Traffic jam'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
 s = await store(p); rec = s.attendanceRecords.find((r) => r.studentId === liam.id && r.attendanceDate === '2026-09-28');
 check('2.6 note saved with Enter', rec?.note === 'Traffic jam', rec?.note);
 check('2.6b note visible in the row', (await txt(p, 'main')).includes('Traffic jam'));
 // note on an unmarked student requires a status first
 await row('Aisha Khan').locator('button[title*="catatan"]').click();
-await p.fill('main input[placeholder^="e.g. Izin"]', 'x'); await p.click('main button:has-text("Simpan")'); await p.waitForTimeout(250);
+await p.fill('main input[placeholder^="mis. Izin"]', 'x'); await p.click('main button:has-text("Simpan")'); await p.waitForTimeout(250);
 s = await store(p);
 check('2.6c note without status is not silently recorded as present', !s.attendanceRecords.some((r) => r.studentId === s.students.find((x) => x.fullName === 'Aisha Khan').id && r.attendanceDate === '2026-09-28'));
 await p.keyboard.press('Escape');
@@ -66,7 +66,7 @@ const att = recs.filter((r) => r.status === 'present' || r.status === 'late').le
 const expected = Math.round((att / recs.length) * 100);
 t = await txt(p, 'main');
 check('2.10 profile attendance % matches records', t.includes(`${expected}%`), `expected ${expected}% from ${recs.length} records`);
-await p.click('button[title="Open Attendance"]'); await p.waitForTimeout(400);
+await p.click('button[title="Buka presensi"]'); await p.waitForTimeout(400);
 check('2.11 quick link opens the attendance tab', (await txt(p, 'main')).includes('Matriks 7 Hari'));
 await p.waitForTimeout(2500); await p.reload(); await p.waitForTimeout(2500);
 s = await store(p);

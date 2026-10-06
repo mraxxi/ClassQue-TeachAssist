@@ -63,29 +63,29 @@ check('3.8 profile CEFR counters match', (await txt(p, 'main')).includes(`${m4} 
 // =================================== Stage 04: Lessons ===================================
 await goto.lessons(p); await p.waitForTimeout(400);
 await p.click('main button:has-text("Buat RPP Baru")'); await p.waitForTimeout(300);
-await p.fill('input[placeholder^="e.g. Unit 4"]', 'Unit 7: Weather Reports');
-await p.fill('input[placeholder^="e.g. Dinosaurs"]', 'Weather vocabulary and forecasts');
+await p.fill('input[placeholder^="mis. Unit 4"]', 'Unit 7: Weather Reports');
+await p.fill('input[placeholder^="mis. Dinosaurus"]', 'Weather vocabulary and forecasts');
 await p.locator('div.fixed select').first().selectOption('cohort-2');
 await p.locator('div.fixed textarea').nth(0).fill('Warm-up: weather charades');
 await p.locator('div.fixed textarea').nth(2).fill('Practice: matching weather icons to words');
-await p.fill('input[placeholder^="Word (e.g."]', 'drizzle');
+await p.fill('input[placeholder^="Kata (mis."]', 'drizzle');
 await p.fill('input[placeholder^="Definisi"]', 'hujan rintik-rintik');
-await p.fill('input[placeholder^="Example sentence"]', 'It drizzled all morning.');
-await p.fill('input[placeholder^="e.g. Past Simple"]', 'Present continuous for forecasts');
-await p.fill('input[placeholder^="e.g. Activity Book"]', 'Workbook p.30');
+await p.fill('input[placeholder^="Contoh kalimat"]', 'It drizzled all morning.');
+await p.fill('input[placeholder^="mis. Past Simple"]', 'Present continuous for forecasts');
+await p.fill('input[placeholder^="mis. Buku Aktivitas"]', 'Workbook p.30');
 await p.fill('input[type=url]', 'https://youtube.com/watch?v=abc'); await p.click('div.fixed button:has-text("+ Tambah Tautan")'); await p.waitForTimeout(200);
 await p.click('div.fixed button[type=submit]:has-text("Buat RPP")'); await p.waitForTimeout(500);
 s = await store(p);
 const lp = s.lessonPlans.find((x) => x.title === 'Unit 7: Weather Reports');
 check('4.1 plan created with 5 stages, vocab, links, homework', lp && lp.cohortId === 'cohort-2' && lp.warmUp.includes('charades') && lp.practice.includes('matching') && lp.presentation && lp.production && lp.wrapUp && lp.vocabulary.some((v) => v.word === 'drizzle') && lp.materialsLinks.length >= 1 && lp.homework === 'Workbook p.30', JSON.stringify(lp && { v: lp.vocabulary.length, l: lp.materialsLinks }));
 check('4.2 appears in the list', (await txt(p, 'main')).includes('Unit 7: Weather Reports'));
-await p.click('main button[title="Edit Lesson Plan"]'); await p.waitForTimeout(300);
+await p.click('main button[title="Ubah RPP"]'); await p.waitForTimeout(300);
 await p.locator('div.fixed textarea').nth(2).fill('Practice EDITED: gap-fill forecast');
 await p.click('div.fixed button[type=submit]'); await p.waitForTimeout(400);
 s = await store(p);
 check('4.3 edit Stage 3 persisted', s.lessonPlans.find((x) => x.id === lp.id)?.practice === 'Practice EDITED: gap-fill forecast');
 const n0 = s.lessonPlans.length;
-await p.click('main button[title="Duplicate Lesson Plan"]'); await p.waitForTimeout(400);
+await p.click('main button[title="Duplikat RPP"]'); await p.waitForTimeout(400);
 s = await store(p);
 const copy = s.lessonPlans.find((x) => /\(Copy\)/.test(x.title));
 check('4.4 duplicate creates "(Copy)" with the same content and a new id', s.lessonPlans.length === n0 + 1 && copy && copy.id !== lp.id && copy.practice === 'Practice EDITED: gap-fill forecast');
@@ -96,7 +96,7 @@ await p.fill(si, 'zzzz'); await p.waitForTimeout(250); check('4.5b empty state',
 await p.fill(si, '');
 
 // print isolation + single page
-await p.click('main button[title^="Print"]'); await p.waitForTimeout(500);
+await p.click('main button[title^="Cetak / Simpan"]'); await p.waitForTimeout(500);
 await p.emulateMedia({ media: 'print' }); await p.waitForTimeout(300);
 const vis = await p.evaluate(() => ({
   root: getComputedStyle(document.querySelector('#root')).display,
@@ -116,7 +116,7 @@ await p.reload(); await p.waitForTimeout(2500); await goto.lessons(p); await p.w
 s = await store(p);
 let remaining = s.lessonPlans.length;
 for (let i = remaining; i > 0; i--) {
-  await p.click('main button[title="Delete Lesson Plan"]'); await p.waitForTimeout(250);
+  await p.click('main button[title="Hapus RPP"]'); await p.waitForTimeout(250);
   await p.click('button:has-text("Ya, Hapus")'); await p.waitForTimeout(300);
 }
 s = await store(p);

@@ -30,14 +30,23 @@ export function done() {
  *  - lang:   'id' | 'en' to pre-set the language cookie
  */
 export async function open({ time, tz = 'Asia/Jakarta', token = TOKEN, lang, width = 1400, height = 900, goto = true } = {}) {
-  const browser = await chromium.launch({ executablePath: CHROMIUM, args: ['--no-sandbox'] });
-  const ctx = await browser.newContext({
-    viewport: { width, height },
-    permissions: ['clipboard-read', 'clipboard-write'],
-    timezoneId: tz,
-    locale: 'id-ID',
-    serviceWorkers: 'allow',
-  });
+  let browser, ctx;
+  for (let attempt = 1; ; attempt++) { // Chromium occasionally dies right at launch on a busy machine: retry
+    try {
+      browser = await chromium.launch({ executablePath: CHROMIUM, args: ['--no-sandbox'] });
+      ctx = await browser.newContext({
+        viewport: { width, height },
+        permissions: ['clipboard-read', 'clipboard-write'],
+        timezoneId: tz,
+        locale: 'id-ID',
+        serviceWorkers: 'allow',
+      });
+      break;
+    } catch (e) {
+      await browser?.close().catch(() => {});
+      if (attempt >= 3) throw e;
+    }
+  }
   if (time) await ctx.clock.install({ time: new Date(time) });
   if (token) {
     await ctx.addInitScript((t) => {
@@ -52,7 +61,10 @@ export async function open({ time, tz = 'Asia/Jakarta', token = TOKEN, lang, wid
   page.on('pageerror', (e) => page.errs.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) page.errs.push(`console.error: ${m.text()}`); });
   if (goto) {
-    await page.goto(BASE);
+    // The dev server occasionally stalls the very first request of a fresh browser; retry instead of failing the run.
+    for (let attempt = 1; ; attempt++) {
+      try { await page.goto(BASE, { timeout: 20000 }); break; } catch (e) { if (attempt >= 3) throw e; }
+    }
     await page.waitForTimeout(2500);
   }
   return { browser, ctx, page, p: page };

@@ -5,7 +5,7 @@ import {
   DollarSign, Award, BookOpen, Send, CheckCircle2, History, Pencil
 } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
-import { useTranslation } from '../../utils/i18n';
+import { useTranslation, claimStatusLabel, skillLabel } from '../../utils/i18n';
 import { toWhatsAppNumber } from '../../utils/phone';
 import { TeachingSession, TeachingClaim, ClaimStatus, ParentReport } from '../../types';
 import { localMonthStr } from '../../utils/date';
@@ -129,21 +129,23 @@ export const ClaimsReportsHub: React.FC = () => {
 
   // Auto-generate WhatsApp message for selected student
   const getScoreAbbr = (score: number) => {
+    const id = language === 'id';
     switch (score) {
-      case 1: return 'MB (Mulai Berkembang)';
-      case 2: return 'SB (Sedang Berkembang)';
-      case 3: return 'TC (Tercapai Sesuai Harapan)';
-      case 4: return 'M (Mahir / Melebihi)';
-      default: return 'TC';
+      case 1: return id ? 'MB (Mulai Berkembang)' : 'Emerging';
+      case 2: return id ? 'SB (Sedang Berkembang)' : 'Developing';
+      case 3: return id ? 'TC (Tercapai Sesuai Harapan)' : 'Achieved';
+      case 4: return id ? 'M (Mahir / Melebihi)' : 'Mastered';
+      default: return id ? 'TC' : 'Achieved';
     }
   };
 
   const cefrPointsText = evaluatedMilestones
     .slice(0, 3)
-    .map((ev) => `• ${ev.milestone.skillCategory.replace('-', ' ').toUpperCase()}: *${getScoreAbbr(ev.score)}*`)
+    .map((ev) => `• ${skillLabel(ev.milestone.skillCategory, language).toUpperCase()}: *${getScoreAbbr(ev.score)}*`)
     .join('\n');
 
-  const whatsappDraft = `*LAPORAN PERKEMBANGAN BELAJAR SISWA* 📚
+  const whatsappDraft = language === 'id'
+    ? `*LAPORAN PERKEMBANGAN BELAJAR SISWA* 📚
 ━━━━━━━━━━━━━━━━━━
 Nama Siswa: *${selectedStudent?.fullName || '-'}${selectedStudent?.nickname ? ` (${selectedStudent.nickname})` : ''}*
 Kelas: *${studentCohort?.name || '-'}*
@@ -154,6 +156,18 @@ Kehadiran: *${attendanceRate === null ? 'belum ada data presensi bulan ini' : `$
 ${evaluatedMilestones.length > 0 ? `🎯 *Capaian Kompetensi (CEFR ${studentCohort?.cefrLevel || ''}):*\n${cefrPointsText}\n\n` : ''}${narrativeFeedback.trim() ? `📝 *Catatan & Rekomendasi Guru:*\n"${narrativeFeedback.trim()}"\n` : ''}
 ${selectedStudent?.growthAreas ? `🌱 *Area Fokus:* ${selectedStudent.growthAreas}\n` : ''}
 Terima kasih atas bimbingan dan kerja sama Bapak/Ibu ${selectedStudent?.guardianName || 'Wali Murid'}. 🙏
+_${teacher.schoolName || ''}_`
+    : `*STUDENT LEARNING PROGRESS REPORT* 📚
+━━━━━━━━━━━━━━━━━━
+Student: *${selectedStudent?.fullName || '-'}${selectedStudent?.nickname ? ` (${selectedStudent.nickname})` : ''}*
+Cohort: *${studentCohort?.name || '-'}*
+Teacher: *${teacher.name}*
+Period: *${selectedMonth}*
+Attendance: *${attendanceRate === null ? 'no attendance recorded this month' : `${attendanceRate}% (${presentCount}/${totalSessionsCount} sessions attended)`}*
+
+${evaluatedMilestones.length > 0 ? `🎯 *Competency Progress (CEFR ${studentCohort?.cefrLevel || ''}):*\n${cefrPointsText}\n\n` : ''}${narrativeFeedback.trim() ? `📝 *Teacher Notes & Recommendations:*\n"${narrativeFeedback.trim()}"\n` : ''}
+${selectedStudent?.growthAreas ? `🌱 *Focus Areas:* ${selectedStudent.growthAreas}\n` : ''}
+Thank you for your guidance and support, ${selectedStudent?.guardianName || 'Guardian'}. 🙏
 _${teacher.schoolName || ''}_`;
 
   const handleCopyWhatsApp = () => {
@@ -330,7 +344,7 @@ _${teacher.schoolName || ''}_`;
                 className="px-4 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>{language === 'id' ? 'Cetak Faktur Klaim (A4)' : 'Print Invoice (A4)'}</span>
+                <span>{language === 'id' ? 'Cetak Lembar Klaim (A4)' : 'Print Claim Sheet (A4)'}</span>
               </button>
             </div>
           </div>
@@ -342,7 +356,7 @@ _${teacher.schoolName || ''}_`;
                 {language === 'id' ? 'Total Sesi Terverifikasi' : 'Verified Sessions'}
               </span>
               <p className="text-lg sm:text-2xl font-black text-stone-900 mt-1 font-mono break-words">
-                {monthlySessions.length} <span className="text-xs font-medium text-stone-400 font-sans">sesi</span>
+                {monthlySessions.length} <span className="text-xs font-medium text-stone-400 font-sans">{language === 'id' ? 'sesi' : 'sessions'}</span>
               </p>
               <p className="text-[11px] text-stone-400 mt-0.5">
                 {totalHours} {language === 'id' ? 'total jam mengajar' : 'total teaching hours'}
@@ -357,7 +371,7 @@ _${teacher.schoolName || ''}_`;
                 {formatIDR(baseAmount)}
               </p>
               <p className="text-[11px] text-stone-400 mt-0.5">
-                Tarif default: {formatIDR(teacher.defaultHourlyRate)}/jam
+                {language === 'id' ? 'Tarif Honor default' : 'Default hourly rate'}: {formatIDR(teacher.defaultHourlyRate)}/{language === 'id' ? 'jam' : 'hr'}
               </p>
             </div>
 
@@ -380,7 +394,7 @@ _${teacher.schoolName || ''}_`;
                   className="w-full px-2.5 py-1 text-sm font-black font-mono text-stone-900 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-700"
                 />
               </div>
-              <p className="text-[11px] text-stone-400 mt-0.5">Transport & materi</p>
+              <p className="text-[11px] text-stone-400 mt-0.5">{language === 'id' ? 'Transport & materi' : 'Transport & materials'}</p>
             </div>
 
             <div className="theme-original col-span-2 lg:col-span-1 bg-gradient-to-br from-teal-800 to-teal-950 rounded-3xl p-4 sm:p-5 text-white shadow-md">
@@ -400,7 +414,7 @@ _${teacher.schoolName || ''}_`;
                     ? 'bg-amber-500 text-white'
                     : 'bg-stone-700 text-stone-200'
                 }`}>
-                  Status: {claimStatus}
+                  Status: {claimStatusLabel(claimStatus, language)}
                 </span>
               </div>
             </div>
@@ -429,7 +443,7 @@ _${teacher.schoolName || ''}_`;
                     : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                 }`}
               >
-                1. Draft
+                1. {claimStatusLabel('draft', language)}
               </button>
 
               <button
@@ -440,7 +454,7 @@ _${teacher.schoolName || ''}_`;
                     : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
                 }`}
               >
-                2. Submitted
+                2. {claimStatusLabel('submitted', language)}
               </button>
 
               <button
@@ -451,7 +465,7 @@ _${teacher.schoolName || ''}_`;
                     : 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
                 }`}
               >
-                3. Approved
+                3. {claimStatusLabel('approved', language)}
               </button>
 
               <button
@@ -462,7 +476,7 @@ _${teacher.schoolName || ''}_`;
                     : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
                 }`}
               >
-                4. Paid ✓
+                4. {claimStatusLabel('paid', language)} ✓
               </button>
             </div>
           </div>
@@ -471,7 +485,7 @@ _${teacher.schoolName || ''}_`;
           <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="text-sm font-extrabold text-stone-900">
-                {language === 'id' ? 'Rincian Sesi Mengajar Terverifikasi' : 'Itemized Verified Teaching Sessions'} ({monthlySessions.length})
+                {language === 'id' ? 'Rincian Sesi Pembelajaran Terverifikasi' : 'Itemized Verified Teaching Sessions'} ({monthlySessions.length})
               </h3>
               <span className="text-xs text-stone-400 font-medium font-mono">
                 {selectedMonth}
@@ -517,7 +531,7 @@ _${teacher.schoolName || ''}_`;
                         <button
                           onClick={() => setSessionToEdit(sess)}
                           className="p-1.5 text-stone-300 hover:text-teal-700 rounded-lg transition-colors cursor-pointer"
-                          title="Edit session"
+                          title={language === 'id' ? 'Ubah sesi' : 'Edit session'}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -525,7 +539,7 @@ _${teacher.schoolName || ''}_`;
                         <button
                           onClick={() => setSessionToDelete(sess)}
                           className="p-1.5 text-stone-300 hover:text-rose-700 rounded-lg transition-colors cursor-pointer"
-                          title="Delete session"
+                          title={language === 'id' ? 'Hapus sesi' : 'Delete session'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -579,7 +593,7 @@ _${teacher.schoolName || ''}_`;
                     >
                       <div>
                         <p className="text-xs font-bold text-stone-900">{st.fullName}</p>
-                        <p className="text-[11px] text-stone-400">{cohort?.name || 'Class'} • Wali: {st.guardianName || '-'}</p>
+                        <p className="text-[11px] text-stone-400">{cohort?.name || (language === 'id' ? 'Kelas' : 'Cohort')} • {language === 'id' ? 'Wali' : 'Guardian'}: {st.guardianName || '-'}</p>
                       </div>
                       <UserCheck className={`w-4 h-4 ${isSelected ? 'text-teal-700' : 'text-stone-300'}`} />
                     </div>
@@ -610,7 +624,7 @@ _${teacher.schoolName || ''}_`;
                     <div key={rep.id} className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs flex items-center justify-between">
                       <div>
                         <p className="font-bold text-stone-900 font-mono text-[11px]">{rep.reportPeriod}</p>
-                        <p className="text-[10px] text-stone-500">Kehadiran: {rep.totalSessionsCount > 0 ? `${rep.attendanceRate}%` : '—'}</p>
+                        <p className="text-[10px] text-stone-500">{language === 'id' ? 'Kehadiran' : 'Attendance'}: {rep.totalSessionsCount > 0 ? `${rep.attendanceRate}%` : '—'}</p>
                       </div>
                       <button
                         onClick={() => handleToggleReportSent(rep.id, rep.isSent)}
@@ -643,16 +657,16 @@ _${teacher.schoolName || ''}_`;
                 <div>
                   <h3 className="text-sm font-black text-stone-900">{selectedStudent?.fullName}</h3>
                   <p className="text-xs text-stone-500">
-                    {studentCohort?.name} • CEFR {studentCohort?.cefrLevel} • Wali: {selectedStudent?.guardianName} ({selectedStudent?.guardianPhone || 'No WA'})
+                    {studentCohort?.name} • CEFR {studentCohort?.cefrLevel} • {language === 'id' ? 'Wali' : 'Guardian'}: {selectedStudent?.guardianName} ({selectedStudent?.guardianPhone || (language === 'id' ? 'Tanpa WA' : 'No WA')})
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <span className="text-[10px] uppercase font-extrabold text-stone-400 block">Kehadiran</span>
+                  <span className="text-[10px] uppercase font-extrabold text-stone-400 block">{language === 'id' ? 'Kehadiran' : 'Attendance'}</span>
                   <span className="text-sm font-black text-emerald-700 font-mono" data-testid="report-attendance">
-                    {attendanceRate === null ? (language === 'id' ? 'Belum ada data presensi' : 'No attendance data') : `${attendanceRate}% (${presentCount}/${totalSessionsCount} Sesi)`}
+                    {attendanceRate === null ? (language === 'id' ? 'Belum ada data presensi' : 'No attendance data') : `${attendanceRate}% (${presentCount}/${totalSessionsCount} ${language === 'id' ? 'Sesi' : 'Sessions'})`}
                   </span>
                 </div>
               </div>
@@ -706,7 +720,7 @@ _${teacher.schoolName || ''}_`;
                       rel="noreferrer"
                       className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold flex items-center gap-1"
                     >
-                      <span>Buka WA ↗</span>
+                      <span>{language === 'id' ? 'Buka WA' : 'Open WA'} ↗</span>
                     </a>
                   )}
                 </div>
@@ -744,13 +758,13 @@ _${teacher.schoolName || ''}_`;
               <div className="p-4 border border-stone-200 rounded-2xl bg-(--app-paper) text-stone-900 text-xs space-y-2">
                 <div className="flex items-center justify-between border-b border-stone-200 pb-2">
                   <span className="font-extrabold text-stone-700 uppercase">{teacher.schoolName}</span>
-                  <span className="text-[10px] font-bold text-teal-800 font-mono">Period: {selectedMonth}</span>
+                  <span className="text-[10px] font-bold text-teal-800 font-mono">{language === 'id' ? 'Periode' : 'Period'}: {selectedMonth}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div><strong>Siswa:</strong> {selectedStudent?.fullName}</div>
-                  <div><strong>Kelas:</strong> {studentCohort?.name}</div>
-                  <div><strong>Kehadiran:</strong> {attendanceRate === null ? '—' : `${attendanceRate}% (${presentCount}/${totalSessionsCount} Sesi)`}</div>
-                  <div><strong>Guru:</strong> {teacher.name}</div>
+                  <div><strong>{language === 'id' ? 'Siswa' : 'Student'}:</strong> {selectedStudent?.fullName}</div>
+                  <div><strong>{language === 'id' ? 'Kelas' : 'Cohort'}:</strong> {studentCohort?.name}</div>
+                  <div><strong>{language === 'id' ? 'Kehadiran' : 'Attendance'}:</strong> {attendanceRate === null ? '—' : `${attendanceRate}% (${presentCount}/${totalSessionsCount} ${language === 'id' ? 'Sesi' : 'Sessions'})`}</div>
+                  <div><strong>{language === 'id' ? 'Guru' : 'Teacher'}:</strong> {teacher.name}</div>
                 </div>
               </div>
 
@@ -798,7 +812,7 @@ _${teacher.schoolName || ''}_`;
       {/* Delete Session Confirmation Modal */}
       <ConfirmModal
         isOpen={!!sessionToDelete}
-        title={language === 'id' ? 'Hapus Sesi Mengajar?' : 'Delete Session?'}
+        title={language === 'id' ? 'Hapus Sesi Pembelajaran?' : 'Delete Session?'}
         message={
           language === 'id'
             ? `Apakah Anda yakin ingin menghapus sesi tanggal ${sessionToDelete?.sessionDate}? Total klaim akan berkurang.`

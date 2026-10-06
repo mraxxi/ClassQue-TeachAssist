@@ -23,7 +23,7 @@ check('8.1d storage label is honest (localStorage, not IndexedDB)', /localStorag
 // ============================ restore round-trip ============================
 let orig = await store(p);
 // remove data locally, then restore
-await goto.classes(p); await p.click('main button:has-text("Cambridge Starters A1")'); await p.click('button[title="Delete cohort"]'); await p.click('button:has-text("Ya, Hapus Kelas")'); await p.waitForTimeout(400);
+await goto.classes(p); await p.click('main button:has-text("Cambridge Starters A1")'); await p.click('button[title="Hapus kelas"]'); await p.click('button:has-text("Ya, Hapus Kelas")'); await p.waitForTimeout(400);
 let s = await store(p);
 check('8.2 data modified before restore', !s.cohorts.some((c) => c.name === 'Cambridge Starters A1'));
 await goto.settings(p); await p.waitForTimeout(300);

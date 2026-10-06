@@ -32,7 +32,7 @@ check('10.4b pending KPI counts open tasks only', /TUGAS TERTUNDA \| 5/.test(awa
 const order = await p.$$eval('[data-testid="task-row"]', (e) => e.map((x) => x.innerText.split('\n')[0]));
 check('10.5 completed tasks sink to the bottom', order[order.length - 1] === 'Date task', order.join('|'));
 check('10.6 past-due open tasks carry an overdue marker (4 seeded September tasks)', (await p.locator('[data-testid="task-overdue"]').count()) === 4);
-await row('Lesson task').locator('button[title="Delete task"]').click(); await p.waitForTimeout(300);
+await row('Lesson task').locator('button[title="Hapus tugas"]').click(); await p.waitForTimeout(300);
 s = await store(p);
 check('10.7 delete task + tombstone', !s.tasks.some((x) => x.title === 'Lesson task') && (s.tombstones.tasks || []).some((t) => t.id === tk.id));
 await sleep(2500);

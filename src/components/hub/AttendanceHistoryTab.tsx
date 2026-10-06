@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Cohort, Student, AttendanceStatus } from '../../types';
 import { useTeacherStore } from '../../store/useTeacherStore';
-import { useTranslation } from '../../utils/i18n';
+import { useTranslation, attendanceStatusLabel } from '../../utils/i18n';
 import { AttendanceControl, RollCallProgress } from '../common/AttendanceControl';
 import { addDaysStr, localDateStr } from '../../utils/date';
 
@@ -79,7 +79,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
           <button
             onClick={handlePrevDay}
             className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-            title="Previous Day"
+            title={language === 'id' ? 'Hari sebelumnya' : 'Previous day'}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -98,7 +98,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
           <button
             onClick={handleNextDay}
             className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-            title="Next Day"
+            title={language === 'id' ? 'Hari berikutnya' : 'Next day'}
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -216,7 +216,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                       <div>
                         <p className="text-xs font-bold text-stone-900">{st.fullName}</p>
                         <p className="text-[11px] text-stone-400">
-                          "{st.nickname}" • Wali: {st.guardianName}
+                          "{st.nickname}" • {language === 'id' ? 'Wali' : 'Guardian'}: {st.guardianName}
                         </p>
                       </div>
                     </div>
@@ -244,7 +244,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                             ? 'bg-amber-50 text-amber-800 border-amber-200'
                             : 'bg-stone-100 hover:bg-stone-200 text-stone-500 border-stone-200'
                         }`}
-                        title={rec?.note ? `Catatan: ${rec.note}` : 'Tambah catatan presensi'}
+                        title={rec?.note ? `${language === 'id' ? 'Catatan' : 'Note'}: ${rec.note}` : (language === 'id' ? 'Tambah catatan presensi' : 'Add attendance note')}
                       >
                         <FileEdit className="w-3.5 h-3.5" />
                       </button>
@@ -267,7 +267,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                         type="text"
                         value={noteText}
                         onChange={(e) => setNoteText(e.target.value)}
-                        placeholder="e.g. Izin sakit flu / Datang terlambat 15 menit..."
+                        placeholder={language === 'id' ? 'mis. Izin sakit flu / Datang terlambat 15 menit...' : 'e.g. Excused: flu / Arrived 15 minutes late...'}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleSaveNote(st.id);
                           if (e.key === 'Escape') setEditingNoteStudentId(null);
@@ -279,13 +279,13 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                         onClick={() => handleSaveNote(st.id)}
                         className="px-3 py-1.5 rounded-xl bg-teal-800 text-white text-xs font-bold hover:bg-teal-900 cursor-pointer"
                       >
-                        Simpan
+                        {language === 'id' ? 'Simpan' : 'Save'}
                       </button>
                       <button
                         onClick={() => setEditingNoteStudentId(null)}
                         className="px-2.5 py-1.5 rounded-xl bg-stone-100 text-stone-600 text-xs font-bold hover:bg-stone-200 cursor-pointer"
                       >
-                        Batal
+                        {language === 'id' ? 'Batal' : 'Cancel'}
                       </button>
                     </div>
                   )}
@@ -305,20 +305,20 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
               {language === 'id' ? 'Matriks Riwayat Presensi 7 Hari Terakhir' : '7-Day Attendance Matrix'}
             </h3>
             <span className="text-xs text-stone-500 font-medium">
-              Klik chip status untuk mengubah
+              {language === 'id' ? 'Klik chip status untuk mengubah' : 'Click a status chip to change it'}
             </span>
           </div>
 
           <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="border-b border-stone-200 text-[11px] text-stone-400 uppercase font-bold">
-                <th className="py-2.5 px-3">Siswa / Student</th>
+                <th className="py-2.5 px-3">{language === 'id' ? 'Siswa' : 'Student'}</th>
                 {recentDates.map((dt) => (
                   <th key={dt} className="py-2.5 px-2 text-center font-mono">
                     {dt.slice(5)}
                   </th>
                 ))}
-                <th className="py-2.5 px-3 text-right">Kehadiran</th>
+                <th className="py-2.5 px-3 text-right">{language === 'id' ? 'Kehadiran' : 'Attendance'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -363,7 +363,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                           <button
                             onClick={cycleNext}
                             className={`w-7 h-7 rounded-lg text-xs font-black border transition-all cursor-pointer ${color}`}
-                            title={`${dt}: ${status ? status.toUpperCase() : 'NOT RECORDED'} (Click to toggle)`}
+                            title={`${dt}: ${status ? attendanceStatusLabel(status, language).toUpperCase() : (language === 'id' ? 'BELUM DICATAT' : 'NOT RECORDED')} (${language === 'id' ? 'Klik untuk mengubah' : 'Click to toggle'})`}
                           >
                             {letter}
                           </button>

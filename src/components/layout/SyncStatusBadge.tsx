@@ -47,13 +47,21 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
             : 'bg-stone-100 text-stone-700 border-stone-300'
         }`}
         title={
-          isSyncingWithEdge
-            ? 'Sinkronisasi ke Cloudflare D1 sedang berlangsung...'
+          language === 'id'
+            ? isSyncingWithEdge
+              ? 'Sinkronisasi ke Cloudflare D1 sedang berlangsung...'
+              : authProblem
+              ? (syncAuthStatus === 'missing' ? 'Token sinkronisasi belum diisi (Pengaturan)' : syncAuthStatus === 'rejected' ? 'Token sinkronisasi ditolak server' : 'Server belum dikonfigurasi (SYNC_TOKEN)')
+              : hasUnsyncedChanges
+              ? 'Perubahan lokal tersimpan di browser, menunggu sinkronisasi D1'
+              : 'Klik untuk membuka Diagnostik Cloudflare D1'
+            : isSyncingWithEdge
+            ? 'Syncing to Cloudflare D1...'
             : authProblem
-            ? (syncAuthStatus === 'missing' ? 'Token sinkronisasi belum diisi (Pengaturan)' : syncAuthStatus === 'rejected' ? 'Token sinkronisasi ditolak server' : 'Server belum dikonfigurasi (SYNC_TOKEN)')
+            ? (syncAuthStatus === 'missing' ? 'Sync token not set (Settings)' : syncAuthStatus === 'rejected' ? 'The server rejected the sync token' : 'Server is not configured (SYNC_TOKEN)')
             : hasUnsyncedChanges
-            ? 'Perubahan lokal tersimpan di browser, menunggu sinkronisasi D1'
-            : 'Klik untuk membuka Diagnostik Cloudflare D1'
+            ? 'Local changes are saved in this browser, waiting to sync to D1'
+            : 'Click to open Cloudflare D1 diagnostics'
         }
       >
         {isSyncingWithEdge ? (
@@ -83,7 +91,7 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, comp
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
             <CloudCheck className="w-3.5 h-3.5 text-teal-600" />
-            {!compact && <span className="hidden sm:inline">D1 Synced</span>}
+            {!compact && <span className="hidden sm:inline">{language === 'id' ? 'D1 Tersinkron' : 'D1 Synced'}</span>}
           </>
         ) : (
           <>

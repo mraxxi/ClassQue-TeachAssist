@@ -62,7 +62,7 @@ export function generateDynamicNotifications(input: NotificationInput): Notifica
     items.push({
       id: `claim:${claim.id}`,
       category: 'claim',
-      title: id ? 'Klaim Honor Siap Ditinjau' : 'Teaching Claim Ready',
+      title: id ? 'Klaim Honorarium Siap Ditinjau' : 'Teaching Claim Ready',
       message: id
         ? `Klaim honorarium ${claim.claimPeriod} masih berstatus draf. Tinjau dan ajukan.`
         : `The ${claim.claimPeriod} Teaching Claim is still a draft. Review and submit it.`,

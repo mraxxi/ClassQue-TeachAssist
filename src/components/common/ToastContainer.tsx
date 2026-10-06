@@ -3,7 +3,7 @@ import { useTeacherStore } from '../../store/useTeacherStore';
 import { Info, CheckCircle2, AlertTriangle, AlertCircle, X } from 'lucide-react';
 
 export const ToastContainer: React.FC = () => {
-  const { toasts, removeToast } = useTeacherStore();
+  const { toasts, removeToast, language } = useTeacherStore();
 
   if (toasts.length === 0) return null;
 
@@ -32,7 +32,7 @@ export const ToastContainer: React.FC = () => {
           
           <button 
             onClick={() => removeToast(toast.id)}
-            aria-label="Dismiss"
+            aria-label={language === 'id' ? 'Tutup' : 'Dismiss'}
             className="text-stone-500 hover:text-stone-700 p-1 rounded-md hover:bg-stone-100 transition-colors"
           >
             <X className="w-4 h-4" />

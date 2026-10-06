@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { skillLabel } from '../../utils/i18n';
 import { 
   Award, Filter, CheckCircle2, Star, 
   FileEdit, X, Sparkles, BookOpen, MessageSquare
@@ -110,7 +111,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
         <div>
           <h3 className="text-base font-extrabold text-stone-900 flex items-center gap-2">
             <Award className="w-5 h-5 text-teal-700" />
-            CEFR {activeCohort?.cefrLevel} Milestone Gradebook
+            {language === 'id' ? `Capaian Kemahiran CEFR ${activeCohort?.cefrLevel}` : `CEFR ${activeCohort?.cefrLevel} Milestone Gradebook`}
           </h3>
           <p className="text-xs text-stone-500 font-medium mt-0.5">
             {language === 'id'
@@ -226,7 +227,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
 
         {/* Level filter */}
         <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">Level:</span>
+          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">{language === 'id' ? 'Tingkat:' : 'Level:'}</span>
           {(['all', 'Pre-A1', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as (CEFRLevel | 'all')[]).map((lvl) => {
             const isSelected = selectedLevel === lvl;
             return (
@@ -283,7 +284,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
                           CEFR {ms.cefrLevel}
                         </span>
                         <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
-                          {ms.skillCategory.replace('_', ' ')}
+                          {skillLabel(ms.skillCategory, language)}
                         </span>
                       </div>
 
@@ -321,7 +322,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
                             ? 'bg-teal-50 text-teal-800 border-teal-200'
                             : 'bg-stone-100 hover:bg-stone-200 text-stone-500 border-stone-200'
                         }`}
-                        title={studentEval?.teacherNotes ? `Catatan: ${studentEval.teacherNotes}` : 'Tambah catatan kualitatif'}
+                        title={studentEval?.teacherNotes ? `${language === 'id' ? 'Catatan' : 'Note'}: ${studentEval.teacherNotes}` : (language === 'id' ? 'Tambah catatan kualitatif' : 'Add qualitative note')}
                       >
                         <FileEdit className="w-3.5 h-3.5" />
                       </button>
@@ -355,7 +356,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
               </h4>
               <button
                 onClick={() => setEditingNoteMilestoneId(null)}
-                aria-label="Tutup / Close"
+                aria-label={language === 'id' ? 'Tutup' : 'Close'}
                 className="text-stone-400 hover:text-stone-600 p-1 rounded-lg"
               >
                 <X className="w-4 h-4" />
@@ -372,7 +373,7 @@ export const CefrGradebookTab: React.FC<CefrGradebookTabProps> = ({
               rows={3}
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
-              placeholder="e.g. Shows high fluency during pair discussion, needs encouragement in spontaneous Q&A..."
+              placeholder={language === 'id' ? 'mis. Lancar saat diskusi berpasangan, perlu dorongan saat tanya-jawab spontan...' : 'e.g. Shows high fluency during pair discussion, needs encouragement in spontaneous Q&A...'}
               className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               autoFocus
             />

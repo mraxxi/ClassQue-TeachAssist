@@ -311,7 +311,7 @@ export const UrgentTasksCard: React.FC = () => {
                 type="button"
                 onClick={() => deleteTask(task.id)}
                 className="text-stone-300 hover:text-rose-700 p-1 transition-colors shrink-0 cursor-pointer"
-                title="Delete task"
+                title={language === 'id' ? 'Hapus tugas' : 'Delete task'}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

@@ -141,7 +141,7 @@ export const LiveCockpitModal: React.FC = () => {
                 </span>
               </div>
               <p className="hidden sm:block text-xs text-stone-300 font-medium mt-0.5 truncate">
-                {currentCohort?.roomOrLink} • {linkedLesson?.title || 'Active Session'}
+                {currentCohort?.roomOrLink} • {linkedLesson?.title || (language === 'id' ? 'Sesi Aktif' : 'Active Session')}
               </p>
             </div>
           </div>
@@ -163,8 +163,8 @@ export const LiveCockpitModal: React.FC = () => {
                 <button
                   onClick={pauseLiveSession}
                   className="p-3 sm:p-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition-colors cursor-pointer"
-                  title="Pause Stopwatch (Shortcut: Space)"
-                  aria-label="Pause stopwatch"
+                  title={language === 'id' ? 'Jeda stopwatch (pintasan: Spasi)' : 'Pause stopwatch (shortcut: Space)'}
+                  aria-label={language === 'id' ? 'Jeda stopwatch' : 'Pause stopwatch'}
                 >
                   <Pause className="w-4 h-4" />
                 </button>
@@ -172,8 +172,8 @@ export const LiveCockpitModal: React.FC = () => {
                 <button
                   onClick={resumeLiveSession}
                   className="p-3 sm:p-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
-                  title="Resume Stopwatch (Shortcut: Space)"
-                  aria-label="Resume stopwatch"
+                  title={language === 'id' ? 'Lanjutkan stopwatch (pintasan: Spasi)' : 'Resume stopwatch (shortcut: Space)'}
+                  aria-label={language === 'id' ? 'Lanjutkan stopwatch' : 'Resume stopwatch'}
                 >
                   <Play className="w-4 h-4" />
                 </button>
@@ -193,7 +193,7 @@ export const LiveCockpitModal: React.FC = () => {
             <button
               onClick={() => setLiveCockpitOpen(false)}
               className="p-3 sm:p-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 transition-colors cursor-pointer"
-              title="Close View"
+              title={language === 'id' ? 'Tutup tampilan' : 'Close view'}
               aria-label={language === 'id' ? 'Tutup tampilan kokpit' : 'Close cockpit view'}
             >
               <X className="w-5 h-5" />
@@ -237,7 +237,7 @@ export const LiveCockpitModal: React.FC = () => {
                 <h3 className="font-extrabold text-stone-900 text-xs uppercase tracking-wider flex items-center gap-2">
                   <Users className="w-4 h-4 text-teal-700" />
                   {t.cockpit.rollCallTitle} ({cohortStudents.length})
-                  <span className="hidden lg:inline ml-2 text-[10px] font-medium text-stone-500" title="Keyboard: 1 Hadir • 2 Alpa • 3 Terlambat • 4 Izin">
+                  <span className="hidden lg:inline ml-2 text-[10px] font-medium text-stone-500" title={language === 'id' ? 'Keyboard: 1 Hadir • 2 Alpa • 3 Terlambat • 4 Izin' : 'Keyboard: 1 Present • 2 Absent • 3 Late • 4 Excused'}>
                     {language === 'id' ? 'Tombol 1–4' : 'Keys 1–4'}
                   </span>
                 </h3>
@@ -294,7 +294,7 @@ export const LiveCockpitModal: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-extrabold text-teal-800 uppercase tracking-wider flex items-center gap-1">
                     <Award className="w-3.5 h-3.5 text-teal-700" />
-                    Micro-Grading: <span className="text-stone-900 font-bold">{activeGradingStudent.nickname}</span>
+                    {language === 'id' ? 'Penilaian Kilat' : 'Micro-Grading'}: <span className="text-stone-900 font-bold">{activeGradingStudent.nickname}</span>
                   </span>
                   <span className="text-[10px] text-stone-400 font-mono">CEFR {currentCohort?.cefrLevel}</span>
                 </div>
@@ -352,7 +352,7 @@ export const LiveCockpitModal: React.FC = () => {
                   {t.liveModal.activeStage}
                 </h3>
                 <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-100">
-                  {linkedLesson?.topic || 'Curriculum Flow'}
+                  {linkedLesson?.topic || (language === 'id' ? 'Alur Kurikulum' : 'Curriculum Flow')}
                 </span>
               </div>
 
@@ -368,7 +368,7 @@ export const LiveCockpitModal: React.FC = () => {
                         : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}
                   >
-                    <span className="block text-[10px] opacity-90">Stage {i + 1}</span>
+                    <span className="block text-[10px] opacity-90">{language === 'id' ? 'Tahap' : 'Stage'} {i + 1}</span>
                     <span className="truncate block text-[11px] mt-0.5">{stg.title.split(' ')[1] || stg.title}</span>
                   </button>
                 ))}
@@ -382,11 +382,11 @@ export const LiveCockpitModal: React.FC = () => {
                     {stages[activeStageIndex].title}
                   </h4>
                   <span className="text-[10px] font-mono font-bold text-stone-400">
-                    Saran: {stages[activeStageIndex].suggestedMins}
+                    {language === 'id' ? 'Saran' : 'Suggested'}: {stages[activeStageIndex].suggestedMins}
                   </span>
                 </div>
                 <p className="text-xs text-stone-700 leading-relaxed font-medium">
-                  {stages[activeStageIndex].desc || 'Follow the prepared classroom activities for this stage.'}
+                  {stages[activeStageIndex].desc || (language === 'id' ? 'Ikuti kegiatan kelas yang sudah disiapkan untuk tahap ini.' : 'Follow the prepared classroom activities for this stage.')}
                 </p>
 
                 {/* Stage Stepper Prev/Next Buttons */}
@@ -397,7 +397,7 @@ export const LiveCockpitModal: React.FC = () => {
                     className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
-                    <span>Sebelumnya</span>
+                    <span>{language === 'id' ? 'Sebelumnya' : 'Previous'}</span>
                   </button>
 
                   <button
@@ -405,7 +405,7 @@ export const LiveCockpitModal: React.FC = () => {
                     disabled={activeStageIndex === stages.length - 1}
                     className="px-3 py-2 rounded-xl text-xs font-bold bg-teal-800 text-white hover:bg-teal-900 disabled:opacity-40 transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
                   >
-                    <span>Tahap Selanjutnya</span>
+                    <span>{language === 'id' ? 'Tahap Selanjutnya' : 'Next Stage'}</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>

@@ -66,7 +66,7 @@ export const ScheduleTimeline: React.FC = () => {
                         <button
                           onClick={() => handleStart(slot.cohort.id)}
                           className="p-1 rounded-lg bg-teal-800 hover:bg-teal-900 text-white transition-colors cursor-pointer"
-                          title="Start this class"
+                          title={language === 'id' ? 'Mulai kelas ini' : 'Start this class'}
                         >
                           <Play className="w-3 h-3 fill-white" />
                         </button>

@@ -188,7 +188,7 @@ export const ClassesStudentsHub: React.FC = () => {
               <button
                 onClick={handleOpenEditCohort}
                 className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Edit active cohort details"
+                title={language === 'id' ? 'Ubah detail kelas aktif' : 'Edit active cohort details'}
               >
                 <Edit2 className="w-3.5 h-3.5" />
                 <span>{language === 'id' ? 'Edit Kelas' : 'Edit Cohort'}</span>
@@ -197,7 +197,7 @@ export const ClassesStudentsHub: React.FC = () => {
               <button
                 onClick={() => setConfirmDeleteCohort(activeCohort)}
                 className="p-2 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition-colors cursor-pointer"
-                title="Delete cohort"
+                title={language === 'id' ? 'Hapus kelas' : 'Delete cohort'}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -344,7 +344,7 @@ export const ClassesStudentsHub: React.FC = () => {
                         <div className="truncate">
                           <p className="text-xs font-bold text-stone-900 truncate">{st.fullName}</p>
                           <p className="text-[11px] text-stone-400 truncate">
-                            {st.nickname ? `(${st.nickname}) • ` : ''}Wali: {st.guardianName || '-'}
+                            {st.nickname ? `(${st.nickname}) • ` : ''}{language === 'id' ? 'Wali' : 'Guardian'}: {st.guardianName || '-'}
                           </p>
                         </div>
                       </div>
@@ -381,7 +381,7 @@ export const ClassesStudentsHub: React.FC = () => {
                         )}
                       </div>
                       <p className="text-xs text-stone-500 font-medium mt-0.5">
-                        Nickname: <span className="text-stone-800 font-bold">"{currentStudent.nickname}"</span> • {activeCohort?.name}
+                        {language === 'id' ? 'Panggilan' : 'Nickname'}: <span className="text-stone-800 font-bold">"{currentStudent.nickname}"</span> • {activeCohort?.name}
                       </p>
                     </div>
                   </div>
@@ -407,7 +407,7 @@ export const ClassesStudentsHub: React.FC = () => {
                     <button
                       onClick={() => handleOpenEditStudent(currentStudent)}
                       className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-                      title="Edit student profile"
+                      title={language === 'id' ? 'Ubah profil siswa' : 'Edit student profile'}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
@@ -418,7 +418,7 @@ export const ClassesStudentsHub: React.FC = () => {
                         setTargetCohortId(cohorts.find((c) => c.id !== currentStudent.cohortId)?.id || '');
                       }}
                       className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-                      title="Transfer student to another cohort"
+                      title={language === 'id' ? 'Pindahkan siswa ke kelas lain' : 'Transfer student to another cohort'}
                     >
                       <ArrowRightLeft className="w-3.5 h-3.5" />
                     </button>
@@ -426,7 +426,7 @@ export const ClassesStudentsHub: React.FC = () => {
                     <button
                       onClick={() => setConfirmDeleteStudent(currentStudent)}
                       className="p-2 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition-colors cursor-pointer"
-                      title="Delete student"
+                      title={language === 'id' ? 'Hapus siswa' : 'Delete student'}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -447,14 +447,14 @@ export const ClassesStudentsHub: React.FC = () => {
                           {language === 'id' ? 'Kehadiran Siswa' : 'Attendance Rate'}
                         </span>
                         <p className="text-xs text-stone-200 font-medium mt-0.5">
-                          {studentPresentCount} Hadir • {studentAbsentCount} Alpa
+                          {studentPresentCount} {language === 'id' ? 'Hadir' : 'Present'} • {studentAbsentCount} {language === 'id' ? 'Alpa' : 'Absent'}
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => setActiveSubTab('attendance')}
                       className="p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 transition-colors cursor-pointer"
-                      title="Open Attendance"
+                      title={language === 'id' ? 'Buka presensi' : 'Open attendance'}
                     >
                       <CalendarCheck2 className="w-4 h-4 text-emerald-400" />
                     </button>
@@ -471,14 +471,14 @@ export const ClassesStudentsHub: React.FC = () => {
                           {language === 'id' ? 'Capaian CEFR' : 'CEFR Achieved'}
                         </span>
                         <p className="text-xs text-teal-100 font-medium mt-0.5">
-                          {countMastered} Mahir • {countAchieved} Tercapai
+                          {countMastered} {language === 'id' ? 'Mahir' : 'Mastered'} • {countAchieved} {language === 'id' ? 'Tercapai' : 'Achieved'}
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => setActiveSubTab('cefr')}
                       className="p-2 rounded-xl bg-teal-800 hover:bg-teal-700 text-teal-200 transition-colors cursor-pointer"
-                      title="Open CEFR Gradebook"
+                      title={language === 'id' ? 'Buka capaian CEFR' : 'Open CEFR gradebook'}
                     >
                       <Star className="w-4 h-4 text-amber-300" />
                     </button>
@@ -493,7 +493,7 @@ export const ClassesStudentsHub: React.FC = () => {
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-stone-400 block text-[11px]">Nama Wali</span>
+                      <span className="text-stone-400 block text-[11px]">{language === 'id' ? 'Nama Wali' : 'Guardian Name'}</span>
                       <span className="font-bold text-stone-800">{currentStudent.guardianName || '-'}</span>
                     </div>
                     <div>
@@ -647,7 +647,7 @@ export const ClassesStudentsHub: React.FC = () => {
               >
                 {cohorts.map((c) => (
                   <option key={c.id} value={c.id} disabled={c.id === transferModalStudent.cohortId}>
-                    {c.name} ({c.cefrLevel}) {c.id === transferModalStudent.cohortId ? '(Kelas Saat Ini)' : ''}
+                    {c.name} ({c.cefrLevel}) {c.id === transferModalStudent.cohortId ? (language === 'id' ? '(Kelas Saat Ini)' : '(Current Cohort)') : ''}
                   </option>
                 ))}
               </select>

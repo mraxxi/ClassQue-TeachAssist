@@ -39,15 +39,15 @@ await sleep(2500); await p.reload(); await p.waitForTimeout(2500); await goto.cl
 check('6.2c allowance survives sync + reload', (await p.inputValue('main input[type=number]')) === '250000');
 
 // ============================ status workflow + timestamps (F18) ============================
-await p.click('main button:has-text("2. Submitted")'); await p.waitForTimeout(300);
+await p.click('main button:has-text("2. Diajukan")'); await p.waitForTimeout(300);
 s = await store(p); claim = s.claims.find((c) => c.claimPeriod === '2026-09');
 check('6.3 -> submitted sets submittedAt', claim.status === 'submitted' && !!claim.submittedAt && !claim.paidAt, JSON.stringify([claim.status, claim.submittedAt, claim.paidAt]));
 check('6.3b submitted claim locks the allowance field', await p.locator('main input[type=number]').isDisabled());
-await p.click('main button:has-text("3. Approved")'); await p.waitForTimeout(300);
-await p.click('main button:has-text("4. Paid")'); await p.waitForTimeout(300);
+await p.click('main button:has-text("3. Disetujui")'); await p.waitForTimeout(300);
+await p.click('main button:has-text("4. Terbayar")'); await p.waitForTimeout(300);
 s = await store(p); claim = s.claims.find((c) => c.claimPeriod === '2026-09');
 check('6.3c -> paid sets paidAt and keeps submittedAt', claim.status === 'paid' && !!claim.paidAt && !!claim.submittedAt);
-await p.click('main button:has-text("1. Draft")'); await p.waitForTimeout(300);
+await p.click('main button:has-text("1. Draf")'); await p.waitForTimeout(300);
 s = await store(p); claim = s.claims.find((c) => c.claimPeriod === '2026-09');
 check('6.3d back to draft clears both timestamps', claim.status === 'draft' && !claim.submittedAt && !claim.paidAt);
 
@@ -58,7 +58,7 @@ const hasOct = (await p.$$eval('main select option', (o) => o.map((x) => x.value
 console.log('  (October present in selector:', hasOct, ')');
 
 // ============================ invoice ============================
-await p.click('main button:has-text("Cetak Faktur Klaim")'); await p.waitForTimeout(500);
+await p.click('main button:has-text("Cetak Lembar Klaim")'); await p.waitForTimeout(500);
 const inv = await modalText(p);
 check('6.4 invoice: school, teacher, reference, items, signature block', /Garuda/.test(inv) && /Jenkins/.test(inv) && /CLM-202609/.test(inv) && /Cambridge/.test(inv) && /Tanda Tangan/.test(inv), inv.slice(0, 160));
 const pdf = path.join(os.tmpdir(), 'classque-invoice.pdf');
@@ -67,10 +67,10 @@ await p.pdf({ path: pdf, format: 'A4', preferCSSPageSize: true });
 await p.emulateMedia({ media: 'screen' });
 check('6.4b invoice prints on one A4 page', (fs.readFileSync(pdf, 'latin1').match(/\/Type\s*\/Page[^s]/g) || []).length === 1);
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
-check('6.4c Esc closes the invoice', !(await txt(p, 'body')).includes('Formal Teaching Honorarium'));
+check('6.4c Esc closes the invoice', !(await txt(p, 'body')).includes('Lembar Klaim Honorarium Mengajar'));
 
 // ============================ edit / delete session (F21) ============================
-await p.locator('main button[title="Edit session"]').first().click(); await p.waitForTimeout(300);
+await p.locator('main button[title="Ubah sesi"]').first().click(); await p.waitForTimeout(300);
 check('6.5 edit opens the session prefilled', (await p.inputValue('div.fixed input[type=number][aria-label]')) !== '' && /Ubah Sesi/.test(await modalText(p)));
 const target = await p.inputValue('div.fixed input[type=date]');
 await p.fill('div.fixed input[type=number][aria-label]', '75'); await p.click('div.fixed button:has-text("Simpan Sesi")'); await p.waitForTimeout(400);
@@ -79,7 +79,7 @@ const edited = s.sessions.find((x) => x.sessionDate === target && x.durationMinu
 check('6.5b duration adjusted and amount recalculated', !!edited && edited.totalClaimAmount === Math.round((75 / 60) * edited.hourlyRate), JSON.stringify(edited));
 check('6.5c draft claim totals follow the edit', (await store(p)).claims.find((c) => c.claimPeriod === '2026-09').totalClaimAmount === (await store(p)).sessions.filter((x) => x.sessionDate.startsWith('2026-09')).reduce((a, x) => a + x.totalClaimAmount, 0) + 250000);
 const n0 = s.sessions.length;
-await p.locator('main button[title="Delete session"]').first().click(); await p.waitForTimeout(300);
+await p.locator('main button[title="Hapus sesi"]').first().click(); await p.waitForTimeout(300);
 await p.click('button:has-text("Ya, Hapus Sesi")'); await p.waitForTimeout(400);
 s = await store(p);
 check('6.6 delete session (confirm) + tombstone', s.sessions.length === n0 - 1 && (s.tombstones.sessions || []).length === 1);
@@ -105,7 +105,7 @@ for (const [d, l] of [['2026-09-14', 'Hadir (H)'], ['2026-09-15', 'Alpa (A)'], [
 await goto.claims(p); await p.click('main button:has-text("Laporan Wali Murid")'); await p.waitForTimeout(400); await pick('Liam Wong');
 t = await txt(p, 'main');
 check('7.2 attendance computed for the SELECTED month only (Sept: 2/3 = 67%, the August absence is excluded)', /67% \(2\/3/.test(t), t.match(/KEHADIRAN \| [^|]+/)?.[0]);
-check('7.2b CEFR taken from real evaluations only', /SPOKEN_PRODUCTION: \*M/.test(t) && /LISTENING: \*TC/.test(t));
+check('7.2b CEFR taken from real evaluations only', /PRODUKSI LISAN: \*M/.test(t) && /MENDENGARKAN: \*TC/.test(t));
 await p.locator('main select[aria-label]').selectOption('2026-08'); await p.waitForTimeout(300);
 check('7.2c switching the report period changes the numbers (Aug: 0/1 = 0%)', /0% \(0\/1/.test(await txt(p, 'main')), (await txt(p, 'main')).match(/KEHADIRAN \| [^|]+/)?.[0]);
 await p.locator('main select[aria-label]').selectOption('2026-09'); await p.waitForTimeout(300);

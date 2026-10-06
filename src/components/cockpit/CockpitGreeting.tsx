@@ -4,6 +4,7 @@ import { useTeacherStore } from '../../store/useTeacherStore';
 import { useCockpitCohort } from '../../hooks/useCockpitCohort';
 import { ClassroomClock } from '../common/ClassroomClock';
 import { formatRelative } from '../../utils/date';
+import { displayTeacherName } from '../../utils/i18n';
 
 /** "Ms. Sarah Jenkins" -> "Ms. Sarah"; "Pak Budi Santoso" -> "Pak Budi". */
 export const firstName = (full: string): string => {
@@ -48,7 +49,7 @@ export const CockpitGreeting: React.FC = () => {
     <section aria-label={id ? 'Ringkasan hari ini' : 'Today at a glance'} className="flex items-start justify-between gap-3" data-testid="cockpit-greeting">
       <div className="min-w-0">
         <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">
-          {hello}, {firstName(teacher.name)}
+          {hello}, {firstName(displayTeacherName(teacher.name, language))}
         </h2>
         <p className="text-xs sm:text-sm text-stone-600 font-medium mt-0.5">{date}</p>
         <p className={`mt-2 inline-flex items-start gap-2 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold ${tone}`} data-testid="cockpit-sentence">

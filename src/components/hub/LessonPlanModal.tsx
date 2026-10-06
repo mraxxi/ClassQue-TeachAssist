@@ -66,16 +66,18 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
       setCefrLevel('A2');
       setCohortId(cohorts[0]?.id || '');
       setDurationMinutes(60);
-      setWarmUp('Flashcard guessing game (5 mins) to activate schema and vocabulary.');
-      setPresentation('Introduce key concept and grammar rules with interactive board examples.');
-      setPractice('Guided worksheet in pairs. Complete sentences with target vocabulary.');
-      setProduction('Independent output: create short dialogue or write 4 descriptive sentences.');
-      setWrapUp('Exit ticket recap: each student states 1 new word learned today.');
+      // Starter template text follows the interface language (the vocabulary example stays English: it is lesson content).
+      const idTpl = language === 'id';
+      setWarmUp(idTpl ? 'Permainan tebak flashcard (5 menit) untuk mengaktifkan skema dan kosakata.' : 'Flashcard guessing game (5 mins) to activate schema and vocabulary.');
+      setPresentation(idTpl ? 'Perkenalkan konsep kunci dan aturan grammar dengan contoh interaktif di papan tulis.' : 'Introduce key concept and grammar rules with interactive board examples.');
+      setPractice(idTpl ? 'Worksheet terbimbing berpasangan. Lengkapi kalimat dengan kosakata target.' : 'Guided worksheet in pairs. Complete sentences with target vocabulary.');
+      setProduction(idTpl ? 'Hasil mandiri: buat dialog singkat atau tulis 4 kalimat deskriptif.' : 'Independent output: create short dialogue or write 4 descriptive sentences.');
+      setWrapUp(idTpl ? 'Exit ticket: setiap siswa menyebutkan 1 kata baru yang dipelajari hari ini.' : 'Exit ticket recap: each student states 1 new word learned today.');
       setVocabulary([
         { word: 'example', pos: 'noun', definitionEn: 'A representative form or pattern', definitionId: 'Contoh / teladan', example: 'This is an example sentence.' }
       ]);
-      setGrammarFocus('Simple Present / Past Tense focus');
-      setHomework('Activity Book page 12 (Exercises 1-3)');
+      setGrammarFocus(idTpl ? 'Fokus Simple Present / Past Tense' : 'Simple Present / Past Tense focus');
+      setHomework(idTpl ? 'Buku Aktivitas halaman 12 (Latihan 1-3)' : 'Activity Book page 12 (Exercises 1-3)');
       setMaterialsLinks([]);
     }
   }, [planToEdit, cohorts, isOpen]);
@@ -179,7 +181,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
             <div>
               <h3 className="text-lg font-extrabold text-stone-900 tracking-tight">
                 {isEditing
-                  ? (language === 'id' ? 'Edit Rencana Pembelajaran (RPP)' : 'Edit Lesson Plan Scaffold')
+                  ? (language === 'id' ? 'Edit Rencana Pembelajaran (RPP)' : 'Edit Lesson Plan')
                   : (language === 'id' ? 'Rancang Rencana Pembelajaran (RPP)' : 'Create Structured Lesson Plan')}
               </h3>
               <p className="text-xs text-stone-500 font-medium">
@@ -191,7 +193,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            aria-label="Tutup / Close"
+            aria-label={language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-stone-600 p-2 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -217,7 +219,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Unit 4: Prehistoric Animals & Past Events"
+                  placeholder={language === 'id' ? 'mis. Unit 4: Hewan Prasejarah & Peristiwa Lampau' : 'e.g. Unit 4: Prehistoric Animals & Past Events'}
                   className="w-full px-3.5 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-bold"
                 />
               </div>
@@ -251,7 +253,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                   type="text"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g. Dinosaurs & Fossils"
+                  placeholder={language === 'id' ? 'mis. Dinosaurus & Fosil' : 'e.g. Dinosaurs & Fossils'}
                   className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
                 />
               </div>
@@ -286,10 +288,10 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                   onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
                   className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
                 >
-                  <option value={45}>45 Menit</option>
-                  <option value={60}>60 Menit (1 Jam)</option>
-                  <option value={90}>90 Menit (1.5 Jam)</option>
-                  <option value={120}>120 Menit (2 Jam)</option>
+                  <option value={45}>{language === 'id' ? '45 Menit' : '45 min'}</option>
+                  <option value={60}>{language === 'id' ? '60 Menit (1 Jam)' : '60 min (1 hr)'}</option>
+                  <option value={90}>{language === 'id' ? '90 Menit (1,5 Jam)' : '90 min (1.5 hr)'}</option>
+                  <option value={120}>{language === 'id' ? '120 Menit (2 Jam)' : '120 min (2 hr)'}</option>
                 </select>
               </div>
             </div>
@@ -299,7 +301,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
           <div className="space-y-3 pt-3 border-t border-stone-100">
             <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-teal-700" />
-              2. {language === 'id' ? '5 Tahap Pembelajaran Pedagogis' : '5 Pedagogical Stages Scaffolding'}
+              2. {language === 'id' ? '5 Tahap Pembelajaran' : '5 Lesson Stages'}
             </h4>
 
             {/* Stage 1 */}
@@ -312,7 +314,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                 rows={2}
                 value={warmUp}
                 onChange={(e) => setWarmUp(e.target.value)}
-                placeholder="Deskripsi kegiatan apersepsi / ice breaker..."
+                placeholder={language === 'id' ? 'Deskripsi kegiatan apersepsi / ice breaker...' : 'Describe the warm-up / ice-breaker activity...'}
                 className="w-full px-3 py-1.5 text-xs bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
             </div>
@@ -320,14 +322,14 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
             {/* Stage 2 */}
             <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/80 space-y-1">
               <span className="text-xs font-bold text-stone-900 flex items-center justify-between">
-                <span>2. {language === 'id' ? 'Penyampaian Materi (Presentation)' : 'Stage 2: Concept Presentation'}</span>
+                <span>2. {language === 'id' ? 'Penyampaian Materi' : 'Stage 2: Presentation'}</span>
                 <span className="text-[10px] text-stone-400 font-semibold">15–20 min</span>
               </span>
               <textarea
                 rows={2}
                 value={presentation}
                 onChange={(e) => setPresentation(e.target.value)}
-                placeholder="Penjelasan materi / pengenalan grammar / kosakata baru..."
+                placeholder={language === 'id' ? 'Penjelasan materi / pengenalan grammar / kosakata baru...' : 'Explain the material / introduce grammar / new vocabulary...'}
                 className="w-full px-3 py-1.5 text-xs bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
             </div>
@@ -342,7 +344,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                 rows={2}
                 value={practice}
                 onChange={(e) => setPractice(e.target.value)}
-                placeholder="Latihan terbimbing, matching worksheet, drill berpasangan..."
+                placeholder={language === 'id' ? 'Latihan terpandu, matching worksheet, drill berpasangan...' : 'Controlled practice, matching worksheets, paired drills...'}
                 className="w-full px-3 py-1.5 text-xs bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
             </div>
@@ -357,7 +359,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                 rows={2}
                 value={production}
                 onChange={(e) => setProduction(e.target.value)}
-                placeholder="Praktik berbicara bebas, menulis kreatif, roleplay kelompok..."
+                placeholder={language === 'id' ? 'Praktik berbicara bebas, menulis kreatif, roleplay kelompok...' : 'Free speaking practice, creative writing, group role-play...'}
                 className="w-full px-3 py-1.5 text-xs bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
             </div>
@@ -372,7 +374,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                 rows={2}
                 value={wrapUp}
                 onChange={(e) => setWrapUp(e.target.value)}
-                placeholder="Exit ticket, kesimpulan pembelajaran, review kosakata..."
+                placeholder={language === 'id' ? 'Exit ticket, kesimpulan pembelajaran, review kosakata...' : 'Exit ticket, lesson summary, vocabulary review...'}
                 className="w-full px-3 py-1.5 text-xs bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
             </div>
@@ -403,7 +405,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                       type="text"
                       value={v.word}
                       onChange={(e) => handleUpdateVocabItem(idx, 'word', e.target.value)}
-                      placeholder="Word (e.g. fossil)"
+                      placeholder={language === 'id' ? 'Kata (mis. fossil)' : 'Word (e.g. fossil)'}
                       className="w-full px-2.5 py-1.5 text-xs bg-white border border-stone-200 rounded-lg font-bold text-stone-900"
                     />
                   </div>
@@ -414,11 +416,11 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                       onChange={(e) => handleUpdateVocabItem(idx, 'pos', e.target.value)}
                       className="w-full px-2 py-1.5 text-xs bg-white border border-stone-200 rounded-lg text-stone-700 font-mono"
                     >
-                      <option value="noun">noun</option>
-                      <option value="verb">verb</option>
-                      <option value="adj">adj</option>
-                      <option value="adv">adv</option>
-                      <option value="phr">phrase</option>
+                      <option value="noun">{language === 'id' ? 'kata benda (noun)' : 'noun'}</option>
+                      <option value="verb">{language === 'id' ? 'kata kerja (verb)' : 'verb'}</option>
+                      <option value="adj">{language === 'id' ? 'kata sifat (adj)' : 'adj'}</option>
+                      <option value="adv">{language === 'id' ? 'kata keterangan (adv)' : 'adv'}</option>
+                      <option value="phr">{language === 'id' ? 'frasa (phrase)' : 'phrase'}</option>
                     </select>
                   </div>
                   <div className="sm:col-span-3">
@@ -426,7 +428,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                       type="text"
                       value={v.definitionId}
                       onChange={(e) => handleUpdateVocabItem(idx, 'definitionId', e.target.value)}
-                      placeholder="Definisi (ID)"
+                      placeholder={language === 'id' ? 'Definisi (ID)' : 'Definition (ID)'}
                       className="w-full px-2.5 py-1.5 text-xs bg-white border border-stone-200 rounded-lg text-stone-700"
                     />
                   </div>
@@ -435,7 +437,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                       type="text"
                       value={v.example}
                       onChange={(e) => handleUpdateVocabItem(idx, 'example', e.target.value)}
-                      placeholder="Example sentence..."
+                      placeholder={language === 'id' ? 'Contoh kalimat...' : 'Example sentence...'}
                       className="w-full px-2.5 py-1.5 text-xs bg-white border border-stone-200 rounded-lg text-stone-700"
                     />
                   </div>
@@ -444,7 +446,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                       type="button"
                       onClick={() => handleRemoveVocabItem(idx)}
                       className="p-1.5 text-stone-400 hover:text-rose-700 rounded-lg"
-                      title="Remove word"
+                      title={language === 'id' ? 'Hapus kata' : 'Remove word'}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -464,20 +466,20 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                 type="text"
                 value={grammarFocus}
                 onChange={(e) => setGrammarFocus(e.target.value)}
-                placeholder="e.g. Past Simple with irregular verbs"
+                placeholder={language === 'id' ? 'mis. Past Simple dengan kata kerja tak beraturan' : 'e.g. Past Simple with irregular verbs'}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1">
-                {language === 'id' ? 'Tugas Mandiri (Homework)' : 'Homework Assignment'}
+                {language === 'id' ? 'Tugas Mandiri' : 'Homework Assignment'}
               </label>
               <input
                 type="text"
                 value={homework}
                 onChange={(e) => setHomework(e.target.value)}
-                placeholder="e.g. Activity Book page 18"
+                placeholder={language === 'id' ? 'mis. Buku Aktivitas halaman 18' : 'e.g. Activity Book page 18'}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
             </div>
@@ -487,7 +489,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
           <div className="space-y-2 pt-3 border-t border-stone-100">
             <label className="block text-xs font-bold text-stone-700 flex items-center gap-1.5">
               <LinkIcon className="w-3.5 h-3.5 text-teal-700" />
-              {language === 'id' ? 'Tautan Materi / Worksheet Vault' : 'Resource Links / Worksheet Vault'}
+              {language === 'id' ? 'Tautan Materi / Worksheet' : 'Resource Links / Worksheets'}
             </label>
 
             <div className="flex gap-2">
@@ -495,7 +497,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
                 type="url"
                 value={newLinkInput}
                 onChange={(e) => setNewLinkInput(e.target.value)}
-                placeholder="https://drive.google.com/... or https://youtube.com/..."
+                placeholder={language === 'id' ? 'https://drive.google.com/... atau https://youtube.com/...' : 'https://drive.google.com/... or https://youtube.com/...'}
                 className="flex-1 px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
               <button

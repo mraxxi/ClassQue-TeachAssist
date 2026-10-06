@@ -20,7 +20,7 @@ check('14.2b synced flags updated', s.hasUnsyncedChanges === false && !!s.lastSy
 check('14.3 all three tasks in D1', ['AS task 1', 'AS task 2', 'AS task 3'].every((t) => (api && true)) && (await api()).json.data.tasks.filter((x) => /^AS task/.test(x.title)).length === 3);
 
 // every entity type is stamped (F35)
-await goto.classes(p); await p.click('button[title="Edit active cohort details"]'); await p.waitForTimeout(300);
+await goto.classes(p); await p.click('button[title="Ubah detail kelas aktif"]'); await p.waitForTimeout(300);
 await p.fill('div.fixed input[type=time]', '15:00'); await p.click('div.fixed button[type=submit]:visible'); await p.waitForTimeout(400);
 s = await store(p);
 check('14.4 cohort update stamped with updatedAt', !!s.cohorts[0].updatedAt);
@@ -52,15 +52,15 @@ await p.unroute('**/api/sync');
 await p.click('header button:has-text("Belum Tersinkron")'); await p.waitForTimeout(1500);
 let m = await modalText(p);
 check('11.1 modal opens from the badge', /Diagnostik Cloudflare D1/.test(m) && /classque_db/.test(m));
-check('11.2 local buffer shows Unsynced after the failed push', /Unsynced/.test(m), m.match(/Local-First Buffer \| [^|]*/)?.[0]);
+check('11.2 local buffer shows Unsynced after the failed push', /Belum Tersinkron/.test(m), m.match(/Penyangga Local-First \| [^|]*/)?.[0]);
 const remoteCount = async (label) => (await p.locator(`[data-testid="diag-remote-${label}"]`).innerText());
 const summary = (await api('/api/sync?summary=1')).json;
 check('11.3 D1 record counts are shown next to local counts (F32)', (await remoteCount('cohorts')) === `D1: ${summary.counts.cohorts}` && (await remoteCount('students')) === `D1: ${summary.counts.students}` && (await remoteCount('tasks')) === `D1: ${summary.counts.tasks}`, `${await remoteCount('cohorts')} ${await remoteCount('students')} ${await remoteCount('tasks')}`);
 check('11.4 remote last-updated timestamp shown', (await p.locator('[data-testid="diag-remote-updated"]').innerText()) !== '—');
-await p.click('div.fixed button:has-text("Test Ping")'); await p.waitForTimeout(1200);
-check('11.5 ping reports latency', /\d+ ms latency/.test(await modalText(p)));
+await p.click('div.fixed button:has-text("Uji Ping")'); await p.waitForTimeout(1200);
+check('11.5 ping reports latency', /\d+ ms latensi/.test(await modalText(p)));
 await p.click('div.fixed button:has-text("Sinkronkan Sekarang")'); await p.waitForTimeout(1800);
-check('11.6 push syncs the queued edit -> In-Sync + D1 updated', /In-Sync/.test(await modalText(p)) && (await api()).json.data.tasks.some((x) => x.title === 'during outage'));
+check('11.6 push syncs the queued edit -> Tersinkron + D1 updated', /Penyangga Local-First \| Tersinkron/.test(await modalText(p)) && (await api()).json.data.tasks.some((x) => x.title === 'during outage'));
 check('11.6b D1 count refreshed after the push', (await remoteCount('tasks')) === `D1: ${(await api('/api/sync?summary=1')).json.counts.tasks}`);
 s = await store(p);
 await api('/api/sync', { method: 'POST', body: { tasks: [...s.tasks, { id: 'task-from-d1', teacherId: 'teacher-1', title: 'Created elsewhere', priority: 'low', dueDate: '2026-10-20', deadlineType: 'date', isCompleted: false }] } });
@@ -70,7 +70,7 @@ await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 check('11.8 Esc closes the diagnostics modal', !(await txt(p, 'body')).includes('Diagnostik Cloudflare D1'));
 
 // the modal must be a centred overlay over the whole viewport, even when opened from the (blurred, scrolling) sidebar
-await p.locator('aside button[title*="Diagnostik"], aside button[title*="sinkron" i]').first().click(); await p.waitForTimeout(600);
+await p.locator('aside button[title*="Diagnostik"], aside button[title*="sinkron" i], aside button[title*="sync" i], aside button[title*="diagnostics" i]').first().click(); await p.waitForTimeout(600);
 const box = await p.locator('[role=dialog], div.fixed:has-text("Diagnostik Cloudflare D1")').last().boundingBox();
 const panel = await p.locator('div.fixed:has-text("Diagnostik Cloudflare D1") > div').first().boundingBox();
 const vp = p.viewportSize();
@@ -102,14 +102,14 @@ check('14.10b flags reset after reconnect', (await store(p)).hasUnsyncedChanges 
 // ============================ Stage 12: cookies ============================
 const ck = async () => Object.fromEntries((await ctx.cookies()).map((c) => [c.name, c]));
 await goto.cockpit(p);
-await p.locator('aside button[title*="Switch Language"]').click(); await p.waitForTimeout(400);
+await p.locator('aside button[title*="bahasa"]').click(); await p.waitForTimeout(400);
 let c = await ck();
 check('12.1 cq_lang cookie set (SameSite=Lax, path=/, ~365 days)', c.cq_lang?.value === 'en' && c.cq_lang.sameSite === 'Lax' && c.cq_lang.path === '/' && Math.abs((c.cq_lang.expires * 1000 - Date.now()) / 864e5 - 365) < 2, JSON.stringify(c.cq_lang && { v: c.cq_lang.value, s: c.cq_lang.sameSite }));
 const w0 = (await p.locator('aside').first().boundingBox()).width;
 await p.locator('aside button').first().click(); await p.waitForTimeout(500);
 const w1 = (await p.locator('aside').first().boundingBox()).width; c = await ck();
 check('12.2 sidebar collapses and writes cq_sidebar_expanded=false', w1 < w0 && c.cq_sidebar_expanded?.value === 'false', `${w0}->${w1}`);
-const badge = p.locator('aside button[title*="Diagnostik"], aside button[title*="sinkron" i]').first();
+const badge = p.locator('aside button[title*="Diagnostik"], aside button[title*="sinkron" i], aside button[title*="sync" i], aside button[title*="diagnostics" i]').first();
 check('15.BUG-07 sync status stays visible in the collapsed sidebar', (await badge.boundingBox())?.width > 10);
 await p.reload(); await p.waitForTimeout(2500);
 check('12.3 language + collapsed state restored from cookies', (await p.locator('aside').first().boundingBox()).width === w1 && /Today|Hours/i.test(await txt(p, 'main')));

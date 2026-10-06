@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useTeacherStore } from '../../store/useTeacherStore';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -45,7 +46,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
           <button
             onClick={onCancel}
-            aria-label="Tutup / Close"
+            aria-label={useTeacherStore.getState().language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors"
           >
             <X className="w-4 h-4" />

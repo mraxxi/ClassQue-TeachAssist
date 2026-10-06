@@ -97,13 +97,13 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
   };
 
   const entities = [
-    { key: 'cohorts', label: language === 'id' ? 'Kelas Cohort' : 'Cohorts', count: cohorts.length, remote: remote?.counts.cohorts },
+    { key: 'cohorts', label: language === 'id' ? 'Rombel' : 'Cohorts', count: cohorts.length, remote: remote?.counts.cohorts },
     { key: 'students', label: language === 'id' ? 'Siswa' : 'Students', count: students.length, remote: remote?.counts.students },
-    { key: 'lessonPlans', label: language === 'id' ? 'Rencana Ajar' : 'Lesson Plans', count: lessonPlans.length, remote: remote?.counts.lessonPlans },
+    { key: 'lessonPlans', label: language === 'id' ? 'RPP' : 'Lesson Plans', count: lessonPlans.length, remote: remote?.counts.lessonPlans },
     { key: 'attendance', label: language === 'id' ? 'Catatan Kehadiran' : 'Attendance', count: attendanceRecords.length, remote: remote?.counts.attendance },
-    { key: 'tasks', label: language === 'id' ? 'Tugas Prioritas' : 'Tasks', count: tasks.length, remote: remote?.counts.tasks },
-    { key: 'sessions', label: language === 'id' ? 'Sesi Mengajar' : 'Teaching Sessions', count: sessions.length, remote: remote?.counts.sessions },
-    { key: 'claims', label: language === 'id' ? 'Klaim Honor' : 'Teaching Claims', count: claims.length, remote: remote?.counts.claims },
+    { key: 'tasks', label: language === 'id' ? 'Tugas' : 'Tasks', count: tasks.length, remote: remote?.counts.tasks },
+    { key: 'sessions', label: language === 'id' ? 'Sesi Pembelajaran' : 'Teaching Sessions', count: sessions.length, remote: remote?.counts.sessions },
+    { key: 'claims', label: language === 'id' ? 'Klaim Honorarium' : 'Teaching Claims', count: claims.length, remote: remote?.counts.claims },
   ];
 
   const authMessage =
@@ -159,7 +159,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
           </div>
           <button 
             onClick={onClose}
-            aria-label="Tutup / Close"
+            aria-label={language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -182,11 +182,11 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                 {isEdgeConnected ? (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Online
+                    {language === 'id' ? 'Online' : 'Online'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                    Offline
+                    {language === 'id' ? 'Luar Jaringan' : 'Offline'}
                   </span>
                 )}
               </div>
@@ -213,17 +213,17 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
               <div className="flex items-center justify-between">
                 <span className="font-bold text-stone-900 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  <span>Local-First Buffer</span>
+                  <span>{language === 'id' ? 'Penyangga Local-First' : 'Local-First Buffer'}</span>
                 </span>
                 {hasUnsyncedChanges ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    <span>Unsynced</span>
+                    <span>{language === 'id' ? 'Belum Tersinkron' : 'Unsynced'}</span>
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3 text-teal-700" />
-                    <span>In-Sync</span>
+                    <span>{language === 'id' ? 'Tersinkron' : 'In Sync'}</span>
                   </span>
                 )}
               </div>
@@ -231,7 +231,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                 {language === 'id' ? 'Resisten pemadaman internet sekolah. Perubahan tersimpan instan di peramban.' : 'Brownout-resistant. Edits persist locally in browser and auto-sync.'}
               </p>
               <div className="pt-2 border-t border-stone-200 flex items-center justify-between text-[10px] text-stone-600 font-medium">
-                <span>{language === 'id' ? 'Edit Lokal Terakhir:' : 'Last Local Edit:'}</span>
+                <span>{language === 'id' ? 'Perubahan Lokal Terakhir:' : 'Last Local Edit:'}</span>
                 <span className="font-bold">{formatTime(lastLocalMutationAt)}</span>
               </div>
             </div>
@@ -273,7 +273,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                   {language === 'id' ? 'Uji Latensi Edge Cloudflare' : 'Cloudflare Edge Ping Test'}
                 </span>
                 <span className="text-[11px] text-stone-500">
-                  {latencyMs !== null ? `${latencyMs} ms latency` : (language === 'id' ? 'Belum diuji' : 'Not tested')}
+                  {latencyMs !== null ? `${latencyMs} ms ${language === 'id' ? 'latensi' : 'latency'}` : (language === 'id' ? 'Belum diuji' : 'Not tested')}
                 </span>
               </div>
             </div>
@@ -283,7 +283,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
               className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isPinging ? 'animate-spin' : ''}`} />
-              <span>{isPinging ? 'Pinging...' : 'Test Ping'}</span>
+              <span>{isPinging ? (language === 'id' ? 'Menguji...' : 'Pinging...') : (language === 'id' ? 'Uji Ping' : 'Test Ping')}</span>
             </button>
           </div>
 
@@ -295,7 +295,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
             onClick={handleManualPull}
             disabled={isSyncingWithEdge}
             className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white border border-stone-200 hover:bg-stone-100 text-stone-800 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs disabled:opacity-50"
-            title="Tarik versi data terbaru dari Cloudflare D1"
+            title={language === 'id' ? 'Tarik versi data terbaru dari Cloudflare D1' : 'Pull the latest data from Cloudflare D1'}
           >
             <Download className="w-4 h-4 text-teal-700" />
             <span>{language === 'id' ? 'Tarik Data dari D1' : 'Pull from D1'}</span>
@@ -307,7 +307,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
           >
             <Upload className={`w-4 h-4 ${isSyncingWithEdge ? 'animate-spin' : ''}`} />
-            <span>{isSyncingWithEdge ? 'Menyinkronkan...' : (language === 'id' ? 'Sinkronkan Sekarang ke D1' : 'Push Local to D1')}</span>
+            <span>{isSyncingWithEdge ? (language === 'id' ? 'Menyinkronkan...' : 'Syncing...') : (language === 'id' ? 'Sinkronkan Sekarang ke D1' : 'Push Local to D1')}</span>
           </button>
         </div>
       </div>

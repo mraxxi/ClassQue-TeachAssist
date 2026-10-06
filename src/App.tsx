@@ -108,7 +108,7 @@ export const App: React.FC = () => {
           <header className="hidden md:flex items-center justify-between px-8 py-2.5 bg-white/60 backdrop-blur-sm border-b border-stone-200/50 sticky top-0 z-30">
             <div className="flex items-center gap-2 text-xs font-medium text-stone-500">
               <span className="w-2 h-2 rounded-full bg-teal-600"></span>
-              <span>Teaching Session Workspace</span>
+              <span>{language === 'id' ? 'Ruang Kerja Sesi Pembelajaran' : 'Teaching Session Workspace'}</span>
             </div>
             <div className="flex items-center gap-3">
               <SyncStatusBadge language={language} />

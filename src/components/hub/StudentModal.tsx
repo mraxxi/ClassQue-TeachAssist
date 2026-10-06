@@ -139,7 +139,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            aria-label="Tutup / Close"
+            aria-label={language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-stone-600 p-2 rounded-xl hover:bg-stone-100 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -179,7 +179,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Liam Michael Wong"
+                placeholder={language === 'id' ? 'mis. Liam Michael Wong' : 'e.g. Liam Michael Wong'}
                 className="w-full px-3.5 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
               />
             </div>
@@ -192,7 +192,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                 type="text"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                placeholder="e.g. Liam"
+                placeholder={language === 'id' ? 'mis. Liam' : 'e.g. Liam'}
                 className="w-full px-3.5 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 font-medium"
               />
             </div>
@@ -208,7 +208,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                 {[
                   { key: 'M', label: language === 'id' ? 'Laki-laki (L)' : 'Male (M)' },
                   { key: 'F', label: language === 'id' ? 'Perempuan (P)' : 'Female (F)' },
-                  { key: 'other', label: 'Other' },
+                  { key: 'other', label: language === 'id' ? 'Lainnya' : 'Other' },
                 ].map((g) => (
                   <button
                     type="button"
@@ -256,7 +256,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                   type="text"
                   value={guardianName}
                   onChange={(e) => setGuardianName(e.target.value)}
-                  placeholder="e.g. Mrs. Linda Wong"
+                  placeholder={language === 'id' ? 'mis. Ibu Linda Wong' : 'e.g. Mrs. Linda Wong'}
                   className="w-full px-3 py-2 text-xs bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
                 />
               </div>
@@ -269,7 +269,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                   type="tel"
                   value={guardianPhone}
                   onChange={(e) => setGuardianPhone(e.target.value)}
-                  placeholder="e.g. +6281234567890"
+                  placeholder={language === 'id' ? 'mis. +6281234567890' : 'e.g. +6281234567890'}
                   className="w-full px-3 py-2 text-xs bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800 font-mono"
                 />
               </div>
@@ -284,7 +284,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                 type="email"
                 value={guardianEmail}
                 onChange={(e) => setGuardianEmail(e.target.value)}
-                placeholder="e.g. linda.wong@example.com"
+                placeholder={language === 'id' ? 'mis. linda.wong@example.com' : 'e.g. linda.wong@example.com'}
                 className="w-full px-3 py-2 text-xs bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
               />
             </div>
@@ -301,7 +301,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                 rows={2}
                 value={strengths}
                 onChange={(e) => setStrengths(e.target.value)}
-                placeholder="e.g. Confident speaker, enthusiastic in roleplay activities..."
+                placeholder={language === 'id' ? 'mis. Berbicara percaya diri, antusias saat bermain peran...' : 'e.g. Confident speaker, enthusiastic in roleplay activities...'}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
               />
             </div>
@@ -315,7 +315,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
                 rows={2}
                 value={growthAreas}
                 onChange={(e) => setGrowthAreas(e.target.value)}
-                placeholder="e.g. Spelling of irregular past verbs, concentration during reading..."
+                placeholder={language === 'id' ? 'mis. Ejaan kata kerja lampau tak beraturan, konsentrasi saat membaca...' : 'e.g. Spelling of irregular past verbs, concentration during reading...'}
                 className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
               />
             </div>
@@ -331,7 +331,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Sits near the front row. Responsive to visual flashcards."
+              placeholder={language === 'id' ? 'mis. Duduk di barisan depan. Responsif terhadap flashcard visual.' : 'e.g. Sits near the front row. Responsive to visual flashcards.'}
               className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
             />
           </div>

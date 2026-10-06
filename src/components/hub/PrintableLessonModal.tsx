@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Printer, BookOpen, Layers } from 'lucide-react';
 import { LessonPlan, Teacher } from '../../types';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useTeacherStore } from '../../store/useTeacherStore';
 
 interface PrintableLessonModalProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
   onClose,
 }) => {
   useEscapeKey(onClose, isOpen);
+  const { language } = useTeacherStore();
+  const id = language === 'id';
 
   if (!isOpen || !lessonPlan) return null;
 
@@ -28,11 +31,11 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
   };
 
   const stages = [
-    { num: 1, name: 'Stage 1: Warm-up / Hook', duration: '5–10 min', content: lessonPlan.warmUp },
-    { num: 2, name: 'Stage 2: Concept Presentation', duration: '15–20 min', content: lessonPlan.presentation },
-    { num: 3, name: 'Stage 3: Controlled Practice', duration: '15–20 min', content: lessonPlan.practice },
-    { num: 4, name: 'Stage 4: Free Production', duration: '20–25 min', content: lessonPlan.production },
-    { num: 5, name: 'Stage 5: Review & Wrap-up', duration: '5–10 min', content: lessonPlan.wrapUp },
+    { num: 1, name: id ? 'Tahap 1: Pemanasan / Apersepsi' : 'Stage 1: Warm-up / Hook', duration: id ? '5–10 mnt' : '5–10 min', content: lessonPlan.warmUp },
+    { num: 2, name: id ? 'Tahap 2: Penyampaian Materi' : 'Stage 2: Presentation', duration: id ? '15–20 mnt' : '15–20 min', content: lessonPlan.presentation },
+    { num: 3, name: id ? 'Tahap 3: Latihan Terpandu' : 'Stage 3: Controlled Practice', duration: id ? '15–20 mnt' : '15–20 min', content: lessonPlan.practice },
+    { num: 4, name: id ? 'Tahap 4: Aplikasi Mandiri' : 'Stage 4: Free Production', duration: id ? '20–25 mnt' : '20–25 min', content: lessonPlan.production },
+    { num: 5, name: id ? 'Tahap 5: Refleksi & Penutup' : 'Stage 5: Review & Wrap-up', duration: id ? '5–10 mnt' : '5–10 min', content: lessonPlan.wrapUp },
   ];
 
   return createPortal(
@@ -42,7 +45,7 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
         {/* Action Header (Hidden in Print) */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-4 print:hidden">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-extrabold text-stone-900">Printable Lesson Plan Scaffold (A4)</span>
+            <span className="text-sm font-extrabold text-stone-900">{id ? 'Lembar Rencana Pembelajaran (A4)' : 'Printable Lesson Plan Sheet (A4)'}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -50,11 +53,11 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
               className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>Print / Save PDF</span>
+              <span>{id ? 'Cetak / Simpan PDF' : 'Print / Save PDF'}</span>
             </button>
             <button
               onClick={onClose}
-              aria-label="Tutup / Close"
+              aria-label={id ? 'Tutup' : 'Close'}
               className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -69,41 +72,41 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
           <div className="border-b-2 border-stone-900 pb-4 flex items-start justify-between">
             <div>
               <h1 className="text-xl font-black tracking-tight">{teacher.schoolName || 'Teaching Academy'}</h1>
-              <p className="text-xs text-stone-600 font-medium">Instructor: {teacher.name} • {teacher.email}</p>
+              <p className="text-xs text-stone-600 font-medium">{id ? 'Guru' : 'Teacher'}: {teacher.name} • {teacher.email}</p>
             </div>
             <div className="text-right">
               <span className="inline-block px-3 py-1 bg-stone-900 text-white rounded-lg text-xs font-black tracking-wider uppercase">
                 CEFR {lessonPlan.cefrLevel}
               </span>
-              <p className="text-[11px] text-stone-500 font-mono mt-1">Duration: {lessonPlan.durationMinutes} Mins</p>
+              <p className="text-[11px] text-stone-500 font-mono mt-1">{id ? 'Durasi' : 'Duration'}: {lessonPlan.durationMinutes} {id ? 'menit' : 'min'}</p>
             </div>
           </div>
 
           {/* Title & Meta Info */}
           <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div>
-              <span className="text-stone-400 font-bold block text-[10px] uppercase">Lesson Title</span>
+              <span className="text-stone-400 font-bold block text-[10px] uppercase">{id ? 'Judul RPP' : 'Lesson Plan Title'}</span>
               <span className="font-extrabold text-stone-900 text-sm">{lessonPlan.title}</span>
             </div>
             <div>
-              <span className="text-stone-400 font-bold block text-[10px] uppercase">Topic / Theme</span>
+              <span className="text-stone-400 font-bold block text-[10px] uppercase">{id ? 'Topik / Tema' : 'Topic / Theme'}</span>
               <span className="font-bold text-stone-800">{lessonPlan.topic || '-'}</span>
             </div>
             <div>
-              <span className="text-stone-400 font-bold block text-[10px] uppercase">Assigned Cohort</span>
-              <span className="font-bold text-teal-800">{cohortName || 'General / All Cohorts'}</span>
+              <span className="text-stone-400 font-bold block text-[10px] uppercase">{id ? 'Kelas (Rombel)' : 'Assigned Cohort'}</span>
+              <span className="font-bold text-teal-800">{cohortName || (id ? 'Umum / Semua Kelas' : 'General / All Cohorts')}</span>
             </div>
           </div>
 
           {/* Grammar Focus & Homework */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="p-3 bg-stone-50 rounded-xl border border-stone-200">
-              <span className="font-bold text-stone-800 block mb-1">🎯 Grammar Focus:</span>
-              <p className="text-stone-600">{lessonPlan.grammarFocus || 'General language practice'}</p>
+              <span className="font-bold text-stone-800 block mb-1">🎯 {id ? 'Fokus Tata Bahasa:' : 'Grammar Focus:'}</span>
+              <p className="text-stone-600">{lessonPlan.grammarFocus || (id ? 'Latihan bahasa umum' : 'General language practice')}</p>
             </div>
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-              <span className="font-bold text-amber-900 block mb-1">📚 Homework Assignment:</span>
-              <p className="text-amber-800">{lessonPlan.homework || 'None assigned'}</p>
+              <span className="font-bold text-amber-900 block mb-1">📚 {id ? 'Tugas Mandiri:' : 'Homework Assignment:'}</span>
+              <p className="text-amber-800">{lessonPlan.homework || (id ? 'Tidak ada' : 'None assigned')}</p>
             </div>
           </div>
 
@@ -111,7 +114,7 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
           <div className="space-y-3">
             <h2 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-stone-200 pb-1">
               <Layers className="w-4 h-4 text-teal-700" />
-              5-Stage Pedagogical Delivery Flow
+              {id ? '5 Tahap Alur Pembelajaran' : '5-Stage Lesson Flow'}
             </h2>
 
             <div className="space-y-2.5">
@@ -132,7 +135,7 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
             <div className="space-y-2 pt-2">
               <h2 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-stone-200 pb-1">
                 <BookOpen className="w-4 h-4 text-teal-700" />
-                Target Vocabulary Bank
+                {id ? 'Bank Kosakata Target' : 'Target Vocabulary Bank'}
               </h2>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -142,7 +145,7 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
                       <span className="font-bold text-teal-900">{vocab.word}</span>
                       <span className="text-[10px] text-stone-400 font-mono">({vocab.pos})</span>
                     </div>
-                    <p className="text-[11px] text-stone-600 mt-0.5">{vocab.definitionId || vocab.definitionEn}</p>
+                    <p className="text-[11px] text-stone-600 mt-0.5">{id ? vocab.definitionId || vocab.definitionEn : vocab.definitionEn || vocab.definitionId}</p>
                     {vocab.example && (
                       <p className="text-[10px] text-stone-400 italic mt-0.5">"{vocab.example}"</p>
                     )}
@@ -155,11 +158,11 @@ export const PrintableLessonModal: React.FC<PrintableLessonModalProps> = ({
           {/* Teacher Signature Line */}
           <div className="pt-8 flex justify-between text-xs text-stone-400">
             <div>
-              <p>Prepared By: {teacher.name}</p>
+              <p>{id ? 'Disusun Oleh' : 'Prepared By'}: {teacher.name}</p>
               <div className="w-36 border-b border-stone-300 mt-8"></div>
             </div>
             <div className="text-right">
-              <p>Academic Approval:</p>
+              <p>{id ? 'Persetujuan Akademik:' : 'Academic Approval:'}</p>
               <div className="w-36 border-b border-stone-300 mt-8 ml-auto"></div>
             </div>
           </div>

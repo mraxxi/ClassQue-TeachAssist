@@ -11,7 +11,7 @@ B.p.on('request', (r) => { if (r.url().includes('/api/sync') && r.method() === '
 const pull = async (d) => { await d.p.click('header button').catch(() => {}); await d.p.waitForTimeout(500); await d.p.click('div.fixed button:has-text("Tarik Data dari D1")'); await d.p.waitForTimeout(1500); await d.p.keyboard.press('Escape'); await d.p.waitForTimeout(300); };
 const online = async (d) => { await d.ctx.setOffline(false); await d.p.evaluate(() => window.dispatchEvent(new Event('online'))); await sleep(3500); };
 const addTask = async (d, title) => { await goto.cockpit(d.p); await d.p.fill('input[placeholder^="Tambah tugas"]', title); await d.p.click('main button[type=submit]:has-text("Tambah")'); await d.p.waitForTimeout(300); };
-const editCohortRoom = async (d, room) => { await goto.classes(d.p); await d.p.click('button[title="Edit active cohort details"]'); await d.p.waitForTimeout(300); await d.p.fill('input[placeholder^="e.g. Room 204"]', room); await d.p.click('div.fixed button[type=submit]:visible'); await d.p.waitForTimeout(300); };
+const editCohortRoom = async (d, room) => { await goto.classes(d.p); await d.p.click('button[title="Ubah detail kelas aktif"]'); await d.p.waitForTimeout(300); await d.p.fill('input[placeholder^="mis. Ruang 204"]', room); await d.p.click('div.fixed button[type=submit]:visible'); await d.p.waitForTimeout(300); };
 const room = async (d) => (await store(d.p)).cohorts.find((c) => c.id === 'cohort-1').roomOrLink;
 
 // ============================ delta payload ============================
@@ -56,7 +56,7 @@ check('S4 conflicting edits of one record: the LATER edit wins on both devices (
 check('S4b the server agrees', (await api()).json.data.cohorts.find((c) => c.id === 'cohort-1').roomOrLink === 'ROOM-NEWER-B');
 
 // ============================ deletes propagate (with cascade) ============================
-await goto.classes(A.p); await A.p.click('main button:has-text("Cambridge Starters A1")'); await A.p.click('button[title="Delete cohort"]'); await A.p.click('button:has-text("Ya, Hapus Kelas")'); await A.p.waitForTimeout(500);
+await goto.classes(A.p); await A.p.click('main button:has-text("Cambridge Starters A1")'); await A.p.click('button[title="Hapus kelas"]'); await A.p.click('button:has-text("Ya, Hapus Kelas")'); await A.p.waitForTimeout(500);
 await sleep(3000);
 gets.length = 0;
 await pull(B);
@@ -68,8 +68,8 @@ check('S5 a cohort deleted on A disappears from B, with its students (cascade)',
 await goto.classes(B.p); await B.p.click('main button:has-text("Cambridge Flyers A2")'); await B.p.waitForTimeout(300);
 await goto.classes(A.p); await A.p.click('main button:has-text("Cambridge Flyers A2")'); await A.p.waitForTimeout(300);
 await A.ctx.setOffline(true); await B.ctx.setOffline(true);
-await A.p.click('main :text("Aisha Khan") >> nth=0'); await A.p.click('button[title="Delete student"]'); await A.p.click('button:has-text("Ya, Hapus Siswa")'); await A.p.waitForTimeout(400);
-await B.p.click('main :text("Aisha Khan") >> nth=0'); await B.p.click('button[title="Edit student profile"]'); await B.p.waitForTimeout(300);
+await A.p.click('main :text("Aisha Khan") >> nth=0'); await A.p.click('button[title="Hapus siswa"]'); await A.p.click('button:has-text("Ya, Hapus Siswa")'); await A.p.waitForTimeout(400);
+await B.p.click('main :text("Aisha Khan") >> nth=0'); await B.p.click('button[title="Ubah profil siswa"]'); await B.p.waitForTimeout(300);
 await B.p.locator('div.fixed textarea').last().fill('EDITED ON B AFTER A DELETED'); await B.p.click('div.fixed button[type=submit]:visible'); await B.p.waitForTimeout(400);
 await online(A); await online(B); await sleep(1500); await pull(A); await pull(B);
 const aisha = (st) => st.students.find((x) => x.fullName === 'Aisha Khan');
