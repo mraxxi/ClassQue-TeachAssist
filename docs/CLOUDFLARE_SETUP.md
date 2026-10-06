@@ -43,6 +43,7 @@ npx wrangler d1 migrations apply classque_db --local
 # ...and on the live Cloudflare edge D1
 npx wrangler d1 migrations apply classque_db --remote
 ```
+> **Migration `0005_multi_user_indexes.sql`** (teacher login) is schema only and safe on an existing database; see section 7.
 > **Migration `0004_delta_sync.sql` must be applied to the remote D1 BEFORE deploying the delta-sync build** (it adds `client_updated_at` and the `updated_at` indexes the new API reads).
 > `wrangler.toml` is git-ignored; copy `wrangler.toml.example` and fill in your `database_id`.
 > `compatibility_date` is intentionally conservative (`2026-04-01`): a date newer than the installed wrangler
@@ -77,25 +78,10 @@ npx wrangler pages dev ./dist --d1 DB=classque_db --port 8788
 
 ---
 
-## 5. Edge API Authentication (`SYNC_TOKEN`) — required
+## 5. Edge API Authentication — Cloudflare Access login
 
-`/api/sync` holds student and guardian data, so it is protected by a shared secret and **fails closed**
-(`503 unconfigured` until the secret exists).
-
-```bash
-# 1. Generate a long random token
-openssl rand -base64 32
-
-# 2. Store it as a Pages secret (production). Redeploy is not needed; secrets apply to new requests.
-npx wrangler pages secret put SYNC_TOKEN --project-name classque-teachassist
-
-# 3. Local development: copy .dev.vars.example to .dev.vars (git-ignored) and paste the same value
-cp .dev.vars.example .dev.vars
-```
-
-Then open the app → **Settings → Cloudflare D1 Edge & Offline Engine → Sync Token**, paste the token and press
-*Save Token*. Each device you use needs the token once. Until it is entered the app works fully offline and the sync
-badge reads **Perlu Token / Token Needed**; a wrong token reads **Token Ditolak / Token Rejected**.
+`/api/*` holds student and guardian data, so it needs a signed-in teacher and **fails closed** (`401` without a valid
+login). The old shared `SYNC_TOKEN` is gone: there is nothing to paste into the app. Setup is in section 7.
 
 ## 6. Testing
 
@@ -105,3 +91,56 @@ npm run test:e2e      # builds, then runs every e2e/tests/*.test.mjs against a f
 npm run test:e2e -- 04 05   # only files whose name contains 04 or 05
 ```
 Requires a Chromium binary (`CHROMIUM=/path/to/chromium`, default `/usr/bin/chromium`). See `e2e/README.md`.
+
+## 7. Teacher Login (Cloudflare Access) — one account per login email
+
+Several teachers can share one deployment. **Cloudflare Access** (Zero Trust) puts the login page in front of the
+site and attaches a signed token to every request; the API verifies it and uses the email inside to pick that
+teacher's own data. ClassQue stores no passwords and sends no emails itself. This login is the only protection of
+the API (the old `SYNC_TOKEN` was removed), so **set it up before deploying**.
+
+### Step 1: Create one Access application for the whole site
+1. **Zero Trust** -> **Access controls** -> **Applications** -> **Add an application** -> **Self-hosted**.
+2. Add **every hostname** teachers use, with **no path** so `/api/*` is covered too (your custom domain and `classque-teachassist.pages.dev`).
+3. Add one **Allow** policy listing the teachers' emails (or **Emails ending in** `@yourschool.edu`). To onboard a teacher later, add their email here. Make sure **One-time PIN** is enabled under **Integrations -> Identity providers**.
+4. Save, then copy the application's **Application Audience (AUD) tag**.
+
+Use a single application for all hostnames: the API checks one AUD value.
+
+### Step 2: Tell the API how to verify the login
+**Pages project** -> **Settings** -> **Variables and Secrets** (Production, and Preview if used):
+
+| Variable | Value |
+| --- | --- |
+| `CF_ACCESS_TEAM_DOMAIN` | `<your-team-name>.cloudflareaccess.com` |
+| `CF_ACCESS_AUD` | the AUD tag from Step 1 |
+| `LEGACY_OWNER_EMAIL` | *(only if you used ClassQue before logins existed)* your own login email |
+
+Never set `DEV_USER_EMAIL` in production (it is ignored once `CF_ACCESS_AUD` is set, and exists for local development only).
+
+### Step 3: Keep the data you already have
+Everything saved before logins is stored under a placeholder teacher, `teacher-1`. The person named in
+`LEGACY_OWNER_EMAIL` becomes that teacher the **first** time they sign in, so their cohorts, lessons, claims and tasks are still there.
+1. `npx wrangler d1 migrations apply classque_db --remote` (applies `0005`, schema only).
+2. Set `LEGACY_OWNER_EMAIL`, deploy.
+3. Sign in as that person **before anyone else does**. Everyone else starts with an empty account of their own.
+
+If you signed in *before* setting `LEGACY_OWNER_EMAIL` you got a new empty account and the old data is still under `teacher-1`.
+Fix: delete the empty account (`DELETE FROM teachers WHERE email = 'you@example.com';` while it has no data), set the variable, sign in again.
+A fresh database still gets the demo classes from migration `0002` under `teacher-1`; with no `LEGACY_OWNER_EMAIL` nobody sees them.
+
+### How it behaves
+- **Separate data**: every sync read and write is limited to the signed-in teacher. Ids or `teacherId` values sent by the browser never decide ownership; a record whose id belongs to someone else is refused (counted in `rejected`).
+- **Offline classrooms**: each teacher's offline copy is stored in the browser under their email. If the connection drops, the app keeps working as the last signed-in teacher and syncs only after the server confirms that same email. A different teacher signing in on the same browser gets their own copy.
+- **Sign out**: Settings -> *Sign out* (goes to `/cdn-cgi/access/logout`).
+- **Remove a teacher**: delete their email from the Access policy. To also block the account, set `deleted_at` on their `teachers` row (the API then answers 403).
+
+| Symptom | Likely cause |
+| --- | --- |
+| Badge says **Sign-in Needed / Perlu Masuk** | `/api/me` answers 401 "unauthenticated": `CF_ACCESS_TEAM_DOMAIN` / `CF_ACCESS_AUD` missing or wrong, or the hostname is not covered by the Access application |
+| Old data is missing after login | The owner signed in before `LEGACY_OWNER_EMAIL` was set (Step 3) |
+
+### Local development
+Locally there is no Access login page. Put `DEV_USER_EMAIL=you@example.com` in `.dev.vars` (see `.dev.vars.example`).
+Without it the API answers 401 and the app runs as a local-only guest. The e2e suite signs in as `e2e.teacher@classque.test` and loads a second
+teacher from `e2e/tests/13-multi-user.seed.sql` to prove the two cannot see or change each other's rows.

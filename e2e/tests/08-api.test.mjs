@@ -1,16 +1,10 @@
 // Stage 15 / W2 / W3 — edge API: authentication, round-trip, validation, falsy values, tombstones, summary.
 import { api, check, done, BASE } from '../lib.mjs';
 
-// ---- authentication (F36) --------------------------------------------------------------------
-let r = await api('/api/sync', { token: null });
-check('A1 anonymous GET is rejected (401)', r.status === 401, `status ${r.status}`);
-check('A1b anonymous GET leaks no data', !JSON.stringify(r.json).includes('guardian'), JSON.stringify(r.json).slice(0, 80));
-r = await api('/api/sync', { token: 'wrong-token' });
-check('A2 wrong token is rejected (401)', r.status === 401);
-r = await api('/api/sync', { method: 'POST', token: null, body: { teacher: { id: 'teacher-1', name: 'HACKED', email: 'x@y.z' } } });
-check('A3 anonymous POST is rejected (401)', r.status === 401);
+// ---- authentication (no-login cases live in 13b-api-no-login) --------------------------------------------------------------------
+let r;
 r = await api('/api/sync');
-check('A4 correct token is accepted', r.status === 200 && r.json?.data?.cohorts?.length > 0, `status ${r.status}`);
+check('A4 the signed-in teacher is accepted', r.status === 200 && r.json?.data?.cohorts?.length > 0, `status ${r.status}`);
 check('A4b seeded demo data not changed by rejected writes', r.json?.data?.teacher?.name !== 'HACKED');
 
 // ---- full round-trip -------------------------------------------------------------------------
@@ -85,8 +79,6 @@ check('E2 unknown tombstone entity -> 400', r.status === 400);
 r = await api('/api/sync?summary=1');
 check('F1 summary returns counts + lastUpdatedAt, no records', r.status === 200 && r.json?.counts?.cohorts >= 1 && !r.json?.data && r.json?.lastUpdatedAt, JSON.stringify(r.json));
 check('F1b summary count matches data', r.json?.counts?.students === (await api('/api/sync')).json.data.students.length);
-r = await api('/api/sync?summary=1', { token: null });
-check('F2 summary also requires auth', r.status === 401);
 check('G1 responses are not cacheable', r.headers.get('cache-control') === 'no-store');
 
 // ---- delta sync + per-record last-write-wins (FR-020) -----------------------------------------------------

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Circle, Rocket, X } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
-import { getSyncToken } from '../../utils/syncAuth';
 
 const DISMISS_KEY = 'classque_onboarding_dismissed';
 const readDismissed = () => {
@@ -13,7 +12,7 @@ const readDismissed = () => {
  * working setup is never cluttered, and it can be dismissed for good.
  */
 export const OnboardingChecklist: React.FC = () => {
-  const { language, cohorts, students, lessonPlans, attendanceRecords, setActiveTab } = useTeacherStore();
+  const { language, cohorts, students, lessonPlans, attendanceRecords, setActiveTab, syncAuthStatus } = useTeacherStore();
   const [dismissed, setDismissed] = useState(readDismissed);
   const id = language === 'id';
 
@@ -25,7 +24,7 @@ export const OnboardingChecklist: React.FC = () => {
     { done: students.length > 0, label: id ? 'Tambahkan siswa' : 'Add your students', hint: id ? 'Lengkap dengan kontak wali untuk WhatsApp.' : 'With guardian contact for WhatsApp.', go: () => setActiveTab('classes-students') },
     { done: lessonPlans.length > 0, label: id ? 'Susun rencana pembelajaran' : 'Draft a lesson plan', hint: id ? '5 tahap + bank kosakata.' : '5 stages plus a vocabulary bank.', go: () => setActiveTab('lesson-planner') },
     { done: attendanceRecords.length > 0, label: id ? 'Catat presensi pertama' : 'Take your first roll-call', hint: id ? 'Dari Kokpit atau tab Presensi.' : 'From the Cockpit or the Attendance tab.', go: () => setActiveTab('classes-students') },
-    { done: !!getSyncToken(), label: id ? 'Hubungkan sinkronisasi (opsional)' : 'Connect sync (optional)', hint: id ? 'Masukkan token agar data tercadang di Cloudflare D1.' : 'Paste the token to back your data up to Cloudflare D1.', go: () => setActiveTab('settings') },
+    { done: syncAuthStatus === 'ok', label: id ? 'Pastikan sinkronisasi tersambung (opsional)' : 'Check that sync is connected (optional)', hint: id ? 'Masuk lewat Cloudflare Access agar data tercadang di Cloudflare D1.' : 'Sign in through Cloudflare Access to back your data up to Cloudflare D1.', go: () => setActiveTab('settings') },
   ];
   const doneCount = steps.filter((s) => s.done).length;
   const nextIdx = steps.findIndex((s) => !s.done);

@@ -13,6 +13,7 @@ import { ManualSessionModal } from './ManualSessionModal';
 import { ClaimInvoiceModal } from './ClaimInvoiceModal';
 import { PrintableReportCard } from './PrintableReportCard';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { newId } from '../../utils/id';
 
 export const ClaimsReportsHub: React.FC = () => {
   const { 
@@ -188,7 +189,7 @@ _${teacher.schoolName || ''}_`;
     }
     const existed = parentReports.some((r) => r.studentId === selectedStudent.id && r.reportPeriod === selectedMonth);
     const newReport: ParentReport = {
-      id: `rep_${Date.now()}`,
+      id: newId('rep'),
       studentId: selectedStudent.id,
       cohortId: selectedStudent.cohortId,
       reportPeriod: selectedMonth,

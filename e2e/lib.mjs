@@ -2,9 +2,9 @@
 import { chromium } from 'playwright-core';
 
 export const BASE = process.env.E2E_BASE || 'http://localhost:8789';
-export const TOKEN = process.env.E2E_TOKEN || 'e2e-token';
 export const CHROMIUM = process.env.CHROMIUM || '/usr/bin/chromium';
-export const STORAGE_KEY = 'classque_teacher_os_v1';
+// Each login has its own local-first buffer (see src/utils/identity.ts); run.sh signs the tests in as this teacher.
+export const STORAGE_KEY = 'classque_teacher_os_v1:' + (process.env.E2E_USER_EMAIL || 'e2e.teacher@classque.test');
 
 let failures = 0;
 let total = 0;
@@ -26,10 +26,10 @@ export function done() {
  * Opens a fresh browser context + page.
  *  - time:   ISO instant to pin the browser clock to (clock keeps ticking)
  *  - tz:     IANA timezone (default Asia/Jakarta)
- *  - token:  sync token to pre-load (default the e2e token; pass null for "no token configured")
+ *  - signedOut: every /api/* call answers 401 "not signed in" (a new device before login, or Access misconfigured)
  *  - lang:   'id' | 'en' to pre-set the language cookie
  */
-export async function open({ time, tz = 'Asia/Jakarta', token = TOKEN, lang, width = 1400, height = 900, goto = true } = {}) {
+export async function open({ time, tz = 'Asia/Jakarta', signedOut = false, lang, width = 1400, height = 900, goto = true } = {}) {
   let browser, ctx;
   for (let attempt = 1; ; attempt++) { // Chromium occasionally dies right at launch on a busy machine: retry
     try {
@@ -48,10 +48,8 @@ export async function open({ time, tz = 'Asia/Jakarta', token = TOKEN, lang, wid
     }
   }
   if (time) await ctx.clock.install({ time: new Date(time) });
-  if (token) {
-    await ctx.addInitScript((t) => {
-      try { if (!localStorage.getItem('classque_sync_token')) localStorage.setItem('classque_sync_token', t); } catch { /* ignore */ }
-    }, token);
+  if (signedOut) {
+    await ctx.route('**/api/**', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'Not signed in.', status: 'unauthenticated' }) }));
   }
   if (lang) await ctx.addCookies([{ name: 'cq_lang', value: lang, url: BASE }]);
   const page = await ctx.newPage();
@@ -71,12 +69,13 @@ export async function open({ time, tz = 'Asia/Jakarta', token = TOKEN, lang, wid
 }
 
 export const txt = async (p, sel = 'body') => (await p.innerText(sel)).replace(/\n+/g, ' | ');
-export const store = (p) => p.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), STORAGE_KEY);
+// Reads the local buffer: the signed-in teacher's, or the guest buffer when no login was confirmed (e.g. a new device before the login is confirmed).
+export const store = (p) => p.evaluate(([k, guest]) => JSON.parse(localStorage.getItem(k) || localStorage.getItem(guest) || 'null'), [STORAGE_KEY, 'classque_teacher_os_v1:guest']);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Authenticated call to the edge API. */
+/** Call to the edge API as the signed-in e2e teacher (the server resolves DEV_USER_EMAIL). */
 export async function api(path = '/api/sync', init = {}) {
-  const headers = { ...(init.token === null ? {} : { Authorization: `Bearer ${init.token ?? TOKEN}` }), ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...(init.headers || {}) };
+  const headers = { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...(init.headers || {}) };
   const res = await fetch(BASE + path, { method: init.method || 'GET', headers, body: init.body ? (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) : undefined });
   let json = null;
   try { json = await res.clone().json(); } catch { /* not json */ }

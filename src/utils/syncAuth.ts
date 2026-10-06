@@ -1,30 +1,7 @@
 /**
- * Sync token handling. The edge API (`/api/sync`) requires `Authorization: Bearer <SYNC_TOKEN>`.
- * The token is entered once in Settings and kept in this browser only (never in the synced dataset
- * or the JSON backup).
+ * Sync status shown by the badge, Settings and diagnostics. The edge API is protected by the Cloudflare Access
+ * login (see functions/_lib/auth.ts); the browser sends no secret of its own.
+ *  - unauthenticated: no valid login (401)    - unbound: the D1 binding is missing (503)
+ *  - unconfigured: the server answered 503 for another reason
  */
-const TOKEN_KEY = 'classque_sync_token';
-
-export const getSyncToken = (): string => {
-  try {
-    return localStorage.getItem(TOKEN_KEY) || '';
-  } catch {
-    return '';
-  }
-};
-
-export const setSyncToken = (token: string): void => {
-  try {
-    if (token.trim()) localStorage.setItem(TOKEN_KEY, token.trim());
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch {
-    /* storage unavailable */
-  }
-};
-
-export const syncHeaders = (extra: Record<string, string> = {}): Record<string, string> => {
-  const token = getSyncToken();
-  return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
-};
-
-export type SyncAuthStatus = 'unknown' | 'ok' | 'missing' | 'rejected' | 'unconfigured' | 'unbound';
+export type SyncAuthStatus = 'unknown' | 'ok' | 'unconfigured' | 'unbound' | 'unauthenticated';

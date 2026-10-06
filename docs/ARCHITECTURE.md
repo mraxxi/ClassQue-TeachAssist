@@ -128,11 +128,10 @@
 
 ## 5. Security & Authentication
 
-- **Edge API authentication**: every `/api/*` request must carry `Authorization: Bearer <SYNC_TOKEN>`
-  (`functions/api/_middleware.ts`). The secret is compared in constant time. The API **fails closed**: when
-  `SYNC_TOKEN` is not configured on the server, every request is answered `503`. The token is entered once in
-  *Settings → Cloudflare D1* and stored only in this browser (`classque_sync_token`); it is never part of the
-  synced dataset or of JSON backups. See `docs/CLOUDFLARE_SETUP.md` §5.
+- **Edge API authentication**: every `/api/*` request must carry a valid **Cloudflare Access** login
+  (`functions/_lib/auth.ts` verifies the signed JWT: signature, audience, issuer, expiry). The email inside picks the
+  teacher row; reads and writes are limited to that teacher. The API **fails closed**: with no valid login (and no
+  `DEV_USER_EMAIL` locally) every request is answered `401`. The browser holds no secret. See `docs/CLOUDFLARE_SETUP.md` §5.
 - **Why**: the dataset contains minors' names and guardian contact details. A public Pages URL must never expose them.
 - **Validation**: `POST /api/sync` rejects malformed JSON / shapes with `400` and a problem list; optional fields
   are normalised (`undefined → null`) and numeric defaults only apply to missing values (`0` is a real value).

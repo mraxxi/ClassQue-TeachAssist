@@ -4,6 +4,7 @@ import { TeachingSession, Cohort } from '../../types';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { addMinutesToTime, localDateStr } from '../../utils/date';
+import { newId } from '../../utils/id';
 
 interface ManualSessionModalProps {
   isOpen: boolean;
@@ -86,7 +87,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
     }
 
     const newSession: TeachingSession = {
-      id: `sess-${Date.now()}`,
+      id: newId('sess'),
       teacherId: teacher.id,
       cohortId,
       sessionDate,

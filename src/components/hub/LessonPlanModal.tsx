@@ -6,6 +6,7 @@ import {
 import { LessonPlan, CEFRLevel, VocabularyItem } from '../../types';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { newId } from '../../utils/id';
 
 interface LessonPlanModalProps {
   isOpen: boolean;
@@ -141,7 +142,7 @@ export const LessonPlanModal: React.FC<LessonPlanModalProps> = ({
       addToast(language === 'id' ? 'RPP berhasil diperbarui!' : 'Lesson plan updated successfully!', 'success');
     } else {
       const newPlan: LessonPlan = {
-        id: `lesson-${Date.now()}`,
+        id: newId('lesson'),
         teacherId: teacher.id,
         cohortId: cohortId || undefined,
         title: title.trim(),

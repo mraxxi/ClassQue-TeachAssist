@@ -9,8 +9,10 @@ import { defaultTeacher } from './seedData';
 import { getCookie, setCookie, COOKIE_KEYS } from '../utils/cookies';
 import { addMinutesToTime, localDateStr, localTimeStr } from '../utils/date';
 import { generateDynamicNotifications, mergeNotifications } from '../utils/notifications';
-import { getSyncToken, syncHeaders, type SyncAuthStatus } from '../utils/syncAuth';
+import type { SyncAuthStatus } from '../utils/syncAuth';
 import { validateBackup } from '../utils/backup';
+import { newId } from '../utils/id';
+import { ensureVerified, getIdentity, getStorageKey, type VerifyResult } from '../utils/identity';
 import { applyTheme, persistTheme, readThemePreference, type ThemePreference } from '../utils/theme';
 
 export interface ToastItem {
@@ -172,7 +174,9 @@ export interface TeacherState {
   removeToast: (id: string) => void;
 }
 
-const STORAGE_KEY = 'classque_teacher_os_v1';
+// Per-teacher local-first buffer. initIdentity() resolves before this module loads (see main.tsx), so the key
+// already points at the signed-in teacher's own data.
+const STORAGE_KEY = getStorageKey();
 const nowIso = () => new Date().toISOString();
 const takeSnapshot = (s: TeacherState): UndoSnapshot => ({
   cohorts: s.cohorts, students: s.students, attendanceRecords: s.attendanceRecords, studentEvaluations: s.studentEvaluations,
@@ -263,7 +267,7 @@ export const scheduleAutoSync = (delayMs = 1500) => {
     if (!store.hasUnsyncedChanges) return;
     const ok = await store.syncDatabaseToEdge();
     const after = useTeacherStore.getState();
-    if (!ok && after.syncAuthStatus !== 'missing' && after.syncAuthStatus !== 'rejected' && after.syncAuthStatus !== 'unconfigured' && after.syncAuthStatus !== 'unbound') {
+    if (!ok && after.syncAuthStatus !== 'unconfigured' && after.syncAuthStatus !== 'unbound' && after.syncAuthStatus !== 'unauthenticated') {
       // transient failure: retry with capped backoff
       scheduleAutoSync(retryDelayMs);
       retryDelayMs = Math.min(retryDelayMs * 2, 10 * 60_000);
@@ -415,14 +419,30 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     persistWithLive();
   };
 
-  /** Maps a failed sync response to a status. A 503 is either a missing SYNC_TOKEN ('unconfigured') or a missing D1 binding ('unbound'); the body says which. */
+  /**
+   * Maps a failed sync response to a status. A 401 means no valid Access login ('unauthenticated'); a 503 is either a
+   * missing D1 binding ('unbound') or another server problem ('unconfigured'). The body's `status` says which.
+   */
   const classifyFailure = async (res: Response) => {
     const off = { isSyncingWithEdge: false, isEdgeConnected: false };
-    if (res.status === 401) set({ syncAuthStatus: 'rejected', ...off });
+    if (res.status === 401) set({ syncAuthStatus: 'unauthenticated', ...off });
     else if (res.status === 503) {
       const body = (await res.json().catch(() => null)) as { status?: string } | null;
       set({ syncAuthStatus: body?.status === 'unbound' ? 'unbound' : 'unconfigured', ...off });
     } else set(off);
+  };
+
+  /**
+   * Nothing is pushed or pulled until the server confirms the login that owns this browser's buffer
+   * (a different teacher signing in on a shared computer must never receive or overwrite another's data).
+   * Returns true when the sync may go ahead.
+   */
+  const verifyIdentity = async (): Promise<boolean> => {
+    const v: VerifyResult = await ensureVerified();
+    if (v.ok) return true;
+    const off = { isSyncingWithEdge: false, isEdgeConnected: false };
+    set(v.reason === 'offline' || v.reason === 'unusable' ? off : { syncAuthStatus: v.reason, ...off });
+    return false;
   };
 
   /** Shared body for stamping + persisting a collection mutation. */
@@ -468,7 +488,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
       set({ theme });
     },
 
-    teacher: saved?.teacher ? { ...defaultTeacher, ...saved.teacher } : defaultTeacher,
+    teacher: { ...defaultTeacher, email: getIdentity().email ?? defaultTeacher.email, ...(saved?.teacher || {}) },
     updateTeacher: (data) => {
       set((state) => ({ teacher: { ...state.teacher, ...data } }));
       commitMutation();
@@ -582,7 +602,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
           return { attendanceRecords: updated };
         }
         const record: AttendanceRecord = stamp({
-          id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          id: newId('att'),
           cohortId,
           studentId,
           attendanceDate: date,
@@ -603,7 +623,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
           else
             records.push(
               stamp({
-                id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${student.id}`,
+                id: newId('att'),
                 cohortId,
                 studentId: student.id,
                 attendanceDate: date,
@@ -680,7 +700,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
       const startTime = session?.startTime || localTimeStr();
 
       const newSession: TeachingSession = stamp({
-        id: `session_${Date.now()}`,
+        id: newId('session'),
         teacherId: teacher.id,
         cohortId: session?.cohortId || cohorts[0]?.id || '',
         sessionDate: session?.startDate || localDateStr(),
@@ -736,7 +756,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     duplicateLessonPlan: (id) => {
       const target = get().lessonPlans.find((p) => p.id === id);
       if (!target) return;
-      const copy: LessonPlan = stamp({ ...target, id: `lp_${Date.now()}`, title: `${target.title} (Copy)` });
+      const copy: LessonPlan = stamp({ ...target, id: newId('lp'), title: `${target.title} (Copy)` });
       set((state) => ({ lessonPlans: [copy, ...state.lessonPlans], selectedLessonPlanId: copy.id }));
       commitMutation();
     },
@@ -783,7 +803,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
           return { studentEvaluations: updated };
         }
         const evaluation: StudentMilestoneEvaluation = stamp({
-          id: `eval_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          id: newId('eval'),
           studentId,
           milestoneId,
           competencyScore: score,
@@ -875,7 +895,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     // ---- Sync ------------------------------------------------------------------------------
     isSyncingWithEdge: false,
     isEdgeConnected: false,
-    syncAuthStatus: (getSyncToken() ? 'unknown' : 'missing') as SyncAuthStatus,
+    syncAuthStatus: 'unknown' as SyncAuthStatus,
     hasUnsyncedChanges: Boolean(saved?.hasUnsyncedChanges),
     lastLocalMutationAt: saved?.lastLocalMutationAt || null,
     lastSyncedAt: saved?.lastSyncedAt || null,
@@ -887,11 +907,8 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     syncDatabaseToEdge: () => {
       if (syncInFlight) return syncInFlight;
       syncInFlight = (async () => {
-        if (!getSyncToken()) {
-          set({ syncAuthStatus: 'missing', isEdgeConnected: false });
-          return false;
-        }
         try {
+          if (!(await verifyIdentity())) return false;
           set({ isSyncingWithEdge: true });
           const state = get();
           const mutationMarker = state.lastLocalMutationAt;
@@ -902,7 +919,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
           const changed = <T extends { id: string }>(list: T[]): T[] => (full ? list : list.filter((x) => sentDirty[x.id] !== undefined));
           const res = await fetch('/api/sync', {
             method: 'POST',
-            headers: syncHeaders({ 'Content-Type': 'application/json' }),
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               teacher: state.teacher,
               cohorts: changed(state.cohorts),
@@ -958,11 +975,8 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     },
 
     fetchDatabaseFromEdge: async () => {
-      if (!getSyncToken()) {
-        set({ syncAuthStatus: 'missing', isEdgeConnected: false });
-        return false;
-      }
       try {
+        if (!(await verifyIdentity())) return false;
         // Unsynced local edits always win: push them first, never pull over them.
         if (get().hasUnsyncedChanges) {
           const pushed = await get().syncDatabaseToEdge();
@@ -972,7 +986,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
         const cursor = get().syncCursor;
         // 2 s of overlap absorbs clock differences between Worker instances; re-delivered rows merge idempotently.
         const since = cursor ? new Date(Date.parse(cursor) - 2000).toISOString() : null;
-        const res = await fetch(since ? `/api/sync?since=${encodeURIComponent(since)}` : '/api/sync', { headers: syncHeaders() });
+        const res = await fetch(since ? `/api/sync?since=${encodeURIComponent(since)}` : '/api/sync');
         if (!res.ok) {
           await classifyFailure(res);
           return false;
@@ -1010,13 +1024,10 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     },
 
     reloadFromEdge: async () => {
-      if (!getSyncToken()) {
-        set({ syncAuthStatus: 'missing', isEdgeConnected: false });
-        return false;
-      }
       try {
+        if (!(await verifyIdentity())) return false;
         set({ isSyncingWithEdge: true });
-        const res = await fetch('/api/sync', { headers: syncHeaders() });
+        const res = await fetch('/api/sync');
         if (!res.ok) {
           await classifyFailure(res);
           return false;
