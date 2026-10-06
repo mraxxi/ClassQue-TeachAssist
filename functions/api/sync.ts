@@ -8,12 +8,20 @@
 //   POST /api/sync                  -> upsert records + soft-delete tombstones
 //        { cohorts: [...], ..., deleted: { <entity>: [id | { id, at }] } }
 //
+// Who is calling: every request must carry a verified login (Cloudflare Access, or DEV_USER_EMAIL locally).
+// The server maps that email to a teacher row and acts as that teacher: reads return only that teacher's rows
+// and writes can only create or change rows that teacher owns (see `Ownership` below). The browser never
+// decides `teacher_id`.
+//
 // Conflict rule (per record, last-write-wins): every record carries the client's `updatedAt`, stored as
 // `client_updated_at`. An upsert or delete only applies when it is NEWER than what is stored; a newer upsert
 // also revives a soft-deleted row (this is what makes "Undo delete" work across devices). Rejected writes are
 // counted in the response (`rejected`) and the winning version arrives with the next pull.
 
-interface Env {
+import { getAuthenticatedEmail, unauthorizedResponse, type AuthEnv } from '../_lib/auth';
+import { getOrCreateTeacher, type TeacherRow } from '../_lib/teacher';
+
+interface Env extends AuthEnv {
   DB: D1Database;
 }
 
@@ -71,6 +79,32 @@ const COUNT_TABLES: Record<string, string> = {
   reports: 'parent_reports',
 };
 
+/** The signed-in teacher, or the Response to send back (401 not signed in, 403 disabled). */
+async function resolveTeacher(env: Env, request: Request): Promise<{ me: TeacherRow } | { response: Response }> {
+  const email = await getAuthenticatedEmail(request, env);
+  if (!email) return { response: unauthorizedResponse() };
+  const me = await getOrCreateTeacher(env.DB, email, env.LEGACY_OWNER_EMAIL);
+  if (!me) return { response: reply(403, { error: 'This account has been disabled.', status: 'disabled' }) };
+  return { me };
+}
+
+// SQL fragments that say "belongs to the signed-in teacher" (each takes the teacher id as its one `?`).
+// Soft-deleted parents still count, so a delta pull keeps delivering a child's tombstone.
+const MY_COHORTS = 'SELECT id FROM cohorts WHERE teacher_id = ?';
+const MY_STUDENTS = `SELECT id FROM students WHERE cohort_id IN (${MY_COHORTS})`;
+/** Table -> WHERE condition selecting only that teacher's rows. `cefr_milestones` is shared reference data. */
+const SCOPE: Record<string, string> = {
+  cohorts: 'teacher_id = ?',
+  students: `cohort_id IN (${MY_COHORTS})`,
+  lesson_plans: 'teacher_id = ?',
+  attendance_records: `cohort_id IN (${MY_COHORTS})`,
+  teaching_sessions: 'teacher_id = ?',
+  teaching_claims: 'teacher_id = ?',
+  student_milestone_evaluations: `student_id IN (${MY_STUDENTS})`,
+  parent_reports: `cohort_id IN (${MY_COHORTS})`,
+  tasks: 'teacher_id = ?',
+};
+
 // ---------------------------------------------------------------------------------------------
 // GET
 // ---------------------------------------------------------------------------------------------
@@ -79,14 +113,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
   if (!env.DB) return unbound();
 
   try {
+    const who = await resolveTeacher(env, request);
+    if ('response' in who) return who.response;
+    const tid = who.me.id;
+
     if (new URL(request.url).searchParams.get('summary') === '1') {
       const results = await env.DB.batch(
         Object.values(COUNT_TABLES).map((table) =>
-          env.DB.prepare(
-            table === 'cefr_milestones'
-              ? `SELECT COUNT(*) AS n, NULL AS last FROM ${table}`
-              : `SELECT COUNT(*) AS n, MAX(updated_at) AS last FROM ${table} WHERE deleted_at IS NULL`
-          )
+          table === 'cefr_milestones'
+            ? env.DB.prepare(`SELECT COUNT(*) AS n, NULL AS last FROM ${table}`)
+            : env.DB.prepare(`SELECT COUNT(*) AS n, MAX(updated_at) AS last FROM ${table} WHERE deleted_at IS NULL AND ${SCOPE[table]}`).bind(tid)
         )
       );
       const counts: Record<string, number> = {};
@@ -113,11 +149,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
 
     const all = (table: string) =>
       isDelta
-        ? env.DB.prepare(`SELECT * FROM ${table} WHERE updated_at > ?`).bind(since).all()
-        : env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL`).all();
+        ? env.DB.prepare(`SELECT * FROM ${table} WHERE updated_at > ? AND ${SCOPE[table]}`).bind(since, tid).all()
+        : env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL AND ${SCOPE[table]}`).bind(tid).all();
     const [rawTeachers, rawCohortsAll, rawStudentsAll, rawMilestones, rawLessonsAll, rawAttendanceAll, rawSessionsAll, rawClaimsAll, rawEvalsAll, rawReportsAll, rawTasksAll] =
       await Promise.all([
-        env.DB.prepare('SELECT * FROM teachers WHERE deleted_at IS NULL').all(),
+        env.DB.prepare('SELECT * FROM teachers WHERE id = ? AND deleted_at IS NULL').bind(tid).all(),
         all('cohorts'),
         all('students'),
         isDelta ? Promise.resolve({ results: [] }) : env.DB.prepare('SELECT * FROM cefr_milestones').all(), // static framework
@@ -401,12 +437,29 @@ function tombstoneEntries(list: unknown[], fallbackAt: string): { id: string; at
 
 type ColSpec = [column: string, value: (r: any, ctx: { teacherId: string }) => unknown];
 
+/**
+ * How a table's rows are tied to the signed-in teacher. Every `?` below is bound to the teacher id
+ * (parent ids from the record are bound by `parents`).
+ *  - `teacher`: the table has `teacher_id`; it is forced to the login's teacher, and an existing row that
+ *    belongs to someone else is left untouched.
+ *  - `child`: the row belongs through its cohort/student. A NEW row is only inserted when every parent it
+ *    names is the teacher's (`parents`), and an EXISTING row is only updated when it already sits under
+ *    one of the teacher's cohorts/students (`rowCondition`).
+ */
+type Ownership =
+  | { kind: 'teacher' }
+  | { kind: 'child'; parents: (r: any) => { sql: string; ids: string[] }; rowCondition: string };
+
+const cohortIsMine = 'EXISTS (SELECT 1 FROM cohorts WHERE id = ? AND teacher_id = ?)';
+const studentIsMine = `EXISTS (SELECT 1 FROM students WHERE id = ? AND cohort_id IN (${MY_COHORTS}))`;
+
 /** camelCase payload key -> table + column mapping used by the generic last-write-wins upsert. */
-const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
+const UPSERTS: Record<string, { table: string; cols: ColSpec[]; owner: Ownership }> = {
   cohorts: {
     table: 'cohorts',
+    owner: { kind: 'teacher' },
     cols: [
-      ['id', (c) => c.id], ['teacher_id', (c, x) => c.teacherId ?? x.teacherId], ['name', (c) => c.name],
+      ['id', (c) => c.id], ['teacher_id', (_r, x) => x.teacherId], ['name', (c) => c.name],
       ['cefr_level', (c) => c.cefrLevel ?? 'A1'], ['schedule_days', (c) => JSON.stringify(c.scheduleDays ?? [])],
       ['start_time', (c) => c.startTime ?? '14:00'], ['duration_minutes', (c) => num(c.durationMinutes, 60)],
       ['room_or_link', (c) => c.roomOrLink ?? null],
@@ -416,6 +469,7 @@ const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
   },
   students: {
     table: 'students',
+    owner: { kind: 'child', parents: (r) => ({ sql: cohortIsMine, ids: [r.cohortId] }), rowCondition: `students.cohort_id IN (${MY_COHORTS})` },
     cols: [
       ['id', (s) => s.id], ['cohort_id', (s) => s.cohortId], ['full_name', (s) => s.fullName], ['nickname', (s) => s.nickname ?? null],
       ['gender', (s) => s.gender ?? null], ['date_of_birth', (s) => s.dateOfBirth ?? null], ['guardian_name', (s) => s.guardianName ?? null],
@@ -425,8 +479,9 @@ const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
   },
   lessonPlans: {
     table: 'lesson_plans',
+    owner: { kind: 'teacher' },
     cols: [
-      ['id', (l) => l.id], ['teacher_id', (l, x) => l.teacherId ?? x.teacherId], ['cohort_id', (l) => l.cohortId || null], ['title', (l) => l.title],
+      ['id', (l) => l.id], ['teacher_id', (_r, x) => x.teacherId], ['cohort_id', (l) => l.cohortId || null], ['title', (l) => l.title],
       ['topic', (l) => l.topic ?? null], ['cefr_level', (l) => l.cefrLevel ?? 'A1'], ['duration_minutes', (l) => num(l.durationMinutes, 60)],
       ['warm_up', (l) => l.warmUp ?? null], ['presentation', (l) => l.presentation ?? null], ['practice', (l) => l.practice ?? null],
       ['production', (l) => l.production ?? null], ['wrap_up', (l) => l.wrapUp ?? null], ['vocabulary_json', (l) => JSON.stringify(l.vocabulary ?? [])],
@@ -436,6 +491,7 @@ const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
   },
   attendanceRecords: {
     table: 'attendance_records',
+    owner: { kind: 'child', parents: (r) => ({ sql: `${cohortIsMine} AND ${studentIsMine}`, ids: [r.cohortId, r.studentId] }), rowCondition: `attendance_records.cohort_id IN (${MY_COHORTS})` },
     cols: [
       ['id', (a) => a.id], ['cohort_id', (a) => a.cohortId], ['student_id', (a) => a.studentId], ['attendance_date', (a) => a.attendanceDate],
       ['status', (a) => a.status], ['note', (a) => a.note ?? null],
@@ -443,8 +499,9 @@ const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
   },
   sessions: {
     table: 'teaching_sessions',
+    owner: { kind: 'teacher' },
     cols: [
-      ['id', (s) => s.id], ['teacher_id', (s, x) => s.teacherId ?? x.teacherId], ['cohort_id', (s) => s.cohortId], ['lesson_plan_id', (s) => s.lessonPlanId ?? null],
+      ['id', (s) => s.id], ['teacher_id', (_r, x) => x.teacherId], ['cohort_id', (s) => s.cohortId], ['lesson_plan_id', (s) => s.lessonPlanId ?? null],
       ['session_date', (s) => s.sessionDate], ['start_time', (s) => s.startTime ?? '00:00'], ['duration_minutes', (s) => num(s.durationMinutes, 60)],
       ['hourly_rate', (s) => num(s.hourlyRate, 0)], ['total_claim_amount', (s) => num(s.totalClaimAmount, 0)], ['status', (s) => s.status ?? 'completed'],
       ['scratchpad_notes', (s) => s.scratchpadNotes ?? null],
@@ -452,8 +509,9 @@ const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
   },
   claims: {
     table: 'teaching_claims',
+    owner: { kind: 'teacher' },
     cols: [
-      ['id', (c) => c.id], ['teacher_id', (c, x) => c.teacherId ?? x.teacherId], ['claim_period', (c) => c.claimPeriod], ['claim_number', (c) => c.claimNumber ?? null],
+      ['id', (c) => c.id], ['teacher_id', (_r, x) => x.teacherId], ['claim_period', (c) => c.claimPeriod], ['claim_number', (c) => c.claimNumber ?? null],
       ['total_sessions', (c) => num(c.totalSessions, 0)], ['total_hours', (c) => num(c.totalHours, 0)], ['base_amount', (c) => num(c.baseAmount, 0)],
       ['allowance_amount', (c) => num(c.allowanceAmount, 0)], ['total_claim_amount', (c) => num(c.totalClaimAmount, 0)], ['currency', (c) => c.currency ?? 'IDR'],
       ['status', (c) => c.status ?? 'draft'], ['submitted_at', (c) => c.submittedAt ?? null], ['paid_at', (c) => c.paidAt ?? null], ['notes', (c) => c.notes ?? null],
@@ -461,6 +519,7 @@ const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
   },
   studentEvaluations: {
     table: 'student_milestone_evaluations',
+    owner: { kind: 'child', parents: (r) => ({ sql: studentIsMine, ids: [r.studentId] }), rowCondition: `student_milestone_evaluations.student_id IN (${MY_STUDENTS})` },
     cols: [
       ['id', (e) => e.id], ['student_id', (e) => e.studentId], ['milestone_id', (e) => e.milestoneId], ['competency_score', (e) => e.competencyScore],
       ['evaluated_at', (e) => e.evaluatedAt ?? new Date().toISOString()], ['teacher_notes', (e) => e.teacherNotes ?? null],
@@ -468,6 +527,7 @@ const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
   },
   parentReports: {
     table: 'parent_reports',
+    owner: { kind: 'child', parents: (r) => ({ sql: `${cohortIsMine} AND ${studentIsMine}`, ids: [r.cohortId, r.studentId] }), rowCondition: `parent_reports.cohort_id IN (${MY_COHORTS})` },
     cols: [
       ['id', (r) => r.id], ['student_id', (r) => r.studentId], ['cohort_id', (r) => r.cohortId], ['report_period', (r) => r.reportPeriod],
       ['attendance_rate', (r) => num(r.attendanceRate, 0)], ['total_sessions_count', (r) => num(r.totalSessionsCount, 0)], ['present_count', (r) => num(r.presentCount, 0)],
@@ -477,8 +537,9 @@ const UPSERTS: Record<string, { table: string; cols: ColSpec[] }> = {
   },
   tasks: {
     table: 'tasks',
+    owner: { kind: 'teacher' },
     cols: [
-      ['id', (t) => t.id], ['teacher_id', (t, x) => t.teacherId ?? x.teacherId], ['cohort_id', (t) => t.cohortId || null], ['title', (t) => t.title],
+      ['id', (t) => t.id], ['teacher_id', (_r, x) => x.teacherId], ['cohort_id', (t) => t.cohortId || null], ['title', (t) => t.title],
       ['priority', (t) => t.priority ?? 'medium'], ['due_date', (t) => t.dueDate || null], ['deadline_type', (t) => t.deadlineType ?? 'date'],
       ['due_lesson_label', (t) => t.dueLessonLabel ?? null], ['is_completed', (t) => (t.isCompleted ? 1 : 0)], ['completed_at', (t) => t.completedAt ?? null],
     ],
@@ -503,9 +564,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
   }
 
   try {
+    const who = await resolveTeacher(env, request);
+    if ('response' in who) return who.response;
     const db = env.DB;
     const now = new Date().toISOString(); // one clock for the whole request
-    const ctx = { teacherId: (payload.teacher?.id as string) || 'teacher-1' };
+    // The browser never decides who owns a row: this is always the signed-in teacher.
+    const ctx = { teacherId: who.me.id };
     const statements: D1PreparedStatement[] = [];
     const kinds: ('upsert' | 'delete' | 'other')[] = [];
     const add = (kind: 'upsert' | 'delete' | 'other', sql: string, ...values: unknown[]) => {
@@ -525,29 +589,29 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
         add(
           'delete',
           `UPDATE ${table} SET deleted_at = ?, updated_at = ?, client_updated_at = ?
-             WHERE id IN (${chunk.map(() => '?').join(',')}) AND COALESCE(client_updated_at, '') <= ?`,
-          now, now, at, ...chunk.map((e) => e.id), at
+             WHERE id IN (${chunk.map(() => '?').join(',')}) AND COALESCE(client_updated_at, '') <= ?
+               AND ${SCOPE[table]}`,
+          now, now, at, ...chunk.map((e) => e.id), at, ctx.teacherId
         );
       }
     }
 
-    // 1. Teacher profile (single row; always last-write)
+    // 1. Teacher profile: only the signed-in teacher's own row. The login decides id and email; the
+    //    browser may change the display name, school, rate, currency and language.
     if (payload.teacher) {
       const t = payload.teacher;
       add(
         'other',
-        `INSERT INTO teachers (id, email, name, school_name, default_hourly_rate, currency, language_preference, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           email = excluded.email, name = excluded.name, school_name = excluded.school_name,
-           default_hourly_rate = excluded.default_hourly_rate, currency = excluded.currency,
-           language_preference = excluded.language_preference, updated_at = excluded.updated_at`,
-        ctx.teacherId, t.email ?? 'teacher@classque.edu', t.name ?? 'Educator', t.schoolName ?? null,
-        num(t.defaultHourlyRate, 150000), t.currency ?? 'IDR', t.languagePreference ?? 'id', now
+        `UPDATE teachers SET name = ?, school_name = ?, default_hourly_rate = ?, currency = ?,
+           language_preference = ?, updated_at = ?
+         WHERE id = ?`,
+        t.name || who.me.name, t.schoolName ?? null, num(t.defaultHourlyRate, 150000), t.currency ?? 'IDR',
+        t.languagePreference === 'en' ? 'en' : 'id', now, ctx.teacherId
       );
     }
 
-    // 2. Entities: generic per-record last-write-wins upsert (also revives a soft-deleted row when newer)
+    // 2. Entities: generic per-record last-write-wins upsert (also revives a soft-deleted row when newer),
+    //    guarded so it can only create or change rows the signed-in teacher owns (see `Ownership`).
     for (const [key, spec] of Object.entries(UPSERTS)) {
       for (const rec of payload[key] || []) {
         const cols = spec.cols.map(([c]) => c);
@@ -555,15 +619,31 @@ export const onRequestPost: PagesFunction<Env> = async ({ env, request }) => {
         const clientTs = (rec.updatedAt as string) || '1970-01-01T00:00:00.000Z';
         const all = [...cols, 'client_updated_at', 'updated_at'];
         const setCols = cols.filter((c) => c !== 'id');
-        add(
-          'upsert',
-          `INSERT INTO ${spec.table} (${all.join(', ')}) VALUES (${all.map(() => '?').join(', ')})
-           ON CONFLICT(id) DO UPDATE SET
+        const values = [...spec.cols.map(([, get]) => get(rec, ctx)), clientTs, now];
+        const lww = `COALESCE(${spec.table}.client_updated_at, '') <= excluded.client_updated_at`;
+        const update = `DO UPDATE SET
              ${setCols.map((c) => `${c} = excluded.${c}`).join(', ')},
-             client_updated_at = excluded.client_updated_at, updated_at = excluded.updated_at, deleted_at = NULL
-           WHERE COALESCE(${spec.table}.client_updated_at, '') <= excluded.client_updated_at`,
-          ...spec.cols.map(([, get]) => get(rec, ctx)), clientTs, now
-        );
+             client_updated_at = excluded.client_updated_at, updated_at = excluded.updated_at, deleted_at = NULL`;
+        if (spec.owner.kind === 'teacher') {
+          add(
+            'upsert',
+            `INSERT INTO ${spec.table} (${all.join(', ')}) VALUES (${all.map(() => '?').join(', ')})
+             ON CONFLICT(id) ${update}
+             WHERE ${lww} AND ${spec.table}.teacher_id = excluded.teacher_id`,
+            ...values
+          );
+        } else {
+          const parents = spec.owner.parents(rec);
+          // SQLite needs a WHERE on an INSERT ... SELECT that has an upsert clause; the parent check is it.
+          add(
+            'upsert',
+            `INSERT INTO ${spec.table} (${all.join(', ')}) SELECT ${all.map(() => '?').join(', ')}
+             WHERE ${parents.sql}
+             ON CONFLICT(id) ${update}
+             WHERE ${lww} AND ${spec.owner.rowCondition}`,
+            ...values, ...parents.ids.flatMap((id) => [id, ctx.teacherId]), ctx.teacherId
+          );
+        }
       }
     }
 
