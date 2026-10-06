@@ -12,6 +12,7 @@ import {
 } from './seedData';
 import { getCookie, setCookie, COOKIE_KEYS } from '../utils/cookies';
 import { newId } from '../utils/id';
+import { getStorageKey, getIdentity, ensureVerified } from '../utils/identity';
 
 interface TeacherState {
   // Navigation
@@ -116,7 +117,9 @@ interface TeacherState {
   removeToast: (id: string) => void;
 }
 
-const STORAGE_KEY = 'classque_teacher_os_v1';
+// Per-teacher local-first buffer. initIdentity() must resolve before this module loads
+// (see main.tsx), so the key already points at the signed-in teacher's own data.
+const STORAGE_KEY = getStorageKey();
 
 const getSavedState = () => {
   try {
@@ -248,7 +251,11 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
     persistState(get());
   },
 
-  teacher: saved?.teacher ? { ...defaultTeacher, ...saved.teacher } : defaultTeacher,
+  teacher: {
+    ...defaultTeacher,
+    email: getIdentity().email ?? defaultTeacher.email,
+    ...(saved?.teacher || {}),
+  },
   updateTeacher: (data) => {
     set((state) => ({ teacher: { ...state.teacher, ...data } }));
     commitMutation(set, get);
@@ -552,6 +559,11 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
 
   fetchDatabaseFromEdge: async () => {
     try {
+      // Never talk to the edge unless the server confirms this buffer's owner is signed in.
+      if (!(await ensureVerified())) {
+        set({ isSyncingWithEdge: false, isEdgeConnected: false });
+        return false;
+      }
       set({ isSyncingWithEdge: true });
       const current = get();
       // If we have unsynced changes from an offline session, push them to D1 first!
@@ -601,6 +613,11 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
 
   syncDatabaseToEdge: async () => {
     try {
+      // Never push this buffer unless the server confirms its owner is signed in.
+      if (!(await ensureVerified())) {
+        set({ isSyncingWithEdge: false, isEdgeConnected: false });
+        return false;
+      }
       set({ isSyncingWithEdge: true });
       const state = get();
       const payload = {
