@@ -28,3 +28,10 @@ migrations_dir = "./migrations"
 [vars]
 ENVIRONMENT = "production"
 APP_NAME = "ClassQue-TeachAssist"
+
+# Cloudflare Access login (multi-user by email).
+# Set these in the Pages dashboard for production; see plans-tasks/15.
+# CF_ACCESS_TEAM_DOMAIN = "yourteam.cloudflareaccess.com"
+# CF_ACCESS_AUD = "YOUR_ACCESS_APPLICATION_AUD_TAG"
+# Local dev only (used when CF_ACCESS_AUD is not set):
+# DEV_USER_EMAIL = "you@example.com"
