@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Phone, Mail, Sparkles, TrendingUp, FileText } from 'lucide-react';
 import { Student } from '../../types';
 import { useTeacherStore } from '../../store/useTeacherStore';
+import { newId } from '../../utils/id';
 
 interface StudentModalProps {
   isOpen: boolean;
@@ -88,7 +89,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
       addToast(language === 'id' ? 'Data siswa berhasil diperbarui!' : 'Student profile updated successfully!', 'success');
     } else {
       const newStudent: Student = {
-        id: `student-${Date.now()}`,
+        id: newId('student'),
         cohortId,
         fullName: fullName.trim(),
         nickname: (nickname.trim() || fullName.trim().split(' ')[0]) || 'Siswa',

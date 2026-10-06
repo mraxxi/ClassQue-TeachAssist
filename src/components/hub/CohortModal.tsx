@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Users, Clock, MapPin, Award, DollarSign } from 'lucide-react';
 import { Cohort, CEFRLevel } from '../../types';
 import { useTeacherStore } from '../../store/useTeacherStore';
+import { newId } from '../../utils/id';
 
 interface CohortModalProps {
   isOpen: boolean;
@@ -93,7 +94,7 @@ export const CohortModal: React.FC<CohortModalProps> = ({
       addToast(language === 'id' ? 'Kelas berhasil diperbarui!' : 'Cohort updated successfully!', 'success');
     } else {
       const newCohort: Cohort = {
-        id: `cohort-${Date.now()}`,
+        id: newId('cohort'),
         teacherId: teacher.id,
         name: name.trim(),
         cefrLevel,

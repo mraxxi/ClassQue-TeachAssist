@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
+import { newId } from '../../utils/id';
 import { TaskItem, TaskPriority } from '../../types';
 
 export const UrgentTasksCard: React.FC = () => {
@@ -71,7 +72,7 @@ export const UrgentTasksCard: React.FC = () => {
     }
 
     const newTask: TaskItem = {
-      id: `task-${Date.now()}`,
+      id: newId('task'),
       teacherId: teacher.id,
       cohortId: deadlineMode === 'lesson' ? selectedCohort?.id : undefined,
       title: newTitle.trim(),

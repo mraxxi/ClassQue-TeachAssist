@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
+import { newId } from '../../utils/id';
 import { TeachingSession, ClaimStatus, ParentReport, CompetencyScore } from '../../types';
 import { ManualSessionModal } from './ManualSessionModal';
 import { ClaimInvoiceModal } from './ClaimInvoiceModal';
@@ -140,7 +141,7 @@ _${teacher.schoolName || 'ClassQue Academy'}_`;
   const handleSaveParentReport = () => {
     if (!selectedStudent) return;
     const newReport: ParentReport = {
-      id: `rep_${Date.now()}`,
+      id: newId('rep'),
       studentId: selectedStudent.id,
       cohortId: selectedStudent.cohortId,
       reportPeriod: selectedMonth,

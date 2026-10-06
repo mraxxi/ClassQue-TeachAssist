@@ -11,6 +11,7 @@ import {
   initialSessions, initialClaims 
 } from './seedData';
 import { getCookie, setCookie, COOKIE_KEYS } from '../utils/cookies';
+import { newId } from '../utils/id';
 
 interface TeacherState {
   // Navigation
@@ -331,7 +332,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
         return { attendanceRecords: updated };
       }
       const newRecord: AttendanceRecord = {
-        id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        id: newId('att'),
         cohortId,
         studentId,
         attendanceDate: date,
@@ -354,7 +355,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
           currentRecords[existingIdx] = { ...currentRecords[existingIdx], status: 'present' };
         } else {
           currentRecords.push({
-            id: `att_${Date.now()}_${student.id}`,
+            id: newId('att'),
             cohortId,
             studentId: student.id,
             attendanceDate: date,
@@ -396,7 +397,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
     const minutes = String(now.getMinutes()).padStart(2, '0');
 
     const newSession: TeachingSession = {
-      id: `session_${Date.now()}`,
+      id: newId('session'),
       teacherId: teacher.id,
       cohortId: activeSessionCohortId || cohorts[0]?.id || 'cohort-1',
       sessionDate: todayStr,
@@ -451,7 +452,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
     if (!target) return;
     const copy: LessonPlan = {
       ...target,
-      id: `lp_${Date.now()}`,
+      id: newId('lp'),
       title: `${target.title} (Copy)`,
     };
     set((state) => ({
@@ -495,7 +496,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
         return { studentEvaluations: updated };
       }
       const newEval: StudentMilestoneEvaluation = {
-        id: `eval_${Date.now()}`,
+        id: newId('eval'),
         studentId,
         milestoneId,
         competencyScore: score,

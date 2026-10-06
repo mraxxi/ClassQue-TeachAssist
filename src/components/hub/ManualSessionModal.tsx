@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Clock, Calendar, DollarSign, Plus } from 'lucide-react';
 import { TeachingSession, Cohort } from '../../types';
 import { useTeacherStore } from '../../store/useTeacherStore';
+import { newId } from '../../utils/id';
 
 interface ManualSessionModalProps {
   isOpen: boolean;
@@ -47,7 +48,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
     const endTimeStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
 
     const newSession: TeachingSession = {
-      id: `sess-${Date.now()}`,
+      id: newId('sess'),
       teacherId: teacher.id,
       cohortId,
       sessionDate,
