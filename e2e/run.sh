@@ -64,7 +64,7 @@ for f in e2e/tests/*.test.mjs; do
   login=with; head -1 "$f" | grep -q "e2e: no-login" && login=without
   echo; echo "== $name ($login login)"
   start_server $login "${f%.test.mjs}.seed.sql"
-  E2E_BASE="http://localhost:$PORT" E2E_USER_EMAIL="$USER_EMAIL" E2E_STATE="$STATE" E2E_DB="$DB_NAME" node "$f" || FAILED+=("$name")
+  E2E_BASE="http://localhost:$PORT" E2E_USER_EMAIL="$USER_EMAIL" E2E_STATE="$STATE" E2E_DB="$DB_NAME" timeout "${E2E_FILE_TIMEOUT:-420}" node "$f" || FAILED+=("$name")
 done
 stop_server
 echo
