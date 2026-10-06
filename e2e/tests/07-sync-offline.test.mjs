@@ -69,12 +69,12 @@ check('11.7 pull brings D1-only changes into the app', (await store(p)).tasks.so
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 check('11.8 Esc closes the diagnostics modal', !(await txt(p, 'body')).includes('Diagnostik Cloudflare D1'));
 
-// the modal must be a centred overlay over the whole viewport, even when opened from the (blurred, scrolling) sidebar
-await p.locator('aside button[title*="Diagnostik"], aside button[title*="sinkron" i], aside button[title*="sync" i], aside button[title*="diagnostics" i]').first().click(); await p.waitForTimeout(600);
+// the modal must be a centred overlay over the whole viewport when opened from the (blurred, sticky) top bar
+await p.locator('header button[title*="Diagnostik"], header button[title*="sinkron" i], header button[title*="sync" i], header button[title*="diagnostics" i]').first().click(); await p.waitForTimeout(600);
 const box = await p.locator('[role=dialog], div.fixed:has-text("Diagnostik Cloudflare D1")').last().boundingBox();
 const panel = await p.locator('div.fixed:has-text("Diagnostik Cloudflare D1") > div').first().boundingBox();
 const vp = p.viewportSize();
-check('11.9 opened from the SIDEBAR badge the diagnostics modal is a centred overlay, not trapped in the sidebar', box.width >= vp.width - 2 && panel.width > 400 && panel.x > 200 && Math.abs(panel.x + panel.width / 2 - vp.width / 2) < 40, JSON.stringify({ box, panel }));
+check('11.9 opened from the TOP BAR badge the diagnostics modal is a centred overlay, not trapped in the header', box.width >= vp.width - 2 && panel.width > 400 && panel.x > 200 && Math.abs(panel.x + panel.width / 2 - vp.width / 2) < 40, JSON.stringify({ box, panel }));
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 
 // ============================ Stage 14: offline brownout ============================
@@ -109,8 +109,9 @@ const w0 = (await p.locator('aside').first().boundingBox()).width;
 await p.locator('aside button').first().click(); await p.waitForTimeout(500);
 const w1 = (await p.locator('aside').first().boundingBox()).width; c = await ck();
 check('12.2 sidebar collapses and writes cq_sidebar_expanded=false', w1 < w0 && c.cq_sidebar_expanded?.value === 'false', `${w0}->${w1}`);
-const badge = p.locator('aside button[title*="Diagnostik"], aside button[title*="sinkron" i], aside button[title*="sync" i], aside button[title*="diagnostics" i]').first();
-check('15.BUG-07 sync status stays visible in the collapsed sidebar', (await badge.boundingBox())?.width > 10);
+const badge = p.locator('header button[title*="Diagnostik"], header button[title*="sinkron" i], header button[title*="sync" i], header button[title*="diagnostics" i]').first();
+check('15.BUG-07 sync status stays visible (top bar) while the sidebar is collapsed', (await badge.boundingBox())?.width > 10);
+check('18.2a the sync badge is shown once: none in the sidebar', (await p.locator('aside button[title*="Diagnostik"], aside button[title*="sinkron" i], aside button[title*="sync" i], aside button[title*="diagnostics" i]').count()) === 0);
 await p.reload(); await p.waitForTimeout(2500);
 check('12.3 language + collapsed state restored from cookies', (await p.locator('aside').first().boundingBox()).width === w1 && /Today|Hours/i.test(await txt(p, 'main')));
 await ctx.addCookies([{ name: 'cq_lang', value: 'id', url: 'http://localhost:8789' }]); await p.reload(); await p.waitForTimeout(2000);
