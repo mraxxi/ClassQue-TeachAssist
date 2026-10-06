@@ -30,7 +30,7 @@ ENVIRONMENT = "production"
 APP_NAME = "ClassQue-TeachAssist"
 
 # Cloudflare Access login (multi-user by email). Set these in the Pages dashboard for production;
-# see docs/CLOUDFLARE_SETUP.md section 7. They sit next to SYNC_TOKEN, which is still required.
+# see docs/CLOUDFLARE_SETUP.md section 7. They are the only protection of the API.
 # CF_ACCESS_TEAM_DOMAIN = "yourteam.cloudflareaccess.com"
 # CF_ACCESS_AUD = "YOUR_ACCESS_APPLICATION_AUD_TAG"
 # Local dev only (use .dev.vars; ignored when CF_ACCESS_AUD is set):

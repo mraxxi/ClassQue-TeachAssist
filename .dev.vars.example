@@ -1,4 +1,3 @@
-SYNC_TOKEN=change-me-to-a-long-random-string
 # Who you are locally. Cloudflare Access is not in front of `wrangler pages dev`, so this stands in for the
 # login. It is ignored as soon as CF_ACCESS_AUD is set. Never set it in production.
 DEV_USER_EMAIL=you@example.com

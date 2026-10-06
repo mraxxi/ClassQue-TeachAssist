@@ -1,4 +1,4 @@
-// Stage 08 + W2/W3 — JSON backup/restore, malformed files, reload-from-D1, sync token UX.
+// Stage 08 + W2/W3 — JSON backup/restore, malformed files, reload-from-D1, signed-out UX.
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -17,7 +17,6 @@ const name = dl.suggestedFilename(); const exported = path.join(tmp, 'export.jso
 const bk = JSON.parse(fs.readFileSync(exported, 'utf8'));
 check('8.1 export file name is classque_backup_<LOCAL date>.json', name === 'classque_backup_2026-09-06.json', name);
 check('8.1b backup contains every entity type', ['teacher', 'cohorts', 'students', 'attendanceRecords', 'lessonPlans', 'tasks', 'sessions', 'claims', 'studentEvaluations', 'parentReports', 'cefrMilestones'].every((k) => k in bk), Object.keys(bk).join());
-check('8.1c the sync token is NEVER written to a backup', !fs.readFileSync(exported, 'utf8').includes('e2e-token'));
 check('8.1d storage label is honest (localStorage, not IndexedDB)', /localStorage/.test(await txt(p, 'main')) && !/IndexedDB/.test(await txt(p, 'main')));
 
 // ============================ restore round-trip ============================
@@ -84,26 +83,19 @@ s = await store(p);
 check('8.7c local unsynced edit is discarded and the D1-only record appears', !s.tasks.some((t) => t.title === 'LOCAL ONLY unsynced') && s.tasks.some((t) => t.id === 'd1-only-task') && s.hasUnsyncedChanges === false, s.tasks.map((t) => t.title).join('|'));
 check('8.7d honest success message (no fake "reset to demo")', !/data percontohan|demo/i.test(await txt(p, 'body')));
 
-// ============================ sync token UX (F36) ============================
+// ============================ signed-out UX (F36) ============================
 await browser.close();
-({ browser, p } = await open({ token: null }));
-check('A5 without a token the badge says a token is needed', /Perlu Token/.test(await txt(p, 'header')), await txt(p, 'header'));
-await p.click('header button:has-text("Perlu Token")'); await p.waitForTimeout(500);
-check('A5b diagnostics explains how to fix it', /Token sinkronisasi belum diisi/.test(await txt(p, 'body')));
+({ browser, p } = await open({ signedOut: true }));
+check('A5 when not signed in the badge says a sign-in is needed', /Perlu Masuk/.test(await txt(p, 'header')), await txt(p, 'header'));
+await p.click('header button:has-text("Perlu Masuk")'); await p.waitForTimeout(500);
+check('A5b diagnostics explains how to fix it', /Belum masuk/.test(await txt(p, 'body')));
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
-await p.fill('input[placeholder^="Tambah tugas"]', 'works offline without token'); await p.click('main button[type=submit]:has-text("Tambah")'); await p.waitForTimeout(2200);
+await p.fill('input[placeholder^="Tambah tugas"]', 'works offline when signed out'); await p.click('main button[type=submit]:has-text("Tambah")'); await p.waitForTimeout(2200);
 s = await store(p);
-check('A6 the app still works locally without a token (local-first)', s.tasks.some((t) => t.title === 'works offline without token') && s.hasUnsyncedChanges === true);
+check('A6 the app still works locally when not signed in (local-first)', s.tasks.some((t) => t.title === 'works offline when signed out') && s.hasUnsyncedChanges === true);
 await goto.settings(p); await p.waitForTimeout(300);
-check('A7 settings shows "Token belum diisi"', /Token belum diisi/.test(await txt(p, 'main')));
-await p.fill('input[type=password]', 'definitely-wrong'); await p.click('main button:has-text("Simpan Token")'); await p.waitForTimeout(1500);
-check('A8 a wrong token is reported as rejected', /Token ditolak/.test(await txt(p, 'main')), (await txt(p, 'main')).match(/Cloudflare D1 Edge \| [^|]*/)?.[0]);
-check('A8b badge reflects the rejected token', /Token Ditolak/.test(await txt(p, 'header')));
-await p.fill('input[type=password]', 'e2e-token'); await p.click('main button:has-text("Simpan Token")'); await p.waitForTimeout(3500);
-// A new device was a guest until now: confirming the login reloads the page into the teacher's own buffer (the guest work moves with it).
-await p.waitForLoadState('load'); await p.waitForTimeout(3500); await goto.settings(p); await p.waitForTimeout(500);
-s = await store(p);
-check('A9 correct token -> connected and the pending local edit is pushed to D1', /Terhubung/.test(await txt(p, 'main')) && (await api()).json.data.tasks.some((t) => t.title === 'works offline without token') && s.hasUnsyncedChanges === false);
+check('A7 settings shows "Belum masuk"', /Belum masuk/.test(await txt(p, 'main')));
+check('A8 no sync token field exists any more', (await p.locator('input[type=password]').count()) === 0);
 check('A10 no page errors', p.errs.length === 0, p.errs.join(' | '));
 await browser.close();
 done();

@@ -78,25 +78,10 @@ npx wrangler pages dev ./dist --d1 DB=classque_db --port 8788
 
 ---
 
-## 5. Edge API Authentication (`SYNC_TOKEN`) — required
+## 5. Edge API Authentication — Cloudflare Access login
 
-`/api/sync` holds student and guardian data, so it is protected by a shared secret and **fails closed**
-(`503 unconfigured` until the secret exists).
-
-```bash
-# 1. Generate a long random token
-openssl rand -base64 32
-
-# 2. Store it as a Pages secret (production). Redeploy is not needed; secrets apply to new requests.
-npx wrangler pages secret put SYNC_TOKEN --project-name classque-teachassist
-
-# 3. Local development: copy .dev.vars.example to .dev.vars (git-ignored) and paste the same value
-cp .dev.vars.example .dev.vars
-```
-
-Then open the app → **Settings → Cloudflare D1 Edge & Offline Engine → Sync Token**, paste the token and press
-*Save Token*. Each device you use needs the token once. Until it is entered the app works fully offline and the sync
-badge reads **Perlu Token / Token Needed**; a wrong token reads **Token Ditolak / Token Rejected**.
+`/api/*` holds student and guardian data, so it needs a signed-in teacher and **fails closed** (`401` without a valid
+login). The old shared `SYNC_TOKEN` is gone: there is nothing to paste into the app. Setup is in section 7.
 
 ## 6. Testing
 
@@ -111,8 +96,8 @@ Requires a Chromium binary (`CHROMIUM=/path/to/chromium`, default `/usr/bin/chro
 
 Several teachers can share one deployment. **Cloudflare Access** (Zero Trust) puts the login page in front of the
 site and attaches a signed token to every request; the API verifies it and uses the email inside to pick that
-teacher's own data. ClassQue stores no passwords and sends no emails itself. **The sync token from section 5 stays**:
-a request needs both the `SYNC_TOKEN` and a valid login.
+teacher's own data. ClassQue stores no passwords and sends no emails itself. This login is the only protection of
+the API (the old `SYNC_TOKEN` was removed), so **set it up before deploying**.
 
 ### Step 1: Create one Access application for the whole site
 1. **Zero Trust** -> **Access controls** -> **Applications** -> **Add an application** -> **Self-hosted**.

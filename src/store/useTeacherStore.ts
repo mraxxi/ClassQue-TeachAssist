@@ -9,7 +9,7 @@ import { defaultTeacher } from './seedData';
 import { getCookie, setCookie, COOKIE_KEYS } from '../utils/cookies';
 import { addMinutesToTime, localDateStr, localTimeStr } from '../utils/date';
 import { generateDynamicNotifications, mergeNotifications } from '../utils/notifications';
-import { getSyncToken, syncHeaders, type SyncAuthStatus } from '../utils/syncAuth';
+import type { SyncAuthStatus } from '../utils/syncAuth';
 import { validateBackup } from '../utils/backup';
 import { newId } from '../utils/id';
 import { ensureVerified, getIdentity, getStorageKey, type VerifyResult } from '../utils/identity';
@@ -267,7 +267,7 @@ export const scheduleAutoSync = (delayMs = 1500) => {
     if (!store.hasUnsyncedChanges) return;
     const ok = await store.syncDatabaseToEdge();
     const after = useTeacherStore.getState();
-    if (!ok && after.syncAuthStatus !== 'missing' && after.syncAuthStatus !== 'rejected' && after.syncAuthStatus !== 'unconfigured' && after.syncAuthStatus !== 'unbound' && after.syncAuthStatus !== 'unauthenticated') {
+    if (!ok && after.syncAuthStatus !== 'unconfigured' && after.syncAuthStatus !== 'unbound' && after.syncAuthStatus !== 'unauthenticated') {
       // transient failure: retry with capped backoff
       scheduleAutoSync(retryDelayMs);
       retryDelayMs = Math.min(retryDelayMs * 2, 10 * 60_000);
@@ -420,16 +420,16 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
   };
 
   /**
-   * Maps a failed sync response to a status. A 401 is either "not signed in" (`unauthenticated`: no Access login)
-   * or a wrong SYNC_TOKEN (`rejected`); a 503 is either a missing SYNC_TOKEN ('unconfigured') or a missing D1
-   * binding ('unbound'). The body's `status` says which.
+   * Maps a failed sync response to a status. A 401 means no valid Access login ('unauthenticated'); a 503 is either a
+   * missing D1 binding ('unbound') or another server problem ('unconfigured'). The body's `status` says which.
    */
   const classifyFailure = async (res: Response) => {
     const off = { isSyncingWithEdge: false, isEdgeConnected: false };
-    const body = res.status === 401 || res.status === 503 ? ((await res.json().catch(() => null)) as { status?: string } | null) : null;
-    if (res.status === 401) set({ syncAuthStatus: body?.status === 'unauthenticated' ? 'unauthenticated' : 'rejected', ...off });
-    else if (res.status === 503) set({ syncAuthStatus: body?.status === 'unbound' ? 'unbound' : 'unconfigured', ...off });
-    else set(off);
+    if (res.status === 401) set({ syncAuthStatus: 'unauthenticated', ...off });
+    else if (res.status === 503) {
+      const body = (await res.json().catch(() => null)) as { status?: string } | null;
+      set({ syncAuthStatus: body?.status === 'unbound' ? 'unbound' : 'unconfigured', ...off });
+    } else set(off);
   };
 
   /**
@@ -895,7 +895,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     // ---- Sync ------------------------------------------------------------------------------
     isSyncingWithEdge: false,
     isEdgeConnected: false,
-    syncAuthStatus: (getSyncToken() ? 'unknown' : 'missing') as SyncAuthStatus,
+    syncAuthStatus: 'unknown' as SyncAuthStatus,
     hasUnsyncedChanges: Boolean(saved?.hasUnsyncedChanges),
     lastLocalMutationAt: saved?.lastLocalMutationAt || null,
     lastSyncedAt: saved?.lastSyncedAt || null,
@@ -907,10 +907,6 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     syncDatabaseToEdge: () => {
       if (syncInFlight) return syncInFlight;
       syncInFlight = (async () => {
-        if (!getSyncToken()) {
-          set({ syncAuthStatus: 'missing', isEdgeConnected: false });
-          return false;
-        }
         try {
           if (!(await verifyIdentity())) return false;
           set({ isSyncingWithEdge: true });
@@ -923,7 +919,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
           const changed = <T extends { id: string }>(list: T[]): T[] => (full ? list : list.filter((x) => sentDirty[x.id] !== undefined));
           const res = await fetch('/api/sync', {
             method: 'POST',
-            headers: syncHeaders({ 'Content-Type': 'application/json' }),
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               teacher: state.teacher,
               cohorts: changed(state.cohorts),
@@ -979,10 +975,6 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     },
 
     fetchDatabaseFromEdge: async () => {
-      if (!getSyncToken()) {
-        set({ syncAuthStatus: 'missing', isEdgeConnected: false });
-        return false;
-      }
       try {
         if (!(await verifyIdentity())) return false;
         // Unsynced local edits always win: push them first, never pull over them.
@@ -994,7 +986,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
         const cursor = get().syncCursor;
         // 2 s of overlap absorbs clock differences between Worker instances; re-delivered rows merge idempotently.
         const since = cursor ? new Date(Date.parse(cursor) - 2000).toISOString() : null;
-        const res = await fetch(since ? `/api/sync?since=${encodeURIComponent(since)}` : '/api/sync', { headers: syncHeaders() });
+        const res = await fetch(since ? `/api/sync?since=${encodeURIComponent(since)}` : '/api/sync');
         if (!res.ok) {
           await classifyFailure(res);
           return false;
@@ -1032,14 +1024,10 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     },
 
     reloadFromEdge: async () => {
-      if (!getSyncToken()) {
-        set({ syncAuthStatus: 'missing', isEdgeConnected: false });
-        return false;
-      }
       try {
         if (!(await verifyIdentity())) return false;
         set({ isSyncingWithEdge: true });
-        const res = await fetch('/api/sync', { headers: syncHeaders() });
+        const res = await fetch('/api/sync');
         if (!res.ok) {
           await classifyFailure(res);
           return false;

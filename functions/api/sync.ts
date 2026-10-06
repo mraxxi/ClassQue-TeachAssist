@@ -1,6 +1,6 @@
 // Cloudflare Pages Function: /api/sync
 // Bidirectional D1 sync endpoint with camelCase <-> snake_case translation.
-// Authentication is enforced by ./_middleware.ts (Bearer SYNC_TOKEN).
+// Authentication: the Cloudflare Access login (see ../_lib/auth.ts); no login -> 401.
 //
 //   GET  /api/sync                  -> full dataset (+ `cursor`)
 //   GET  /api/sync?since=<cursor>   -> DELTA: only records changed after the cursor (+ `deleted` ids)

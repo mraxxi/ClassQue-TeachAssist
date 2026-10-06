@@ -1,6 +1,6 @@
 # 📋 Stage 15: Multi-User Separation by Login Email
 
-**Lifecycle Stage**: `implemented` on the Stage 18 line (delta sync, `SYNC_TOKEN`); checked locally by e2e, not deployed  
+**Lifecycle Stage**: `implemented` on the Stage 18 line (delta sync); checked locally by e2e, not deployed  
 **Target Domain**: Domain 5: Settings & Data Sync (`functions/api/sync.ts`, `src/store/useTeacherStore.ts`, `migrations/`)  
 **Ubiquitous Language**: `Teacher` (one account per login email), `Central Source of Truth` (Cloudflare D1), `Local-First Buffer`
 
@@ -16,7 +16,7 @@
 - `cohorts`, `lesson_plans`, `teaching_sessions`, `teaching_claims` and `tasks` already have `teacher_id`. `students`, `attendance_records`, `student_milestone_evaluations` and `parent_reports` belong to a teacher only through `cohort_id` / `student_id`. `cefr_milestones` is shared reference data.
 
 > **Port note.** This plan was first written against the original `master` (PR #8). It is re-applied here on top of the
-> Stage 16/17/18 code. Differences: the `SYNC_TOKEN` check stays (a request needs the token **and** a login); the scoping
+> Stage 16/17/18 code. Differences: the Access login **replaces** the shared `SYNC_TOKEN` (removed, along with its Settings field), because the owner chose "login only"; the scoping
 > is applied to the per-record last-write-wins upserts and to delta pulls; the migration is `0005_multi_user_indexes.sql`
 > (`0003`/`0004` were taken); demo data stays in migration `0002` (claimed through `LEGACY_OWNER_EMAIL`) instead of moving to `seeds/`.
 > The two sync gaps listed under "Where we are today" below (only teacher/cohort/student saved; attendance read from

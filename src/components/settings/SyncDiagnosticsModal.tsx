@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { getSyncToken, syncHeaders } from '../../utils/syncAuth';
 
 interface RemoteSummary {
   counts: Record<string, number>;
@@ -34,10 +33,9 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
   useEscapeKey(onClose, isOpen);
 
   const loadSummary = useCallback(async () => {
-    if (!getSyncToken()) return;
     const start = performance.now();
     try {
-      const res = await fetch('/api/sync?summary=1', { cache: 'no-store', headers: syncHeaders() });
+      const res = await fetch('/api/sync?summary=1', { cache: 'no-store' });
       if (!res.ok) {
         setRemote(null);
         setLatencyMs(null);
@@ -67,12 +65,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     if (ok) {
       addToast(language === 'id' ? 'Ping D1 sukses' : 'D1 ping success', 'success');
     } else {
-      addToast(
-        !getSyncToken()
-          ? (language === 'id' ? 'Isi token sinkronisasi di Pengaturan' : 'Enter the sync token in Settings')
-          : (language === 'id' ? 'Koneksi ke edge gagal' : 'Edge connection failed'),
-        'error'
-      );
+      addToast(language === 'id' ? 'Koneksi ke edge gagal' : 'Edge connection failed', 'error');
     }
   };
 
@@ -107,16 +100,12 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
   ];
 
   const authMessage =
-    syncAuthStatus === 'missing'
-      ? (language === 'id' ? 'Token sinkronisasi belum diisi (Pengaturan).' : 'Sync token not set (Settings).')
-      : syncAuthStatus === 'rejected'
-      ? (language === 'id' ? 'Server menolak token sinkronisasi.' : 'The server rejected the sync token.')
-      : syncAuthStatus === 'unauthenticated'
+    syncAuthStatus === 'unauthenticated'
       ? (language === 'id' ? 'Belum masuk. Masuk lewat Cloudflare Access untuk sinkronisasi.' : 'Not signed in. Sign in through Cloudflare Access to sync.')
       : syncAuthStatus === 'unbound'
       ? (language === 'id' ? 'Database D1 belum terhubung ke server (binding DB).' : 'The D1 database is not linked to the server (DB binding).')
       : syncAuthStatus === 'unconfigured'
-      ? (language === 'id' ? 'Server belum dikonfigurasi (SYNC_TOKEN).' : 'Server is not configured (SYNC_TOKEN).')
+      ? (language === 'id' ? 'Server belum siap (D1).' : 'The server is not ready (D1).')
       : null;
 
   const formatTime = (isoString?: string | null) => {

@@ -100,13 +100,13 @@ await browser.close();
 
 // ---- browser: work done before a login is confirmed is not lost --------------------------------------------
 {
-  const g = await open({ lang: 'en', token: null }); // new device, sync token not entered yet -> guest
+  const g = await open({ lang: 'en', signedOut: true }); // login not confirmed (e.g. Access down) -> guest
   await g.p.fill('input[placeholder^="Add a quick"]', 'Written as a guest');
   await g.p.click('main button[type=submit]:has-text("Add")');
   await g.p.waitForTimeout(500);
   const guestKeys = await g.p.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('classque_teacher_os_v1')));
   check('M22 without a confirmed login the work is kept in a guest buffer', guestKeys.join(',') === 'classque_teacher_os_v1:guest', guestKeys.join(','));
-  await g.p.evaluate((t) => localStorage.setItem('classque_sync_token', t), process.env.E2E_TOKEN || 'e2e-token');
+  await g.ctx.unroute('**/api/**'); // the login works again
   await g.p.reload();
   await g.p.waitForTimeout(3000);
   const after = await g.p.evaluate(() => ({ keys: Object.keys(localStorage).filter((k) => k.startsWith('classque_teacher_os_v1')), tasks: Object.values(localStorage).filter((v) => v.includes('Written as a guest')).length }));

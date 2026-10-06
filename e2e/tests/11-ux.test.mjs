@@ -83,7 +83,7 @@ check('U5l no page errors', p.errs.length === 0, p.errs.join(' | '));
 await browser.close();
 
 // ============================ first run: onboarding + empty states ============================
-({ browser, p } = await open({ token: null }));
+({ browser, p } = await open({ signedOut: true }));
 check('U6 first run shows the setup checklist', await p.locator('[data-testid="onboarding"]').count() === 1 && /0 dari 5 langkah/.test(await txt(p, '[data-testid="onboarding"]')), (await txt(p, '[data-testid="onboarding"]')).slice(0, 120));
 check('U6b the greeting says there are no classes (not an empty void)', /Tidak ada kelas hari ini/.test(await txt(p, '[data-testid="cockpit-sentence"]')));
 await p.click('[data-testid="onboarding"] button:has-text("Buat rombel pertama")'); await p.waitForTimeout(400);

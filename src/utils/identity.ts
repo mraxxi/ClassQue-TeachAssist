@@ -7,8 +7,6 @@
 // identity is "unverified": local edits are buffered, but nothing syncs until
 // /api/me confirms the same email again.
 
-import { syncHeaders } from './syncAuth';
-
 const LEGACY_STORAGE_KEY = 'classque_teacher_os_v1';
 const LAST_USER_KEY = 'classque_last_user';
 const GUEST_BUCKET = 'guest';
@@ -26,7 +24,7 @@ interface Identity {
 let identity: Identity = { email: null, verified: false };
 
 /** Why the server would not confirm a login (mirrors the sync badge states). */
-export type IdentityFailure = 'unauthenticated' | 'rejected' | 'unconfigured' | 'unbound' | 'unusable';
+export type IdentityFailure = 'unauthenticated' | 'unconfigured' | 'unbound' | 'unusable';
 
 type MeResult =
   | { kind: 'ok'; email: string }
@@ -36,7 +34,7 @@ type MeResult =
 /** Reads the `status` field the API puts on its 401/503/403 bodies. */
 const failureReason = async (res: Response): Promise<IdentityFailure> => {
   const body = (await res.json().catch(() => null)) as { status?: string } | null;
-  if (res.status === 401) return body?.status === 'unauthenticated' ? 'unauthenticated' : 'rejected'; // else: bad SYNC_TOKEN
+  if (res.status === 401) return 'unauthenticated';
   if (res.status === 503) return body?.status === 'unbound' ? 'unbound' : 'unconfigured';
   return 'unusable';
 };
@@ -46,8 +44,7 @@ const fetchMe = async (): Promise<MeResult> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ME_TIMEOUT_MS);
   try {
-    // /api/* also needs the sync token (see functions/api/_middleware.ts), so send it like every sync call.
-    const res = await fetch('/api/me', { cache: 'no-store', signal: controller.signal, headers: syncHeaders() });
+    const res = await fetch('/api/me', { cache: 'no-store', signal: controller.signal });
     if (!res.ok) return { kind: 'rejected', reason: await failureReason(res) };
     const body = (await res.json()) as { email?: string };
     return body?.email ? { kind: 'ok', email: body.email.trim().toLowerCase() } : { kind: 'rejected', reason: 'unusable' };

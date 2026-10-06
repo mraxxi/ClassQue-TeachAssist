@@ -7,7 +7,6 @@ import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { localDateStr } from '../../utils/date';
-import { getSyncToken, setSyncToken } from '../../utils/syncAuth';
 import { getIdentity, SIGN_OUT_URL } from '../../utils/identity';
 
 export const SettingsHub: React.FC = () => {
@@ -15,7 +14,7 @@ export const SettingsHub: React.FC = () => {
     teacher, updateTeacher, language, setLanguage, addToast,
     cohorts, students, attendanceRecords, lessonPlans, tasks, 
     sessions, claims, studentEvaluations, parentReports, cefrMilestones,
-    importFullDatabase, reloadFromEdge, syncDatabaseToEdge, fetchDatabaseFromEdge,
+    importFullDatabase, reloadFromEdge, syncDatabaseToEdge,
     syncAuthStatus, hasUnsyncedChanges, theme, setTheme,
   } = useTeacherStore();
   const t = useTranslation(language);
@@ -32,7 +31,6 @@ export const SettingsHub: React.FC = () => {
   // Backup & Reset modals & refs
   const [resetStep, setResetStep] = useState<0 | 1 | 2>(0); // double confirmation
   const [isSyncing, setIsSyncing] = useState(false);
-  const [tokenInput, setTokenInput] = useState(getSyncToken());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSave = (e: React.FormEvent) => {
@@ -141,13 +139,6 @@ export const SettingsHub: React.FC = () => {
     );
   };
 
-  const handleSaveToken = () => {
-    setSyncToken(tokenInput);
-    useTeacherStore.setState({ syncAuthStatus: tokenInput.trim() ? 'unknown' : 'missing' });
-    addToast(language === 'id' ? 'Token sinkronisasi disimpan.' : 'Sync token saved.', 'success');
-    if (tokenInput.trim()) void fetchDatabaseFromEdge();
-  };
-
   // Cloudflare D1 sync through the store (token, tombstones and flags handled there)
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -156,16 +147,12 @@ export const SettingsHub: React.FC = () => {
     setIsSyncing(false);
     if (ok) {
       addToast(language === 'id' ? 'Sinkronisasi Edge D1 berhasil.' : 'Edge D1 sync successful.', 'success');
-    } else if (status === 'missing') {
-      addToast(language === 'id' ? 'Masukkan token sinkronisasi terlebih dahulu.' : 'Enter the sync token first.', 'warning');
-    } else if (status === 'rejected') {
-      addToast(language === 'id' ? 'Token sinkronisasi ditolak server.' : 'The server rejected the sync token.', 'error');
     } else if (status === 'unauthenticated') {
       addToast(language === 'id' ? 'Belum masuk. Masuk lewat Cloudflare Access untuk sinkronisasi.' : 'Not signed in. Sign in through Cloudflare Access to sync.', 'warning');
     } else if (status === 'unbound') {
       addToast(language === 'id' ? 'Database D1 belum terhubung ke server (binding DB).' : 'The D1 database is not linked to the server (DB binding).', 'warning');
     } else if (status === 'unconfigured') {
-      addToast(language === 'id' ? 'Server belum dikonfigurasi (SYNC_TOKEN / D1).' : 'Server is not configured (SYNC_TOKEN / D1).', 'warning');
+      addToast(language === 'id' ? 'Server belum siap (D1).' : 'The server is not ready (D1).', 'warning');
     } else {
       addToast(language === 'id' ? 'Mode Offline: data aman di penyimpanan lokal dan akan disinkronkan nanti.' : 'Offline: data is safe locally and will sync later.', 'info');
     }
@@ -539,8 +526,6 @@ export const SettingsHub: React.FC = () => {
             </span>
             <span className="font-bold text-teal-300 mt-1 block text-sm" data-testid="d1-auth-status">
               {syncAuthStatus === 'ok' ? (language === 'id' ? 'Terhubung' : 'Connected')
-                : syncAuthStatus === 'missing' ? (language === 'id' ? 'Token belum diisi' : 'Token required')
-                : syncAuthStatus === 'rejected' ? (language === 'id' ? 'Token ditolak' : 'Token rejected')
                 : syncAuthStatus === 'unauthenticated' ? (language === 'id' ? 'Belum masuk' : 'Not signed in')
                 : syncAuthStatus === 'unbound' ? (language === 'id' ? 'D1 belum terhubung' : 'D1 not linked')
                 : syncAuthStatus === 'unconfigured' ? (language === 'id' ? 'Server belum diatur' : 'Server not configured')
@@ -550,26 +535,6 @@ export const SettingsHub: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-end gap-2 pt-1">
-          <label className="flex-1 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-            {language === 'id' ? 'Token Sinkronisasi (SYNC_TOKEN)' : 'Sync Token (SYNC_TOKEN)'}
-            <input
-              type="password"
-              autoComplete="off"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder={language === 'id' ? 'Tempel token dari Cloudflare...' : 'Paste the token configured in Cloudflare...'}
-              className="mt-1 w-full px-3 py-2 rounded-xl bg-stone-800 border border-stone-700 text-stone-100 text-xs font-mono normal-case tracking-normal focus:ring-2 focus:ring-teal-600 focus:outline-none"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={handleSaveToken}
-            className="px-4 py-2 rounded-xl bg-stone-700 hover:bg-stone-600 text-white text-xs font-bold cursor-pointer"
-          >
-            {language === 'id' ? 'Simpan Token' : 'Save Token'}
-          </button>
-        </div>
       </div>
 
       {/* Reload from D1: two confirmations because it discards unsynced local edits */}

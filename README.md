@@ -28,11 +28,11 @@ npm run dev
 ### Run the full stack locally (Pages Functions + D1)
 ```bash
 cp wrangler.toml.example wrangler.toml      # then set your d1 database_id
-cp .dev.vars.example .dev.vars              # SYNC_TOKEN for the edge API
+cp .dev.vars.example .dev.vars              # DEV_USER_EMAIL = who you are locally (stands in for the Access login)
 npx wrangler d1 migrations apply classque_db --local
 npm run build && npx wrangler pages dev ./dist --d1 DB=<database_id>
 ```
-Enter the same token in **Settings → Sync Token**. Without a token the app still works (offline-only).
+Without `DEV_USER_EMAIL` the API answers 401 and the app still works (offline-only).
 
 ### Test
 ```bash
@@ -45,8 +45,7 @@ npm run test:e2e        # Playwright suite, fresh local D1 per file (see e2e/REA
 # Build for production
 npm run build
 
-# One-time: protect the edge API (see docs/CLOUDFLARE_SETUP.md §5)
-npx wrangler pages secret put SYNC_TOKEN --project-name classque-teachassist
+# One-time: put Cloudflare Access (teacher login) in front of the site and API (docs/CLOUDFLARE_SETUP.md §7)
 
 # Deploy to Cloudflare Pages (Requires Wrangler authenticated)
 npm run deploy
