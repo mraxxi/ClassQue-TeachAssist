@@ -25,7 +25,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   if (!email) return unauthorizedResponse();
 
   try {
-    const me = await getOrCreateTeacher(env.DB, email);
+    const me = await getOrCreateTeacher(env.DB, email, env.LEGACY_OWNER_EMAIL);
     if (!me) {
       return new Response(
         JSON.stringify({ error: 'This account has been disabled.', status: 'disabled' }),
@@ -256,7 +256,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!email) return unauthorizedResponse();
 
   try {
-    const me = await getOrCreateTeacher(env.DB, email);
+    const me = await getOrCreateTeacher(env.DB, email, env.LEGACY_OWNER_EMAIL);
     if (!me) {
       return new Response(
         JSON.stringify({ error: 'This account has been disabled.', status: 'disabled' }),

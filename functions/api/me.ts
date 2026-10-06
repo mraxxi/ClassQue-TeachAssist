@@ -32,7 +32,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const teacher = await getOrCreateTeacher(env.DB, email);
+    const teacher = await getOrCreateTeacher(env.DB, email, env.LEGACY_OWNER_EMAIL);
     if (!teacher) return json({ error: 'This account has been disabled.', status: 'disabled' }, 403);
     return json({ email, teacher }, 200);
   } catch (error: any) {

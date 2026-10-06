@@ -1,6 +1,6 @@
 # 📋 Stage 15: Multi-User Separation by Login Email
 
-**Lifecycle Stage**: `working_on` (steps 1-6 done)  
+**Lifecycle Stage**: `working_on` (steps 1-7 done)  
 **Target Domain**: Domain 5: Settings & Data Sync (`functions/api/sync.ts`, `src/store/useTeacherStore.ts`, `migrations/`)  
 **Ubiquitous Language**: `Teacher` (one account per login email), `Central Source of Truth` (Cloudflare D1), `Local-First Buffer`
 
@@ -29,5 +29,8 @@ Alternative: our own magic-link login (store tokens in KV, send email through a 
 4. **Scope writes.** `POST /api/sync` forces `teacher_id` to the signed-in teacher and skips any row whose `id` already belongs to someone else (ownership check before upsert).
 5. **Collision-proof IDs.** Replace `Date.now()` IDs in the client with `crypto.randomUUID()`.
 6. **Per-user local buffer.** `localStorage` key includes the email (`classque_teacher_os_v1:<email>`); on login the client calls `/api/me` first, loads that user's buffer, and never pushes one user's unsynced changes under another user. Settings shows "Signed in as …" with a sign-out link (`/cdn-cgi/access/logout`).
-7. **Migration + existing data.** Migration `0003` re-assigns the current `teacher-1` rows to your real email so nothing is lost, and stops the demo seed from running in production.
+7. **Migration + existing data.** (done) No email is written into the repo and nothing is run against the live database:
+   - `LEGACY_OWNER_EMAIL` (Pages env var): the first time that email logs in, the old `teacher-1` row is renamed to it, so all existing cohorts, lessons, claims and tasks become theirs. Set it **before** the owner's first login; if their first login happens without it, they get a new empty account and the old data stays under `teacher-1` (fix: delete that empty account, set the variable, log in again). If the email typed in Settings already equals the login email, no variable is needed.
+   - `migrations/0003_multi_user_indexes.sql`: schema only (case-insensitive unique email, `teaching_sessions(teacher_id)` index).
+   - Demo data moved out of migrations into `seeds/demo_data.sql` (local development only). `migrations/0002_seed_demo_data.sql` keeps its name (D1 records applied migrations by name) but now only inserts the shared CEFR milestones, with `INSERT OR IGNORE`, so fresh databases start with no teacher.
 8. **Setup docs.** Add a Cloudflare Access section to `docs/CLOUDFLARE_SETUP.md` (create the Access application for the custom domain and `*.pages.dev`, add allowed emails, copy the team domain and AUD into Pages env vars). No deploy is part of this plan.

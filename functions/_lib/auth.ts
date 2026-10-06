@@ -6,6 +6,7 @@ export interface AuthEnv {
   CF_ACCESS_TEAM_DOMAIN?: string; // e.g. "myteam.cloudflareaccess.com"
   CF_ACCESS_AUD?: string; // Application Audience (AUD) tag
   DEV_USER_EMAIL?: string; // Only honoured when CF_ACCESS_AUD is unset
+  LEGACY_OWNER_EMAIL?: string; // Claims the pre-login 'teacher-1' data on first login
 }
 
 interface AccessJwk extends JsonWebKey {

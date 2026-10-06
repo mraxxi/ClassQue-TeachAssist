@@ -28,17 +28,45 @@ const toTeacher = (row: any): TeacherRow => ({
   languagePreference: row.language_preference === 'en' ? 'en' : 'id',
 });
 
+const LEGACY_TEACHER_ID = 'teacher-1';
+
+/**
+ * Before logins existed, all data was saved under the single placeholder teacher
+ * 'teacher-1'. The owner named in LEGACY_OWNER_EMAIL claims it the first time they
+ * sign in: that row's email becomes theirs, so every cohort, lesson and claim that
+ * points at it follows automatically. Only the configured email can claim, and only
+ * while no account exists yet for it.
+ */
+const claimLegacyTeacher = async (db: D1Database, email: string): Promise<void> => {
+  try {
+    await db
+      .prepare(
+        `UPDATE teachers SET email = ?, updated_at = datetime('now')
+         WHERE id = ? AND deleted_at IS NULL AND lower(email) != ?`
+      )
+      .bind(email, LEGACY_TEACHER_ID, email)
+      .run();
+  } catch {
+    // A concurrent first login created the row (unique email): nothing to claim.
+  }
+};
+
 /**
  * Returns the teacher for a verified email, creating the row on first login.
  * Returns null when that teacher account has been deleted.
  */
 export const getOrCreateTeacher = async (
   db: D1Database,
-  email: string
+  email: string,
+  legacyOwnerEmail?: string
 ): Promise<TeacherRow | null> => {
   const normalised = email.trim().toLowerCase();
 
   let row = await db.prepare(SELECT_BY_EMAIL).bind(normalised).first<any>();
+  if (!row && legacyOwnerEmail && legacyOwnerEmail.trim().toLowerCase() === normalised) {
+    await claimLegacyTeacher(db, normalised);
+    row = await db.prepare(SELECT_BY_EMAIL).bind(normalised).first<any>();
+  }
   if (!row) {
     // INSERT OR IGNORE: if two first requests race, the loser's insert is a no-op
     // and the re-select below returns the winner's row.
