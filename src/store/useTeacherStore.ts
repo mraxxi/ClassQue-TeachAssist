@@ -263,7 +263,7 @@ export const scheduleAutoSync = (delayMs = 1500) => {
     if (!store.hasUnsyncedChanges) return;
     const ok = await store.syncDatabaseToEdge();
     const after = useTeacherStore.getState();
-    if (!ok && after.syncAuthStatus !== 'missing' && after.syncAuthStatus !== 'rejected' && after.syncAuthStatus !== 'unconfigured') {
+    if (!ok && after.syncAuthStatus !== 'missing' && after.syncAuthStatus !== 'rejected' && after.syncAuthStatus !== 'unconfigured' && after.syncAuthStatus !== 'unbound') {
       // transient failure: retry with capped backoff
       scheduleAutoSync(retryDelayMs);
       retryDelayMs = Math.min(retryDelayMs * 2, 10 * 60_000);
@@ -415,10 +415,14 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
     persistWithLive();
   };
 
-  const classifyFailure = (status: number) => {
-    if (status === 401) set({ syncAuthStatus: 'rejected', isSyncingWithEdge: false, isEdgeConnected: false });
-    else if (status === 503) set({ syncAuthStatus: 'unconfigured', isSyncingWithEdge: false, isEdgeConnected: false });
-    else set({ isSyncingWithEdge: false, isEdgeConnected: false });
+  /** Maps a failed sync response to a status. A 503 is either a missing SYNC_TOKEN ('unconfigured') or a missing D1 binding ('unbound'); the body says which. */
+  const classifyFailure = async (res: Response) => {
+    const off = { isSyncingWithEdge: false, isEdgeConnected: false };
+    if (res.status === 401) set({ syncAuthStatus: 'rejected', ...off });
+    else if (res.status === 503) {
+      const body = (await res.json().catch(() => null)) as { status?: string } | null;
+      set({ syncAuthStatus: body?.status === 'unbound' ? 'unbound' : 'unconfigured', ...off });
+    } else set(off);
   };
 
   /** Shared body for stamping + persisting a collection mutation. */
@@ -914,7 +918,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
             }),
           });
           if (!res.ok) {
-            classifyFailure(res.status);
+            await classifyFailure(res);
             return false;
           }
           const pushResult = (await res.json().catch(() => ({}))) as { rejected?: number };
@@ -970,7 +974,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
         const since = cursor ? new Date(Date.parse(cursor) - 2000).toISOString() : null;
         const res = await fetch(since ? `/api/sync?since=${encodeURIComponent(since)}` : '/api/sync', { headers: syncHeaders() });
         if (!res.ok) {
-          classifyFailure(res.status);
+          await classifyFailure(res);
           return false;
         }
         const json = (await res.json()) as any;
@@ -1014,7 +1018,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => {
         set({ isSyncingWithEdge: true });
         const res = await fetch('/api/sync', { headers: syncHeaders() });
         if (!res.ok) {
-          classifyFailure(res.status);
+          await classifyFailure(res);
           return false;
         }
         const json = (await res.json()) as any;

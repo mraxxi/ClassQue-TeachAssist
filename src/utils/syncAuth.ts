@@ -27,4 +27,4 @@ export const syncHeaders = (extra: Record<string, string> = {}): Record<string, 
   return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
 };
 
-export type SyncAuthStatus = 'unknown' | 'ok' | 'missing' | 'rejected' | 'unconfigured';
+export type SyncAuthStatus = 'unknown' | 'ok' | 'missing' | 'rejected' | 'unconfigured' | 'unbound';

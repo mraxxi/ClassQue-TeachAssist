@@ -157,6 +157,8 @@ export const SettingsHub: React.FC = () => {
       addToast(language === 'id' ? 'Masukkan token sinkronisasi terlebih dahulu.' : 'Enter the sync token first.', 'warning');
     } else if (status === 'rejected') {
       addToast(language === 'id' ? 'Token sinkronisasi ditolak server.' : 'The server rejected the sync token.', 'error');
+    } else if (status === 'unbound') {
+      addToast(language === 'id' ? 'Database D1 belum terhubung ke server (binding DB).' : 'The D1 database is not linked to the server (DB binding).', 'warning');
     } else if (status === 'unconfigured') {
       addToast(language === 'id' ? 'Server belum dikonfigurasi (SYNC_TOKEN / D1).' : 'Server is not configured (SYNC_TOKEN / D1).', 'warning');
     } else {
@@ -501,6 +503,7 @@ export const SettingsHub: React.FC = () => {
               {syncAuthStatus === 'ok' ? (language === 'id' ? 'Terhubung' : 'Connected')
                 : syncAuthStatus === 'missing' ? (language === 'id' ? 'Token belum diisi' : 'Token required')
                 : syncAuthStatus === 'rejected' ? (language === 'id' ? 'Token ditolak' : 'Token rejected')
+                : syncAuthStatus === 'unbound' ? (language === 'id' ? 'D1 belum terhubung' : 'D1 not linked')
                 : syncAuthStatus === 'unconfigured' ? (language === 'id' ? 'Server belum diatur' : 'Server not configured')
                 : (language === 'id' ? 'Menunggu' : 'Pending')}
               {hasUnsyncedChanges ? ' • ' + (language === 'id' ? 'ada perubahan' : 'unsynced') : ''}
