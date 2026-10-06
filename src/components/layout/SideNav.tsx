@@ -6,7 +6,6 @@ import {
 import { resolveTheme } from '../../utils/theme';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation, displayTeacherName } from '../../utils/i18n';
-import { SyncStatusBadge } from './SyncStatusBadge';
 import { NotificationsPopover } from './NotificationsPopover';
 import { getCookie, setCookie, COOKIE_KEYS } from '../../utils/cookies';
 
@@ -91,7 +90,6 @@ export const SideNav: React.FC = () => {
 
         <div className="p-4 border-t border-stone-200/60 flex flex-col gap-4">
           <div className={`flex ${isExpanded ? 'flex-col items-stretch gap-3' : 'flex-col items-center gap-3'}`}>
-            <SyncStatusBadge language={language} compact={!isExpanded} />
             <div className={`flex items-center gap-2 ${isExpanded ? 'justify-between' : 'flex-col'}`}>
               <button
                 onClick={() => setLanguage(language === 'id' ? 'en' : 'id')}
