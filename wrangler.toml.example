@@ -28,3 +28,13 @@ migrations_dir = "./migrations"
 [vars]
 ENVIRONMENT = "production"
 APP_NAME = "ClassQue-TeachAssist"
+
+# Cloudflare Access login (multi-user by email). Set these in the Pages dashboard for production;
+# see docs/CLOUDFLARE_SETUP.md section 7. They sit next to SYNC_TOKEN, which is still required.
+# CF_ACCESS_TEAM_DOMAIN = "yourteam.cloudflareaccess.com"
+# CF_ACCESS_AUD = "YOUR_ACCESS_APPLICATION_AUD_TAG"
+# Local dev only (use .dev.vars; ignored when CF_ACCESS_AUD is set):
+# DEV_USER_EMAIL = "you@example.com"
+# Email of whoever owned the data saved before logins existed (the placeholder teacher 'teacher-1').
+# Set it BEFORE that person's first login so they claim it.
+# LEGACY_OWNER_EMAIL = "you@example.com"
