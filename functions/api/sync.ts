@@ -252,44 +252,68 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     );
   }
 
+  const email = await getAuthenticatedEmail(request, env);
+  if (!email) return unauthorizedResponse();
+
   try {
-    const payload = await request.json() as any;
+    const me = await getOrCreateTeacher(env.DB, email);
+    if (!me) {
+      return new Response(
+        JSON.stringify({ error: 'This account has been disabled.', status: 'disabled' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const tid = me.id;
+
+    let payload: any;
+    try {
+      payload = await request.json();
+    } catch {
+      payload = null;
+    }
     if (!payload || typeof payload !== 'object') {
-      return new Response(JSON.stringify({ error: 'Invalid payload' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Invalid payload' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
+    // The browser never decides who owns a row: teacher_id is always the signed-in
+    // teacher, and every upsert is guarded so it cannot touch another teacher's row.
     const statements: D1PreparedStatement[] = [];
+    let malformed = 0;
 
-    // 1. Sync Teacher Profile
-    if (payload.teacher) {
+    // 1. Sync Teacher Profile (own row only; id and email come from the login)
+    if (payload.teacher && typeof payload.teacher === 'object') {
       const t = payload.teacher;
       statements.push(
         env.DB.prepare(`
-          INSERT INTO teachers (id, email, name, school_name, default_hourly_rate, currency, language_preference, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-          ON CONFLICT(id) DO UPDATE SET
-            email = excluded.email,
-            name = excluded.name,
-            school_name = excluded.school_name,
-            default_hourly_rate = excluded.default_hourly_rate,
-            currency = excluded.currency,
-            language_preference = excluded.language_preference,
+          UPDATE teachers SET
+            name = ?,
+            school_name = ?,
+            default_hourly_rate = ?,
+            currency = ?,
+            language_preference = ?,
             updated_at = datetime('now')
+          WHERE id = ?
         `).bind(
-          t.id || 'teacher-1',
-          t.email || 'teacher@classque.edu',
-          t.name || 'Educator',
+          t.name || me.name,
           t.schoolName || null,
           t.defaultHourlyRate || 150000,
           t.currency || 'IDR',
-          t.languagePreference || 'id'
+          t.languagePreference === 'en' ? 'en' : 'id',
+          tid
         )
       );
     }
 
-    // 2. Sync Cohorts
+    // 2. Sync Cohorts (an existing id owned by someone else is left untouched)
     if (Array.isArray(payload.cohorts)) {
       for (const c of payload.cohorts) {
+        if (!c || typeof c.id !== 'string' || typeof c.name !== 'string') {
+          malformed++;
+          continue;
+        }
         statements.push(
           env.DB.prepare(`
             INSERT INTO cohorts (id, teacher_id, name, cefr_level, schedule_days, start_time, duration_minutes, room_or_link, hourly_rate_override, is_active, updated_at)
@@ -303,9 +327,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
               room_or_link = excluded.room_or_link,
               hourly_rate_override = excluded.hourly_rate_override,
               updated_at = datetime('now')
+            WHERE cohorts.teacher_id = excluded.teacher_id
           `).bind(
-            c.id, 
-            c.teacherId || payload.teacher?.id || 'teacher-1',
+            c.id,
+            tid,
             c.name,
             c.cefrLevel || 'A1',
             JSON.stringify(c.scheduleDays || []),
@@ -318,13 +343,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 3. Sync Students
+    // 3. Sync Students (the target cohort and any existing row must both be the teacher's)
     if (Array.isArray(payload.students)) {
       for (const s of payload.students) {
+        if (!s || typeof s.id !== 'string' || typeof s.cohortId !== 'string' || typeof s.fullName !== 'string') {
+          malformed++;
+          continue;
+        }
         statements.push(
           env.DB.prepare(`
             INSERT INTO students (id, cohort_id, full_name, nickname, gender, date_of_birth, guardian_name, guardian_phone, guardian_email, notes, strengths, growth_areas, is_active, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now')
+            WHERE EXISTS (SELECT 1 FROM cohorts WHERE id = ? AND teacher_id = ?)
             ON CONFLICT(id) DO UPDATE SET
               cohort_id = excluded.cohort_id,
               full_name = excluded.full_name,
@@ -338,6 +368,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
               strengths = excluded.strengths,
               growth_areas = excluded.growth_areas,
               updated_at = datetime('now')
+            WHERE students.cohort_id IN (SELECT id FROM cohorts WHERE teacher_id = ?)
           `).bind(
             s.id,
             s.cohortId,
@@ -350,21 +381,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             s.guardianEmail || null,
             s.notes || null,
             s.strengths || null,
-            s.growthAreas || null
+            s.growthAreas || null,
+            s.cohortId,
+            tid,
+            tid
           )
         );
       }
     }
 
-    // Execute in batch
+    // Execute in batch; a statement that changed no row was blocked by an ownership guard
+    let applied = 0;
+    let skipped = malformed;
     if (statements.length > 0) {
-      await env.DB.batch(statements);
+      const results = await env.DB.batch(statements);
+      for (const r of results) {
+        if ((r.meta?.changes ?? 0) > 0) applied++;
+        else skipped++;
+      }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Successfully synchronized ${statements.length} records to Cloudflare D1.`,
+        message: `Successfully synchronized ${applied} records to Cloudflare D1.`,
+        applied,
+        skipped,
         syncedAt: new Date().toISOString()
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
