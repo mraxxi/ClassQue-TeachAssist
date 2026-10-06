@@ -1,6 +1,6 @@
 # 📋 Stage 15: Multi-User Separation by Login Email
 
-**Lifecycle Stage**: `working_on` (steps 1-7 done)  
+**Lifecycle Stage**: `implemented` (all 8 steps done and checked locally; not deployed)  
 **Target Domain**: Domain 5: Settings & Data Sync (`functions/api/sync.ts`, `src/store/useTeacherStore.ts`, `migrations/`)  
 **Ubiquitous Language**: `Teacher` (one account per login email), `Central Source of Truth` (Cloudflare D1), `Local-First Buffer`
 

@@ -268,3 +268,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS idx_tasks_teacher ON tasks(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(is_completed);
+
+-- ==========================================================
+-- 12. Multi-user (migration 0003): login by email
+-- ==========================================================
+CREATE UNIQUE INDEX IF NOT EXISTS idx_teachers_email_lower ON teachers(lower(email));
+CREATE INDEX IF NOT EXISTS idx_sessions_teacher ON teaching_sessions(teacher_id);
