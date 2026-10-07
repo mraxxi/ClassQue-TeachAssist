@@ -138,7 +138,18 @@ A fresh database still gets the demo classes from migration `0002` under `teache
 | Symptom | Likely cause |
 | --- | --- |
 | Badge says **Sign-in Needed / Perlu Masuk** | `/api/me` answers 401 "unauthenticated": `CF_ACCESS_TEAM_DOMAIN` / `CF_ACCESS_AUD` missing or wrong, or the hostname is not covered by the Access application |
+| Badge says **Sign-in Needed** right after a deploy that used to work | The deploy replaced the Pages variables. `wrangler pages deploy` with a `wrangler.toml` that has a `[vars]` block overwrites the dashboard variables, so `CF_ACCESS_*` vanish. See "Deploying safely" below |
 | Old data is missing after login | The owner signed in before `LEGACY_OWNER_EMAIL` was set (Step 3) |
+
+### Deploying safely (variables)
+`npx wrangler pages deploy` reads `wrangler.toml` and **replaces the project's production variables with its `[vars]`
+block**. If `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` and `LEGACY_OWNER_EMAIL` are only set in the dashboard, a deploy from a
+folder that has a `wrangler.toml` silently removes them and every login then fails with 401. Pick one way and keep to it:
+- **Recommended:** write the three variables into the `[vars]` block of your local `wrangler.toml` (they are not secrets; keep that file out of git), or
+- deploy from a folder without `wrangler.toml`, so the dashboard values stay.
+
+After a deploy, check the variables are still on the latest deployment (Pages -> Deployments -> the deployment -> Variables).
+Also keep the real `database_id` in `wrangler.toml`; the example file contains a placeholder that makes the deploy fail.
 
 ### Local development
 Locally there is no Access login page. Put `DEV_USER_EMAIL=you@example.com` in `.dev.vars` (see `.dev.vars.example`).

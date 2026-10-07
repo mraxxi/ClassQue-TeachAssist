@@ -37,3 +37,8 @@ today and was used even when the options panel was never opened).
 
 ## Out of scope
 Co-teaching / shared cohorts, roles, admin view.
+
+## Status (2026-10-07)
+Steps 1 to 4 are built and merged (PRs #7, #9) and the build is live in production behind the Access login.
+The shared `SYNC_TOKEN` fallback from Step 4 was dropped on purpose ("login only"). Remaining work, including the
+last live checks, is tracked in `19_GO_LIVE_FOLLOWUPS.md`. Move this file to `finished_tested/` once those checks pass.
