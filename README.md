@@ -7,9 +7,9 @@ Teachers face immense cognitive friction switching between isolated tools for ro
 
 ## 🏗️ Architecture & Stack
 Designed for **Cloudflare's 100% Free Tier**:
-- **Frontend**: React 19, Vite, TailwindCSS v4, Zustand.
-- **Backend/Data** (WIP): Cloudflare Pages Functions, Cloudflare D1 (Edge SQLite), Cloudflare KV.
-- **Local-First Sync**: IndexedDB caching ensures classroom usage is offline-resilient.
+- **Frontend**: React 19, Vite, TailwindCSS v4, Zustand; light / dark / system themes, phone-first layouts, self-hosted fonts.
+- **Backend/Data**: Cloudflare Pages Functions (`functions/api/sync.ts`, bearer-token protected), Cloudflare D1 (Edge SQLite).
+- **Local-First Sync**: every edit is written to `localStorage` immediately and pushed to D1 in the background; a service worker lets the app open offline; sync is incremental (delta) with per-record conflict resolution. See `docs/ARCHITECTURE.md` §3.
 
 ## 🚀 Quick Start (Local Development)
 
@@ -25,10 +25,27 @@ npm install
 npm run dev
 ```
 
+### Run the full stack locally (Pages Functions + D1)
+```bash
+cp wrangler.toml.example wrangler.toml      # then set your d1 database_id
+cp .dev.vars.example .dev.vars              # DEV_USER_EMAIL = who you are locally (stands in for the Access login)
+npx wrangler d1 migrations apply classque_db --local
+npm run build && npx wrangler pages dev ./dist --d1 DB=<database_id>
+```
+Without `DEV_USER_EMAIL` the API answers 401 and the app still works (offline-only).
+
+### Test
+```bash
+npm run typecheck
+npm run test:e2e        # Playwright suite, fresh local D1 per file (see e2e/README.md)
+```
+
 ### Build & Deploy
 ```bash
 # Build for production
 npm run build
+
+# One-time: put Cloudflare Access (teacher login) in front of the site and API (docs/CLOUDFLARE_SETUP.md §7)
 
 # Deploy to Cloudflare Pages (Requires Wrangler authenticated)
 npm run deploy

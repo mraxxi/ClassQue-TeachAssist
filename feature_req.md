@@ -28,13 +28,23 @@ To add a feature request, add an entry to the **Incoming Requests** table below 
 | **FR-008** | Settings & Data Sync | **JSON Full Backup & Restore / Data Portability**: 1-click export and import of full teacher database for total offline safety. | P0 | Stage 08 | Completed ✓ |
 | **FR-009** | Today's Cockpit | **AI Pedagogical Prompt / Lesson Assistant**: Quick generative suggestions for warm-up activities, vocab drills, and student feedback phrasing. | P2 | Backlog | Proposed |
 | **FR-010** | Classes & Students | **Bulk Student CSV Import**: Allow teachers to import whole class rosters from Excel/CSV spreadsheets. | P2 | Backlog | Proposed |
-| **FR-011** | Cross-Cutting | **Keyboard Shortcuts Bar (Hotkeys)**: Spacebar for timer pause/play, `1-4` for quick roll-call status, `Esc` for modal dismissal. | P2 | Stage 05+ | Completed ✓ |
+| **FR-011** | Cross-Cutting | **Keyboard Shortcuts Bar (Hotkeys)**: Spacebar for timer pause/play, `1-4` for quick roll-call status, `Esc` for modal dismissal. *(Space shipped in Stage 05; `1–4` and Esc were marked done but only really delivered in Stage 16.)* | P2 | Stage 05 / 16 | Completed ✓ |
 | **FR-012** | Today's Cockpit | **Live Timezone Clock Widget**: Real-time ticking clock with timezone indicator (WIB/GMT) and formatted local date. | P1 | Stage 09 | Completed ✓ |
 | **FR-013** | Today's Cockpit | **Lesson-Based Task Deadlines**: Set task deadlines by upcoming cohort lesson instead of only calendar dates. | P1 | Stage 10 | Completed ✓ |
 | **FR-014** | Cross-Cutting | **Sync Status Diagnostics Modal**: Interactive modal on clicking sync badge showing D1 status, record counts, and manual sync. | P1 | Stage 11 | Completed ✓ |
 | **FR-015** | Cross-Cutting | **Cookie Storage for Language & Preferences**: Store language, theme, and sidebar preferences in persistent cookies. | P1 | Stage 12 | Completed ✓ |
 | **FR-016** | Cross-Cutting | **Interactive Notifications Center**: Functional notification bell with unread badge, popover list, and class/task alerts. | P1 | Stage 13 | Completed ✓ |
 | **FR-017** | Settings & Data Sync | **Continuous Local-to-D1 Auto-Sync**: Automatically reflect app mutations in Cloudflare D1 with offline queuing. | P0 | Stage 14 | Completed ✓ |
+| **FR-018** | Cross-Cutting | **Critical Bugfix — Full D1 Sync & Dynamic Notifications**: Fix POST sync data loss (8 missing entity types), fix attendance field mismatch, implement dynamic notification generation, add missing D1 schema migration, fix SyncStatusBadge in collapsed mode, complete i18n coverage. *(Sync + migration landed in Stage 15; dynamic notifications were only really delivered in Stage 16.)* | P0 | Stage 15 / 16 | Completed ✓ |
+| **FR-019** | Cross-Cutting | **Edge API Authentication & Validation**: bearer `SYNC_TOKEN` (fail closed), payload validation, tombstoned deletes, cascade deletes, atomic validated restore. | P0 | Stage 16 | Completed ✓ |
+| **FR-020** | Settings & Data Sync | **Delta Sync & Per-Record Conflict Resolution**: push only changed records and merge per record instead of whole-dataset last-write-wins; reduces D1 row writes and supports two devices editing offline. | P2 | Stage 17 | Completed ✓ |
+| **FR-021** | Cross-Cutting | **Theme Switcher (`cq_theme`)**: light / dark / system preference stored in the preference cookie, no flash on load, print always light. | P3 | Stage 17 | Completed ✓ |
+| **FR-023** | Cross-Cutting | **Undo for destructive actions**: Urungkan toast for deleting students, cohorts, sessions, tasks and lesson plans (cascade restored, works across devices). | P1 | Stage 17 | Completed ✓ |
+| **FR-024** | Today's Cockpit | **First-run onboarding & empty states**: setup checklist and purposeful empty screens. | P1 | Stage 17 | Completed ✓ |
+| **FR-025** | Cross-Cutting | **Accessibility (WCAG AA) & keyboard help**: axe-clean on all screens (light/dark/phone), `?` shortcut reference. | P1 | Stage 17 | Completed ✓ |
+| **FR-026** | Today's Cockpit | **Phone-first Cockpit & Live Cockpit**: greeting + next-class sentence, tabbed full-height live view, touch-sized roll-call. | P1 | Stage 17 | Completed ✓ |
+| **FR-027** | Settings & Data Sync | **Conflict visibility**: show the teacher when a local edit lost to a newer remote one (today it is merged silently). | P3 | Backlog | Proposed |
+| **FR-022** | Classes & Students | **Complete CEFR Descriptor Set**: seed Pre-A1, C1 and C2 descriptors (only A1–B2 have a few today) and allow custom competencies. | P3 | Backlog | Proposed |
 
 ---
 

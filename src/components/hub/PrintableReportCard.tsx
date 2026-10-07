@@ -1,6 +1,8 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Printer, Award, UserCheck, BookOpen } from 'lucide-react';
 import { Student, Cohort, Teacher, CefrMilestone, CompetencyScore, Language } from '../../types';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface PrintableReportCardProps {
   isOpen: boolean;
@@ -8,7 +10,7 @@ interface PrintableReportCardProps {
   cohort: Cohort | null | undefined;
   teacher: Teacher;
   reportPeriod: string;
-  attendanceRate: number;
+  attendanceRate: number | null;
   presentCount: number;
   totalSessionsCount: number;
   evaluations: Array<{ milestone: CefrMilestone; score: CompetencyScore; notes?: string }>;
@@ -31,6 +33,8 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   language,
   onClose,
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   if (!isOpen || !student) return null;
 
   const handlePrint = () => {
@@ -78,8 +82,8 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     year: 'numeric',
   });
 
-  return (
-    <div className="fixed inset-0 z-50 bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+  return createPortal(
+    <div className="print-portal fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
       <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-stone-200 p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto print:max-w-none print:shadow-none print:border-none print:p-0 print:m-0">
         
         {/* Action Header (Hidden in Print) */}
@@ -100,6 +104,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             </button>
             <button
               onClick={onClose}
+              aria-label={language === 'id' ? 'Tutup' : 'Close'}
               className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -108,13 +113,13 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         </div>
 
         {/* Printable Sheet Body */}
-        <div className="space-y-6 text-stone-900 print:text-black">
+        <div className="print-sheet space-y-6 text-stone-900 print:text-black">
           
           {/* Institution & Report Header */}
           <div className="border-b-2 border-stone-900 pb-4 flex items-center justify-between">
             <div>
               <h1 className="text-lg sm:text-xl font-black tracking-wide uppercase text-stone-900">
-                {teacher.schoolName || 'ClassQue Language Academy'}
+                {teacher.schoolName}
               </h1>
               <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mt-0.5">
                 {language === 'id' 
@@ -127,13 +132,13 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                 {reportPeriod}
               </span>
               <p className="text-[11px] text-stone-400 mt-1">
-                Ref: {student.id.slice(0, 8).toUpperCase()}
+                Ref: {reportPeriod}-{student.id.slice(-6).toUpperCase()}
               </p>
             </div>
           </div>
 
           {/* Student Identity Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-[#FCFAF7] border border-stone-200 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-(--app-paper) border border-stone-200 text-xs">
             <div>
               <span className="text-[10px] font-extrabold text-stone-400 uppercase tracking-wider block">
                 {language === 'id' ? 'Nama Siswa' : 'Student Name'}
@@ -160,7 +165,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
 
             <div>
               <span className="text-[10px] font-extrabold text-stone-400 uppercase tracking-wider block">
-                {language === 'id' ? 'Guru Pengampu' : 'Educator / Teacher'}
+                {language === 'id' ? 'Guru Pengampu' : 'Teacher'}
               </span>
               <p className="font-bold text-stone-900 mt-0.5">{teacher.name}</p>
               <p className="text-[11px] text-stone-500">{teacher.email}</p>
@@ -178,19 +183,23 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                   {language === 'id' ? 'Tingkat Kehadiran & Partisipasi Sesi' : 'Attendance & Participation Rate'}
                 </h4>
                 <p className="text-[11px] text-emerald-700 font-medium">
-                  {language === 'id'
-                    ? `Hadir dalam ${presentCount} dari total ${totalSessionsCount} sesi pembelajaran yang dijadwalkan.`
-                    : `Attended ${presentCount} out of ${totalSessionsCount} total scheduled sessions.`}
+                  {attendanceRate === null
+                    ? (language === 'id' ? 'Belum ada data presensi pada periode ini.' : 'No attendance has been recorded for this period.')
+                    : language === 'id'
+                    ? `Hadir dalam ${presentCount} dari total ${totalSessionsCount} sesi pembelajaran yang dicatat.`
+                    : `Attended ${presentCount} out of ${totalSessionsCount} recorded sessions.`}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <div className="text-right">
-                <span className="text-2xl font-black text-emerald-900 font-mono">{attendanceRate}%</span>
+                <span className="text-2xl font-black text-emerald-900 font-mono">{attendanceRate === null ? '—' : `${attendanceRate}%`}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-200/80 text-emerald-900 font-extrabold text-[11px]">
-                {attendanceRate >= 80 ? (language === 'id' ? 'Sangat Baik' : 'Excellent') : (language === 'id' ? 'Perlu Ditingkatkan' : 'Needs Improvement')}
-              </span>
+              {attendanceRate !== null && (
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-200/80 text-emerald-900 font-extrabold text-[11px]">
+                  {attendanceRate >= 80 ? (language === 'id' ? 'Sangat Baik' : 'Excellent') : (language === 'id' ? 'Perlu Ditingkatkan' : 'Needs Improvement')}
+                </span>
+              )}
             </div>
           </div>
 
@@ -217,7 +226,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
               <table className="w-full border-collapse border border-stone-200 text-xs">
                 <thead>
                   <tr className="bg-stone-100 text-stone-700 text-left">
-                    <th className="p-2.5 border border-stone-200 font-extrabold w-16">Kode</th>
+                    <th className="p-2.5 border border-stone-200 font-extrabold w-16">{language === 'id' ? 'Kode' : 'Code'}</th>
                     <th className="p-2.5 border border-stone-200 font-extrabold w-36">{language === 'id' ? 'Kategori Keterampilan' : 'Skill Category'}</th>
                     <th className="p-2.5 border border-stone-200 font-extrabold">{language === 'id' ? 'Deskriptor Capaian (Can-Do)' : 'Can-Do Descriptor'}</th>
                     <th className="p-2.5 border border-stone-200 font-extrabold w-32 text-center">{language === 'id' ? 'Tingkat Capaian' : 'Competency'}</th>
@@ -227,7 +236,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                   {evaluations.map((ev, idx) => {
                     const scoreObj = getScoreLabel(ev.score);
                     return (
-                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#FCFAF7]'}>
+                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-(--app-paper)'}>
                         <td className="p-2.5 border border-stone-200 font-mono font-bold text-stone-700">
                           {ev.milestone.code}
                         </td>
@@ -260,11 +269,17 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
           {/* Teacher Narrative Feedback & Observations */}
           <div className="p-4 rounded-2xl bg-white border border-stone-200 space-y-2 text-xs">
             <h4 className="font-extrabold text-stone-900 uppercase tracking-wider text-[11px]">
-              {language === 'id' ? 'Catatan Observasi & Rekomendasi Guru' : 'Educator Narrative & Growth Recommendations'}
+              {language === 'id' ? 'Catatan Observasi & Rekomendasi Guru' : 'Teacher Narrative & Growth Recommendations'}
             </h4>
-            <p className="text-stone-700 leading-relaxed italic bg-stone-50 p-3 rounded-xl border border-stone-200/70 whitespace-pre-wrap">
-              "{narrativeFeedback || student.strengths || student.notes || 'Siswa menunjukkan antusiasme belajar yang sangat baik, berpartisipasi aktif dalam kegiatan interaksi kelas, serta terus menunjukkan peningkatan penguasaan kosakata baru.'}"
-            </p>
+            {(narrativeFeedback || student.strengths || student.notes) ? (
+              <p className="text-stone-700 leading-relaxed italic bg-stone-50 p-3 rounded-xl border border-stone-200/70 whitespace-pre-wrap">
+                "{narrativeFeedback || student.strengths || student.notes}"
+              </p>
+            ) : (
+              <p className="text-stone-400 text-[11px] italic p-3 rounded-xl border border-dashed border-stone-200">
+                {language === 'id' ? 'Belum ada catatan guru.' : 'No teacher narrative has been written yet.'}
+              </p>
+            )}
             {student.growthAreas && (
               <p className="text-[11px] text-stone-500 font-medium">
                 🎯 <strong>{language === 'id' ? 'Area Pengembangan' : 'Focus for Growth'}:</strong> {student.growthAreas}
@@ -276,7 +291,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
           <div className="pt-6 border-t border-stone-200 grid grid-cols-2 gap-8 text-xs text-center">
             <div className="space-y-14">
               <p className="font-bold text-stone-700">
-                {language === 'id' ? 'Orang Tua / Wali Murid,' : 'Parent / Guardian,'}
+                {language === 'id' ? 'Orang Tua / Wali Murid,' : 'Guardian,'}
               </p>
               <div>
                 <p className="border-b border-stone-400 w-44 mx-auto pb-1 font-bold text-stone-900">
@@ -289,13 +304,13 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             <div className="space-y-14">
               <p className="font-bold text-stone-700">
                 {todayFormatted},<br />
-                {language === 'id' ? 'Guru Pengampu / Fasilitator,' : 'Educator / Facilitator,'}
+                {language === 'id' ? 'Guru Pengampu / Fasilitator,' : 'Teacher / Facilitator,'}
               </p>
               <div>
                 <p className="border-b border-stone-400 w-44 mx-auto pb-1 font-bold text-stone-900">
                   ( {teacher.name} )
                 </p>
-                <p className="text-[10px] text-stone-400 mt-1">{teacher.schoolName || 'ClassQue Academy'}</p>
+                <p className="text-[10px] text-stone-400 mt-1">{teacher.schoolName}</p>
               </div>
             </div>
           </div>
@@ -303,6 +318,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

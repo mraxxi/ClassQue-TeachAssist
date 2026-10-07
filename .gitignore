@@ -26,3 +26,6 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Local Wrangler secrets
+.dev.vars

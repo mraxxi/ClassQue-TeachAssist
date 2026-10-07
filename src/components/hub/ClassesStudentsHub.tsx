@@ -7,12 +7,15 @@ import {
 } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
+import { toWhatsAppNumber } from '../../utils/phone';
 import { Student, Cohort } from '../../types';
 import { CohortModal } from './CohortModal';
 import { StudentModal } from './StudentModal';
 import { AttendanceHistoryTab } from './AttendanceHistoryTab';
 import { CefrGradebookTab } from './CefrGradebookTab';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { EmptyState } from '../common/EmptyState';
 
 export const ClassesStudentsHub: React.FC = () => {
   const { 
@@ -66,6 +69,13 @@ export const ClassesStudentsHub: React.FC = () => {
   const countMastered = studentEvals.filter((e) => e.competencyScore === 4).length;
   const countAchieved = studentEvals.filter((e) => e.competencyScore === 3).length;
 
+  // Numbers shown in the delete confirmations (what exactly will be removed)
+  const cohortDeleteCount = confirmDeleteCohort ? students.filter((s) => s.cohortId === confirmDeleteCohort.id).length : 0;
+  const studentDeleteAttendance = confirmDeleteStudent ? attendanceRecords.filter((r) => r.studentId === confirmDeleteStudent.id).length : 0;
+  const studentDeleteEvals = confirmDeleteStudent ? studentEvaluations.filter((e) => e.studentId === confirmDeleteStudent.id).length : 0;
+
+  useEscapeKey(() => setTransferModalStudent(null), !!transferModalStudent);
+
   const handleOpenAddCohort = () => {
     setCohortToEdit(null);
     setCohortModalOpen(true);
@@ -90,14 +100,12 @@ export const ClassesStudentsHub: React.FC = () => {
   const handleDeleteCohortConfirm = () => {
     if (!confirmDeleteCohort) return;
     deleteCohort(confirmDeleteCohort.id);
-    addToast(language === 'id' ? 'Kelas berhasil dihapus' : 'Cohort deleted successfully', 'info');
     setConfirmDeleteCohort(null);
   };
 
   const handleDeleteStudentConfirm = () => {
     if (!confirmDeleteStudent) return;
     deleteStudent(confirmDeleteStudent.id);
-    addToast(language === 'id' ? 'Siswa berhasil dihapus' : 'Student removed from roster', 'info');
     setConfirmDeleteStudent(null);
   };
 
@@ -146,7 +154,7 @@ export const ClassesStudentsHub: React.FC = () => {
 
         {/* Cohort Chips Selector & Management Strip */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-stone-100">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:-mx-1 max-sm:px-1 max-sm:pb-1 max-sm:w-full sm:flex-wrap" role="group" aria-label={language === 'id' ? 'Pilih rombel' : 'Choose cohort'}>
             {cohorts.map((cohort) => {
               const isSelected = activeCohort?.id === cohort.id;
               const count = students.filter((s) => s.cohortId === cohort.id).length;
@@ -157,7 +165,7 @@ export const ClassesStudentsHub: React.FC = () => {
                     setSelectedCohortId(cohort.id);
                     setSelectedStudentId(null);
                   }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  className={`shrink-0 px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                     isSelected
                       ? 'bg-teal-800 text-white shadow-xs'
                       : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
@@ -180,21 +188,19 @@ export const ClassesStudentsHub: React.FC = () => {
               <button
                 onClick={handleOpenEditCohort}
                 className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Edit active cohort details"
+                title={language === 'id' ? 'Ubah detail kelas aktif' : 'Edit active cohort details'}
               >
                 <Edit2 className="w-3.5 h-3.5" />
                 <span>{language === 'id' ? 'Edit Kelas' : 'Edit Cohort'}</span>
               </button>
 
-              {cohorts.length > 1 && (
-                <button
-                  onClick={() => setConfirmDeleteCohort(activeCohort)}
-                  className="p-2 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
-                  title="Delete cohort"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button
+                onClick={() => setConfirmDeleteCohort(activeCohort)}
+                className="p-2 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition-colors cursor-pointer"
+                title={language === 'id' ? 'Hapus kelas' : 'Delete cohort'}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
         </div>
@@ -205,12 +211,12 @@ export const ClassesStudentsHub: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4">
               <span className="flex items-center gap-1 font-semibold text-stone-800">
                 <Clock className="w-3.5 h-3.5 text-teal-700" />
-                {activeCohort.scheduleDays?.join(', ') || 'Mon, Wed'} • {activeCohort.startTime || '14:00'} ({activeCohort.durationMinutes || 60}m)
+                {activeCohort.scheduleDays?.join(', ') || '—'} • {activeCohort.startTime || '—'} ({activeCohort.durationMinutes || 60}m)
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-stone-400" />
-                {activeCohort.roomOrLink || 'Room 101'}
+                {activeCohort.roomOrLink || '—'}
               </span>
             </div>
 
@@ -233,9 +239,21 @@ export const ClassesStudentsHub: React.FC = () => {
         )}
       </div>
 
+      {cohorts.length === 0 && (
+        <EmptyState
+          testId="cohorts-empty"
+          icon={Users}
+          title={language === 'id' ? 'Belum ada rombel' : 'No cohorts yet'}
+          description={language === 'id'
+            ? 'Rombel adalah kelas yang Anda ajar. Buat satu untuk mulai mencatat presensi, capaian CEFR, dan sesi mengajar.'
+            : 'A cohort is a class you teach. Create one to start recording attendance, CEFR progress and teaching sessions.'}
+          action={{ label: language === 'id' ? 'Buat Rombel Pertama' : 'Create your first cohort', onClick: handleOpenAddCohort }}
+        />
+      )}
+
       {/* Sub-Tabs (Student Directory | Attendance Log | CEFR Gradebook) */}
-      <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-        <div className="flex items-center gap-2">
+      <div className={`flex items-center justify-between gap-2 border-b border-stone-200 pb-2 ${cohorts.length === 0 ? 'hidden' : ''}`}>
+        <div className="flex items-center gap-2 overflow-x-auto min-w-0 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
           <button
             onClick={() => setActiveSubTab('roster')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -268,13 +286,14 @@ export const ClassesStudentsHub: React.FC = () => {
           </button>
         </div>
 
-        {activeSubTab === 'roster' && (
+        {activeSubTab === 'roster' && cohorts.length > 0 && (
           <button
             onClick={handleOpenAddStudent}
-            className="px-3.5 py-1.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+            className="shrink-0 px-3.5 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+            aria-label={language === 'id' ? 'Tambah Siswa' : 'Add Student'}
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{language === 'id' ? 'Tambah Siswa' : 'Add Student'}</span>
+            <span className="max-sm:hidden">{language === 'id' ? 'Tambah Siswa' : 'Add Student'}</span>
           </button>
         )}
       </div>
@@ -325,7 +344,7 @@ export const ClassesStudentsHub: React.FC = () => {
                         <div className="truncate">
                           <p className="text-xs font-bold text-stone-900 truncate">{st.fullName}</p>
                           <p className="text-[11px] text-stone-400 truncate">
-                            {st.nickname ? `(${st.nickname}) • ` : ''}Wali: {st.guardianName || '-'}
+                            {st.nickname ? `(${st.nickname}) • ` : ''}{language === 'id' ? 'Wali' : 'Guardian'}: {st.guardianName || '-'}
                           </p>
                         </div>
                       </div>
@@ -362,7 +381,7 @@ export const ClassesStudentsHub: React.FC = () => {
                         )}
                       </div>
                       <p className="text-xs text-stone-500 font-medium mt-0.5">
-                        Nickname: <span className="text-stone-800 font-bold">"{currentStudent.nickname}"</span> • {activeCohort?.name}
+                        {language === 'id' ? 'Panggilan' : 'Nickname'}: <span className="text-stone-800 font-bold">"{currentStudent.nickname}"</span> • {activeCohort?.name}
                       </p>
                     </div>
                   </div>
@@ -371,7 +390,7 @@ export const ClassesStudentsHub: React.FC = () => {
                   <div className="flex items-center gap-2">
                     {currentStudent.guardianPhone && (
                       <a
-                        href={`https://wa.me/${currentStudent.guardianPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                        href={`https://wa.me/${toWhatsAppNumber(currentStudent.guardianPhone)}?text=${encodeURIComponent(
                           language === 'id'
                             ? `Halo Bapak/Ibu ${currentStudent.guardianName}, saya ${teacher.name} guru pengampu ${currentStudent.fullName}.`
                             : `Hello Mr/Mrs ${currentStudent.guardianName}, this is ${teacher.name}, teacher of ${currentStudent.fullName}.`
@@ -380,7 +399,7 @@ export const ClassesStudentsHub: React.FC = () => {
                         rel="noreferrer"
                         className="px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
                       >
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
                         <span>WhatsApp</span>
                       </a>
                     )}
@@ -388,7 +407,7 @@ export const ClassesStudentsHub: React.FC = () => {
                     <button
                       onClick={() => handleOpenEditStudent(currentStudent)}
                       className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-                      title="Edit student profile"
+                      title={language === 'id' ? 'Ubah profil siswa' : 'Edit student profile'}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
@@ -399,15 +418,15 @@ export const ClassesStudentsHub: React.FC = () => {
                         setTargetCohortId(cohorts.find((c) => c.id !== currentStudent.cohortId)?.id || '');
                       }}
                       className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-                      title="Transfer student to another cohort"
+                      title={language === 'id' ? 'Pindahkan siswa ke kelas lain' : 'Transfer student to another cohort'}
                     >
                       <ArrowRightLeft className="w-3.5 h-3.5" />
                     </button>
 
                     <button
                       onClick={() => setConfirmDeleteStudent(currentStudent)}
-                      className="p-2 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
-                      title="Delete student"
+                      className="p-2 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition-colors cursor-pointer"
+                      title={language === 'id' ? 'Hapus siswa' : 'Delete student'}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -418,7 +437,7 @@ export const ClassesStudentsHub: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   
                   {/* Attendance Gauge */}
-                  <div className="bg-stone-900 text-white rounded-2xl p-4 shadow-xs flex items-center justify-between">
+                  <div className="theme-original bg-stone-900 text-white rounded-2xl p-4 shadow-xs flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-stone-800 border border-stone-700 flex items-center justify-center font-black text-sm text-emerald-400">
                         {studentAttendanceRate}%
@@ -428,14 +447,14 @@ export const ClassesStudentsHub: React.FC = () => {
                           {language === 'id' ? 'Kehadiran Siswa' : 'Attendance Rate'}
                         </span>
                         <p className="text-xs text-stone-200 font-medium mt-0.5">
-                          {studentPresentCount} Hadir • {studentAbsentCount} Alpa
+                          {studentPresentCount} {language === 'id' ? 'Hadir' : 'Present'} • {studentAbsentCount} {language === 'id' ? 'Alpa' : 'Absent'}
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => setActiveSubTab('attendance')}
                       className="p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 transition-colors cursor-pointer"
-                      title="Open Attendance"
+                      title={language === 'id' ? 'Buka presensi' : 'Open attendance'}
                     >
                       <CalendarCheck2 className="w-4 h-4 text-emerald-400" />
                     </button>
@@ -452,14 +471,14 @@ export const ClassesStudentsHub: React.FC = () => {
                           {language === 'id' ? 'Capaian CEFR' : 'CEFR Achieved'}
                         </span>
                         <p className="text-xs text-teal-100 font-medium mt-0.5">
-                          {countMastered} Mahir • {countAchieved} Tercapai
+                          {countMastered} {language === 'id' ? 'Mahir' : 'Mastered'} • {countAchieved} {language === 'id' ? 'Tercapai' : 'Achieved'}
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => setActiveSubTab('cefr')}
                       className="p-2 rounded-xl bg-teal-800 hover:bg-teal-700 text-teal-200 transition-colors cursor-pointer"
-                      title="Open CEFR Gradebook"
+                      title={language === 'id' ? 'Buka capaian CEFR' : 'Open CEFR gradebook'}
                     >
                       <Star className="w-4 h-4 text-amber-300" />
                     </button>
@@ -474,7 +493,7 @@ export const ClassesStudentsHub: React.FC = () => {
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-stone-400 block text-[11px]">Nama Wali</span>
+                      <span className="text-stone-400 block text-[11px]">{language === 'id' ? 'Nama Wali' : 'Guardian Name'}</span>
                       <span className="font-bold text-stone-800">{currentStudent.guardianName || '-'}</span>
                     </div>
                     <div>
@@ -498,7 +517,7 @@ export const ClassesStudentsHub: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-1">
                     <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
                       {language === 'id' ? 'Kelebihan / Kekuatan' : 'Strengths'}
                     </span>
                     <p className="text-xs text-stone-700 leading-relaxed font-medium">
@@ -508,7 +527,7 @@ export const ClassesStudentsHub: React.FC = () => {
 
                   <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 space-y-1">
                     <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
-                      <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
+                      <TrendingUp className="w-3.5 h-3.5 text-amber-700" />
                       {language === 'id' ? 'Area Pengembangan' : 'Growth Areas'}
                     </span>
                     <p className="text-xs text-stone-700 leading-relaxed font-medium">
@@ -580,8 +599,8 @@ export const ClassesStudentsHub: React.FC = () => {
         title={language === 'id' ? 'Hapus Kelas / Rombel?' : 'Delete Cohort?'}
         message={
           language === 'id'
-            ? `Apakah Anda yakin ingin menghapus rombel "${confirmDeleteCohort?.name}"? Tindakan ini akan memengaruhi siswa terdaftar.`
-            : `Are you sure you want to delete "${confirmDeleteCohort?.name}"? Enrolled students will need to be reassigned.`
+            ? `Hapus rombel "${confirmDeleteCohort?.name}"? ${cohortDeleteCount} siswa beserta riwayat presensi, capaian CEFR, dan laporan wali mereka akan dihapus permanen. Rencana ajar dan tugas terkait tetap disimpan (tanpa rombel); riwayat sesi mengajar & klaim honor tidak diubah.`
+            : `Delete "${confirmDeleteCohort?.name}"? Its ${cohortDeleteCount} student(s) and their attendance, CEFR evaluations and parent reports will be permanently deleted. Related lesson plans and tasks are kept (unlinked); Teaching Session and claim history is not changed.`
         }
         confirmText={language === 'id' ? 'Ya, Hapus Kelas' : 'Yes, Delete Cohort'}
         cancelText={language === 'id' ? 'Batal' : 'Cancel'}
@@ -596,8 +615,8 @@ export const ClassesStudentsHub: React.FC = () => {
         title={language === 'id' ? 'Hapus Siswa dari Roster?' : 'Remove Student?'}
         message={
           language === 'id'
-            ? `Apakah Anda yakin ingin menghapus data siswa "${confirmDeleteStudent?.fullName}"? Riwayat presensi dan capaian akan dihapus.`
-            : `Are you sure you want to remove "${confirmDeleteStudent?.fullName}"? All attendance and evaluation history for this student will be removed.`
+            ? `Hapus siswa "${confirmDeleteStudent?.fullName}"? ${studentDeleteAttendance} catatan presensi, ${studentDeleteEvals} evaluasi CEFR, dan laporan wali siswa ini akan dihapus permanen.`
+            : `Remove "${confirmDeleteStudent?.fullName}"? ${studentDeleteAttendance} attendance record(s), ${studentDeleteEvals} CEFR evaluation(s) and this student's parent reports will be permanently deleted.`
         }
         confirmText={language === 'id' ? 'Ya, Hapus Siswa' : 'Yes, Remove Student'}
         cancelText={language === 'id' ? 'Batal' : 'Cancel'}
@@ -608,7 +627,7 @@ export const ClassesStudentsHub: React.FC = () => {
 
       {/* Transfer Student Modal */}
       {transferModalStudent && (
-        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-stone-200 p-6 space-y-4 animate-in zoom-in-95 duration-150">
             <h3 className="text-base font-extrabold text-stone-900 flex items-center gap-2">
               <ArrowRightLeft className="w-4 h-4 text-teal-700" />
@@ -628,7 +647,7 @@ export const ClassesStudentsHub: React.FC = () => {
               >
                 {cohorts.map((c) => (
                   <option key={c.id} value={c.id} disabled={c.id === transferModalStudent.cohortId}>
-                    {c.name} ({c.cefrLevel}) {c.id === transferModalStudent.cohortId ? '(Kelas Saat Ini)' : ''}
+                    {c.name} ({c.cefrLevel}) {c.id === transferModalStudent.cohortId ? (language === 'id' ? '(Kelas Saat Ini)' : '(Current Cohort)') : ''}
                   </option>
                 ))}
               </select>

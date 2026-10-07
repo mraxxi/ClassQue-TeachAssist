@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Database, Cloud, RefreshCw, X, 
   CheckCircle2, AlertTriangle, ShieldCheck, Activity, Download, Upload 
 } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
+
+interface RemoteSummary {
+  counts: Record<string, number>;
+  lastUpdatedAt: string | null;
+}
 
 interface SyncDiagnosticsModalProps {
   isOpen: boolean;
@@ -16,32 +23,49 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     hasUnsyncedChanges, lastLocalMutationAt, syncDatabaseToEdge, 
     fetchDatabaseFromEdge, cohorts, students, tasks, 
     lessonPlans, attendanceRecords, sessions, claims, 
-    language, addToast 
+    language, addToast, syncAuthStatus 
   } = useTeacherStore();
 
   const [isPinging, setIsPinging] = useState(false);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [remote, setRemote] = useState<RemoteSummary | null>(null);
+
+  useEscapeKey(onClose, isOpen);
+
+  const loadSummary = useCallback(async () => {
+    const start = performance.now();
+    try {
+      const res = await fetch('/api/sync?summary=1', { cache: 'no-store' });
+      if (!res.ok) {
+        setRemote(null);
+        setLatencyMs(null);
+        return false;
+      }
+      const json = (await res.json()) as RemoteSummary;
+      setRemote({ counts: json.counts || {}, lastUpdatedAt: json.lastUpdatedAt ?? null });
+      setLatencyMs(Math.round(performance.now() - start));
+      return true;
+    } catch {
+      setRemote(null);
+      setLatencyMs(null);
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) void loadSummary();
+  }, [isOpen, loadSummary]);
 
   if (!isOpen) return null;
 
   const handlePingTest = async () => {
     setIsPinging(true);
-    const start = performance.now();
-    try {
-      const res = await fetch('/api/sync', { method: 'GET', cache: 'no-store' });
-      const elapsed = Math.round(performance.now() - start);
-      if (res.ok) {
-        setLatencyMs(elapsed);
-        addToast(language === 'id' ? `Ping D1 sukses: ${elapsed}ms` : `D1 ping success: ${elapsed}ms`, 'success');
-      } else {
-        setLatencyMs(null);
-        addToast(language === 'id' ? 'Koneksi ke edge gagal' : 'Edge connection failed', 'error');
-      }
-    } catch {
-      setLatencyMs(null);
-      addToast(language === 'id' ? 'Edge tidak dapat dijangkau' : 'Edge unreachable', 'error');
-    } finally {
-      setIsPinging(false);
+    const ok = await loadSummary();
+    setIsPinging(false);
+    if (ok) {
+      addToast(language === 'id' ? 'Ping D1 sukses' : 'D1 ping success', 'success');
+    } else {
+      addToast(language === 'id' ? 'Koneksi ke edge gagal' : 'Edge connection failed', 'error');
     }
   };
 
@@ -49,6 +73,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     const ok = await syncDatabaseToEdge();
     if (ok) {
       addToast(language === 'id' ? 'Berhasil menyinkronkan data ke Cloudflare D1' : 'Successfully pushed data to Cloudflare D1', 'success');
+      void loadSummary();
     } else {
       addToast(language === 'id' ? 'Gagal menyinkronkan ke D1' : 'Failed to push to D1', 'error');
     }
@@ -58,20 +83,30 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     const ok = await fetchDatabaseFromEdge();
     if (ok) {
       addToast(language === 'id' ? 'Berhasil memperbarui data dari Cloudflare D1' : 'Successfully pulled truth from Cloudflare D1', 'success');
+      void loadSummary();
     } else {
       addToast(language === 'id' ? 'Gagal mengambil data dari D1' : 'Failed to pull from D1', 'error');
     }
   };
 
   const entities = [
-    { label: language === 'id' ? 'Kelas Cohort' : 'Cohorts', count: cohorts.length },
-    { label: language === 'id' ? 'Siswa' : 'Students', count: students.length },
-    { label: language === 'id' ? 'Rencana Ajar' : 'Lesson Plans', count: lessonPlans.length },
-    { label: language === 'id' ? 'Catatan Kehadiran' : 'Attendance', count: attendanceRecords.length },
-    { label: language === 'id' ? 'Tugas Prioritas' : 'Tasks', count: tasks.length },
-    { label: language === 'id' ? 'Sesi Mengajar' : 'Teaching Sessions', count: sessions.length },
-    { label: language === 'id' ? 'Klaim Honor' : 'Teaching Claims', count: claims.length },
+    { key: 'cohorts', label: language === 'id' ? 'Rombel' : 'Cohorts', count: cohorts.length, remote: remote?.counts.cohorts },
+    { key: 'students', label: language === 'id' ? 'Siswa' : 'Students', count: students.length, remote: remote?.counts.students },
+    { key: 'lessonPlans', label: language === 'id' ? 'RPP' : 'Lesson Plans', count: lessonPlans.length, remote: remote?.counts.lessonPlans },
+    { key: 'attendance', label: language === 'id' ? 'Catatan Kehadiran' : 'Attendance', count: attendanceRecords.length, remote: remote?.counts.attendance },
+    { key: 'tasks', label: language === 'id' ? 'Tugas' : 'Tasks', count: tasks.length, remote: remote?.counts.tasks },
+    { key: 'sessions', label: language === 'id' ? 'Sesi Pembelajaran' : 'Teaching Sessions', count: sessions.length, remote: remote?.counts.sessions },
+    { key: 'claims', label: language === 'id' ? 'Klaim Honorarium' : 'Teaching Claims', count: claims.length, remote: remote?.counts.claims },
   ];
+
+  const authMessage =
+    syncAuthStatus === 'unauthenticated'
+      ? (language === 'id' ? 'Belum masuk. Masuk lewat Cloudflare Access untuk sinkronisasi.' : 'Not signed in. Sign in through Cloudflare Access to sync.')
+      : syncAuthStatus === 'unbound'
+      ? (language === 'id' ? 'Database D1 belum terhubung ke server (binding DB).' : 'The D1 database is not linked to the server (DB binding).')
+      : syncAuthStatus === 'unconfigured'
+      ? (language === 'id' ? 'Server belum siap (D1).' : 'The server is not ready (D1).')
+      : null;
 
   const formatTime = (isoString?: string | null) => {
     if (!isoString) return language === 'id' ? 'Belum pernah' : 'Never';
@@ -89,14 +124,16 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+  // Portal into <body>: the badge lives inside the blurred, scrolling sidebar/header, and a `backdrop-filter`
+  // ancestor would otherwise become the containing block of this `position: fixed` overlay.
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 scrim backdrop-blur-xs animate-in fade-in duration-150">
       <div 
         className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-stone-900 text-white">
+        <div className="theme-original flex items-center justify-between px-6 py-4 bg-stone-900 text-white">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-teal-800 flex items-center justify-center text-teal-200 shadow-inner">
               <Database className="w-5 h-5" />
@@ -115,6 +152,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
           </div>
           <button 
             onClick={onClose}
+            aria-label={language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -137,20 +175,29 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                 {isEdgeConnected ? (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Online
+                    {language === 'id' ? 'Online' : 'Online'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                    Offline
+                    {language === 'id' ? 'Luar Jaringan' : 'Offline'}
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-teal-800/90 leading-tight">
                 {language === 'id' ? 'Pusat Kebenaran Data Utama (Serverless SQLite di 300+ lokasi Edge).' : 'Authoritative Central Source of Truth (Serverless Edge SQLite).'}
               </p>
+              {authMessage && (
+                <p className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1" data-testid="diag-auth-message">
+                  {authMessage}
+                </p>
+              )}
               <div className="pt-2 border-t border-teal-200/60 flex items-center justify-between text-[10px] text-teal-900 font-medium">
                 <span>{language === 'id' ? 'Sinkronisasi Terakhir:' : 'Last Synced:'}</span>
                 <span className="font-bold">{formatTime(lastSyncedAt)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-teal-900 font-medium">
+                <span>{language === 'id' ? 'Update Terakhir di D1:' : 'Last Updated in D1:'}</span>
+                <span className="font-bold" data-testid="diag-remote-updated">{remote?.lastUpdatedAt ? formatTime(remote.lastUpdatedAt.replace(' ', 'T') + 'Z') : '—'}</span>
               </div>
             </div>
 
@@ -159,17 +206,17 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
               <div className="flex items-center justify-between">
                 <span className="font-bold text-stone-900 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  <span>Local-First Buffer</span>
+                  <span>{language === 'id' ? 'Penyangga Local-First' : 'Local-First Buffer'}</span>
                 </span>
                 {hasUnsyncedChanges ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    <span>Unsynced</span>
+                    <span>{language === 'id' ? 'Belum Tersinkron' : 'Unsynced'}</span>
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3 text-teal-700" />
-                    <span>In-Sync</span>
+                    <span>{language === 'id' ? 'Tersinkron' : 'In Sync'}</span>
                   </span>
                 )}
               </div>
@@ -177,7 +224,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                 {language === 'id' ? 'Resisten pemadaman internet sekolah. Perubahan tersimpan instan di peramban.' : 'Brownout-resistant. Edits persist locally in browser and auto-sync.'}
               </p>
               <div className="pt-2 border-t border-stone-200 flex items-center justify-between text-[10px] text-stone-600 font-medium">
-                <span>{language === 'id' ? 'Edit Lokal Terakhir:' : 'Last Local Edit:'}</span>
+                <span>{language === 'id' ? 'Perubahan Lokal Terakhir:' : 'Last Local Edit:'}</span>
                 <span className="font-bold">{formatTime(lastLocalMutationAt)}</span>
               </div>
             </div>
@@ -189,7 +236,8 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
             <h4 className="text-xs font-bold text-stone-900 mb-3 flex items-center justify-between">
               <span>{language === 'id' ? 'Daftar Entitas Terkelola' : 'Managed Entity Inventory'}</span>
               <span className="text-[10px] text-stone-500 font-normal">
-                {entities.reduce((acc, e) => acc + e.count, 0)} {language === 'id' ? 'total rekaman lokal' : 'total local records'}
+                {entities.reduce((acc, e) => acc + e.count, 0)} {language === 'id' ? 'rekaman lokal' : 'local records'}
+                {remote ? ` • ${entities.reduce((acc, e) => acc + (e.remote ?? 0), 0)} ${language === 'id' ? 'di D1' : 'in D1'}` : ''}
               </span>
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
@@ -200,6 +248,9 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                   </span>
                   <span className="text-[10px] font-semibold text-stone-500 block truncate">
                     {item.label}
+                  </span>
+                  <span className="text-[10px] font-mono text-teal-700 block" data-testid={`diag-remote-${item.key}`}>
+                    {item.remote === undefined ? '—' : `D1: ${item.remote}`}
                   </span>
                 </div>
               ))}
@@ -215,7 +266,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
                   {language === 'id' ? 'Uji Latensi Edge Cloudflare' : 'Cloudflare Edge Ping Test'}
                 </span>
                 <span className="text-[11px] text-stone-500">
-                  {latencyMs !== null ? `${latencyMs} ms latency` : (language === 'id' ? 'Belum diuji' : 'Not tested')}
+                  {latencyMs !== null ? `${latencyMs} ms ${language === 'id' ? 'latensi' : 'latency'}` : (language === 'id' ? 'Belum diuji' : 'Not tested')}
                 </span>
               </div>
             </div>
@@ -225,7 +276,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
               className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isPinging ? 'animate-spin' : ''}`} />
-              <span>{isPinging ? 'Pinging...' : 'Test Ping'}</span>
+              <span>{isPinging ? (language === 'id' ? 'Menguji...' : 'Pinging...') : (language === 'id' ? 'Uji Ping' : 'Test Ping')}</span>
             </button>
           </div>
 
@@ -237,7 +288,7 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
             onClick={handleManualPull}
             disabled={isSyncingWithEdge}
             className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white border border-stone-200 hover:bg-stone-100 text-stone-800 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs disabled:opacity-50"
-            title="Tarik versi data terbaru dari Cloudflare D1"
+            title={language === 'id' ? 'Tarik versi data terbaru dari Cloudflare D1' : 'Pull the latest data from Cloudflare D1'}
           >
             <Download className="w-4 h-4 text-teal-700" />
             <span>{language === 'id' ? 'Tarik Data dari D1' : 'Pull from D1'}</span>
@@ -249,10 +300,11 @@ export const SyncDiagnosticsModal: React.FC<SyncDiagnosticsModalProps> = ({ isOp
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
           >
             <Upload className={`w-4 h-4 ${isSyncingWithEdge ? 'animate-spin' : ''}`} />
-            <span>{isSyncingWithEdge ? 'Menyinkronkan...' : (language === 'id' ? 'Sinkronkan Sekarang ke D1' : 'Push Local to D1')}</span>
+            <span>{isSyncingWithEdge ? (language === 'id' ? 'Menyinkronkan...' : 'Syncing...') : (language === 'id' ? 'Sinkronkan Sekarang ke D1' : 'Push Local to D1')}</span>
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

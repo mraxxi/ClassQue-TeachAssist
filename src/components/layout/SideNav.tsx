@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { 
   BookOpen, LayoutDashboard, Users, FileText, 
-  ReceiptText, Settings, Bell, ChevronLeft, ChevronRight
+  ReceiptText, Settings, Bell, ChevronLeft, ChevronRight, Sun, Moon
 } from 'lucide-react';
+import { resolveTheme } from '../../utils/theme';
 import { useTeacherStore } from '../../store/useTeacherStore';
-import { useTranslation } from '../../utils/i18n';
-import { SyncStatusBadge } from './SyncStatusBadge';
+import { useTranslation, displayTeacherName } from '../../utils/i18n';
 import { NotificationsPopover } from './NotificationsPopover';
 import { getCookie, setCookie, COOKIE_KEYS } from '../../utils/cookies';
 
 export const SideNav: React.FC = () => {
-  const { activeTab, setActiveTab, language, setLanguage, teacher, notifications } = useTeacherStore();
+  const { activeTab, setActiveTab, language, setLanguage, teacher, notifications, theme, setTheme } = useTeacherStore();
+  const isDark = resolveTheme(theme) === 'dark';
   const t = useTranslation(language);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(() => {
@@ -58,6 +59,8 @@ export const SideNav: React.FC = () => {
         {/* Toggle Collapse Button */}
         <button 
           onClick={handleToggleExpand}
+          aria-label={isExpanded ? (language === 'id' ? 'Ciutkan sidebar' : 'Collapse sidebar') : (language === 'id' ? 'Lebarkan sidebar' : 'Expand sidebar')}
+          aria-expanded={isExpanded}
           className="absolute -right-3 top-6 bg-white border border-stone-200 rounded-full p-1 text-stone-500 hover:text-teal-700 shadow-sm z-50 cursor-pointer"
         >
           {isExpanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -86,15 +89,23 @@ export const SideNav: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-stone-200/60 flex flex-col gap-4">
-          <div className={`flex items-center ${isExpanded ? 'justify-between' : 'justify-center flex-col gap-3'}`}>
-            {isExpanded && <SyncStatusBadge language={language} />}
-            <div className="flex items-center gap-2">
+          <div className={`flex ${isExpanded ? 'flex-col items-stretch gap-3' : 'flex-col items-center gap-3'}`}>
+            <div className={`flex items-center gap-2 ${isExpanded ? 'justify-between' : 'flex-col'}`}>
               <button
                 onClick={() => setLanguage(language === 'id' ? 'en' : 'id')}
                 className="flex items-center justify-center w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 transition-colors cursor-pointer"
-                title="Ganti Bahasa / Switch Language"
+                title={language === 'id' ? 'Ganti bahasa' : 'Switch language'}
               >
                 <span className="text-[10px] font-bold">{language.toUpperCase()}</span>
+              </button>
+              <button
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                className="flex items-center justify-center w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 transition-colors cursor-pointer"
+                title={language === 'id' ? (isDark ? 'Mode terang' : 'Mode gelap') : (isDark ? 'Light mode' : 'Dark mode')}
+                aria-label={language === 'id' ? (isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap') : (isDark ? 'Switch to light mode' : 'Switch to dark mode')}
+                data-testid="theme-toggle"
+              >
+                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
               <div className="relative">
                 <button 
@@ -136,8 +147,8 @@ export const SideNav: React.FC = () => {
             </div>
             {isExpanded && (
               <div className="overflow-hidden">
-                <p className="text-sm font-semibold text-stone-800 leading-tight truncate">{teacher.name}</p>
-                <p className="text-xs text-stone-500 truncate">{teacher.schoolName || 'Educator'}</p>
+                <p className="text-sm font-semibold text-stone-800 leading-tight truncate">{displayTeacherName(teacher.name, language)}</p>
+                <p className="text-xs text-stone-500 truncate">{teacher.schoolName || (language === 'id' ? 'Guru' : 'Teacher')}</p>
               </div>
             )}
           </div>

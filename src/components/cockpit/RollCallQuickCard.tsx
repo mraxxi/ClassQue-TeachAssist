@@ -3,31 +3,24 @@ import { CheckCheck } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { AttendanceStatus } from '../../types';
+import { useCockpitCohort } from '../../hooks/useCockpitCohort';
+import { AttendanceControl, RollCallProgress } from '../common/AttendanceControl';
+import { localDateStr } from '../../utils/date';
 
 export const RollCallQuickCard: React.FC = () => {
   const { 
-    cohorts, students, attendanceRecords, setAttendance, 
+    students, attendanceRecords, setAttendance, 
     batchMarkAllPresent, language 
   } = useTeacherStore();
   const t = useTranslation(language);
 
-  const activeCohort = cohorts[0] || null;
-  const cohortStudents = students.filter((s) => s.cohortId === activeCohort?.id);
-  const todayDate = new Date().toISOString().split('T')[0];
+  const { active: activeCohort, now } = useCockpitCohort();
+  const cohortStudents = students.filter((s) => s.cohortId === activeCohort?.id && s.isActive !== false);
+  const todayDate = localDateStr(now);
 
-  const getStudentStatus = (studentId: string): AttendanceStatus => {
-    const record = attendanceRecords.find(
-      (r) => r.studentId === studentId && r.attendanceDate === todayDate
-    );
-    return record?.status || 'present';
-  };
-
-  const statusOptions: { key: AttendanceStatus; label: string; activeClass: string; inactiveClass: string }[] = [
-    { key: 'present', label: 'Hadir', activeClass: 'bg-emerald-500 text-white font-bold shadow-xs', inactiveClass: 'bg-stone-100 text-stone-600 hover:bg-stone-200' },
-    { key: 'absent', label: 'Alpa', activeClass: 'bg-rose-500 text-white font-bold shadow-xs', inactiveClass: 'bg-stone-100 text-stone-600 hover:bg-stone-200' },
-    { key: 'late', label: 'Terlambat', activeClass: 'bg-amber-500 text-white font-bold shadow-xs', inactiveClass: 'bg-stone-100 text-stone-600 hover:bg-stone-200' },
-    { key: 'excused', label: 'Izin', activeClass: 'bg-sky-500 text-white font-bold shadow-xs', inactiveClass: 'bg-stone-100 text-stone-600 hover:bg-stone-200' },
-  ];
+  /** Unrecorded students have NO selected status (never silently "present"). */
+  const getStudentStatus = (studentId: string): AttendanceStatus | undefined =>
+    attendanceRecords.find((r) => r.studentId === studentId && r.attendanceDate === todayDate)?.status;
 
   return (
     <div className="bg-white rounded-2xl p-6 border border-stone-200/90 shadow-xs">
@@ -40,6 +33,13 @@ export const RollCallQuickCard: React.FC = () => {
           <p className="text-xs text-stone-500 font-medium mt-0.5">
             {activeCohort?.name} • {cohortStudents.length} {t.cockpit.studentsCount}
           </p>
+          <div className="mt-1.5">
+            <RollCallProgress
+              recorded={cohortStudents.filter((st) => getStudentStatus(st.id) !== undefined).length}
+              total={cohortStudents.length}
+              language={language}
+            />
+          </div>
         </div>
         <button
           onClick={() => activeCohort && batchMarkAllPresent(activeCohort.id, todayDate)}
@@ -55,7 +55,7 @@ export const RollCallQuickCard: React.FC = () => {
         {cohortStudents.map((student) => {
           const currentStatus = getStudentStatus(student.id);
           return (
-            <div key={student.id} className="py-3 flex items-center justify-between gap-2">
+            <div key={student.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               {/* Student Avatar & Nickname */}
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-8 h-8 rounded-full bg-stone-100 text-stone-700 font-bold text-xs flex items-center justify-center border border-stone-200 shrink-0">
@@ -68,22 +68,13 @@ export const RollCallQuickCard: React.FC = () => {
               </div>
 
               {/* 1-Click Status Toggles */}
-              <div className="flex items-center gap-1 bg-stone-100/90 p-1 rounded-xl border border-stone-200/60 shrink-0">
-                {statusOptions.map((opt) => {
-                  const isSelected = currentStatus === opt.key;
-                  return (
-                    <button
-                      key={opt.key}
-                      onClick={() => activeCohort && setAttendance(student.id, activeCohort.id, todayDate, opt.key)}
-                      className={`px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer ${
-                        isSelected ? opt.activeClass : opt.inactiveClass
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
+              <AttendanceControl
+                value={currentStatus}
+                language={language}
+                label={student.fullName}
+                dense
+                onChange={(status) => activeCohort && setAttendance(student.id, activeCohort.id, todayDate, status)}
+              />
             </div>
           );
         })}

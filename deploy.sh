@@ -9,6 +9,18 @@ PROJECT_NAME="classque-teachassist"
 BRANCH="main"
 
 echo "========================================================"
+echo "📦 0. Committing changes..."
+echo "========================================================"
+if [ -n "$(git status --porcelain)" ]; then
+  git add .
+  git commit -m "Auto-commit before deploy $(date +'%Y-%m-%d %H:%M:%S')"
+  echo "✅ Changes committed."
+else
+  echo "✅ No changes to commit."
+fi
+echo ""
+
+echo "========================================================"
 echo "🚀 1. Building ClassQue-TeachAssist Frontend..."
 echo "========================================================"
 npm run build

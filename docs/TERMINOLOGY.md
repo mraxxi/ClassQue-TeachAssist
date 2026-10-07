@@ -38,6 +38,10 @@ All developers, agents, UI components, and export generators must adhere to the 
 | **Evaluation** | `4` — **Mastered** | **Mahir / Sangat Berkembang (M)** | *Excellent, Sangat Baik, Level 4* | `score: 4` |
 | **Finance** | **Teaching Claim** *(Honorarium)* | **Klaim Honorarium Mengajar** | *Finance, Budget, Income, Expense, Gaji* | `teaching_claim`, `claims_record` |
 | **Finance** | **Hourly Rate** | **Tarif Honor per Jam** | *Base Pay, Price, Fee, Tarif* | `hourly_rate` |
+| **Attendance** | **Not Recorded** *(no Attendance Record yet)* | **Belum Dicatat** | *Default present, Auto-hadir* | no row in `attendance_record` (never counted as `'present'`) |
+| **Sync** | **Sync Token** | **Token Sinkronisasi** | *Password, API key, Login* | `SYNC_TOKEN`, `classque_sync_token` |
+| **Sync** | **Tombstone** *(recorded deletion)* | **Penanda Hapus** | *Trash, Soft-delete flag (client side)* | `tombstones`, `deleted_at` |
+| **Sync** | **Unsynced Changes** | **Belum Tersinkron** | *Dirty, Pending push* | `hasUnsyncedChanges` |
 | **Reporting** | **Parent Progress Report** | **Laporan Perkembangan Siswa (Rapor)** | *Report Card, Summary, Bulletin* | `parent_report`, `progress_report` |
 | **Reporting** | **Report Card (A4)** | **Lembar Rapor Cetak A4** | *Printable Sheet, PDF Export, Ijazah* | `PrintableReportCard.tsx` |
 | **Reporting** | **WhatsApp Brief** | **Ringkasan Pesan WhatsApp Wali Murid** | *Chat Template, Message Copy, SMS* | `formatWhatsAppBrief()` |

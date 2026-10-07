@@ -1,5 +1,7 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useTeacherStore } from '../../store/useTeacherStore';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -22,10 +24,12 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  useEscapeKey(onCancel, isOpen);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 scrim backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-stone-200 p-6 space-y-4 animate-in zoom-in-95 duration-150">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -42,6 +46,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
           <button
             onClick={onCancel}
+            aria-label={useTeacherStore.getState().language === 'id' ? 'Tutup' : 'Close'}
             className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -63,7 +68,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             onClick={onConfirm}
             className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-xs cursor-pointer ${
               isDangerous
-                ? 'bg-rose-600 hover:bg-rose-700'
+                ? 'bg-rose-700 hover:bg-rose-800'
                 : 'bg-teal-800 hover:bg-teal-900'
             }`}
           >

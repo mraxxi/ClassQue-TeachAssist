@@ -34,21 +34,32 @@ gantt
 - [x] Multi-agent skill setup (`.agents/skills/`).
 - [x] Comprehensive PRD, Architecture, and Lessons Learned reference docs.
 - [x] Production-grade D1 SQL schema definition (`docs/DATABASE_SCHEMA.sql`).
-- [ ] Initialize frontend bundle & Wrangler configuration.
+- [x] Initialize frontend bundle & Wrangler configuration.
 
 ### Phase 2: Core Teacher Hub & Live Cockpit
-- [ ] Build **Today's Cockpit** (Dashboard with next class, stopwatch, active tasks).
-- [ ] Build **Classes & Students Hub** (Cohorts management, student profiles, notes).
-- [ ] Build **Attendance Engine** (Fast 1-click status toggling, history log).
+- [x] Build **Today's Cockpit** (Dashboard with next class, stopwatch, active tasks).
+- [x] Build **Classes & Students Hub** (Cohorts management, student profiles, notes).
+- [x] Build **Attendance Engine** (Fast 1-click status toggling, history log).
 
 ### Phase 3: CEFR Gradebook & Lesson Planner
-- [ ] Implement CEFR Competency framework & 4-stage micro-evaluations.
-- [ ] Implement 5-stage Lesson Planner with vocabulary/grammar banks and resource attachments.
+- [x] Implement CEFR Competency framework & 4-stage micro-evaluations.
+- [x] Implement 5-stage Lesson Planner with vocabulary/grammar banks and resource attachments.
 
 ### Phase 4: Claims & Parent Reporting
-- [ ] Build Teaching Claims calculation & invoice/claim sheet export.
-- [ ] Build Parent Progress Report generator with printable A4 styling and WhatsApp copy formats.
+- [x] Build Teaching Claims calculation & invoice/claim sheet export.
+- [x] Build Parent Progress Report generator with printable A4 styling and WhatsApp copy formats.
 
 ### Phase 5: Cloudflare Edge Deployment & Offline Sync
-- [ ] Integrate local-first IndexedDB buffer with Cloudflare Pages Functions & D1 sync.
-- [ ] Deploy live to Cloudflare Pages on custom domain via Wrangler.
+- [x] Integrate local-first IndexedDB buffer with Cloudflare Pages Functions & D1 sync.
+- [x] Deployed live to Cloudflare Pages (`classque-teachassist.pages.dev`) via Wrangler, behind the Cloudflare Access login (2026-10-07). A custom domain is not attached yet.
+
+### Phase 6: Verification & Remediation (Stage 16) — see `docs/VERIFICATION_REPORT_2026-10.md`
+- [x] Re-verify stages 01–15 in a real browser; document findings F1–F38.
+- [x] Fix blockers, data-loss and security findings; add the `e2e/` suite (9 files, ~250 checks).
+- [x] Stage 16-18 deployed together (migrations 0004 and 0005 applied; `SYNC_TOKEN` is gone, the Access login replaces it).
+
+### Phase 7: Stage 18 + multi-user login — see `plans-tasks/working_on/18_TASK_DEADLINE_TOPBAR_MULTIUSER.md`
+- [x] Tasks have no default due date; one top bar; sync badge shown once.
+- [x] Multi-user by login email (Cloudflare Access), data scoped per teacher, `SYNC_TOKEN` removed.
+- [x] Go-live: Access app, Pages variables, production deploy.
+- [ ] Follow-ups are listed in `plans-tasks/19_GO_LIVE_FOLLOWUPS.md`.

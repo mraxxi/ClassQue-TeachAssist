@@ -41,7 +41,8 @@ export interface Cohort {
   durationMinutes: number; // 90
   roomOrLink: string;
   hourlyRateOverride?: number;
-  isActive: boolean;
+  isActive: boolean;  /** ISO timestamp of the last local mutation (local-first sync). */
+  updatedAt?: string;
 }
 
 export interface Student {
@@ -57,7 +58,8 @@ export interface Student {
   notes?: string;
   strengths?: string;
   growthAreas?: string;
-  isActive: boolean;
+  isActive: boolean;  /** ISO timestamp of the last local mutation (local-first sync). */
+  updatedAt?: string;
 }
 
 export interface AttendanceRecord {
@@ -67,7 +69,8 @@ export interface AttendanceRecord {
   studentId: string;
   attendanceDate: string; // "YYYY-MM-DD"
   status: AttendanceStatus;
-  note?: string;
+  note?: string;  /** ISO timestamp of the last local mutation (local-first sync). */
+  updatedAt?: string;
 }
 
 export interface VocabularyItem {
@@ -95,7 +98,8 @@ export interface LessonPlan {
   grammarFocus: string;
   materialsLinks: string[];
   homework: string;
-  isTemplate: boolean;
+  isTemplate: boolean;  /** ISO timestamp of the last local mutation (local-first sync). */
+  updatedAt?: string;
 }
 
 export interface TeachingSession {
@@ -110,7 +114,8 @@ export interface TeachingSession {
   hourlyRate: number;
   totalClaimAmount: number;
   status: SessionStatus;
-  scratchpadNotes?: string;
+  scratchpadNotes?: string;  /** ISO timestamp of the last local mutation (local-first sync). */
+  updatedAt?: string;
 }
 
 export interface CefrMilestone {
@@ -130,7 +135,8 @@ export interface StudentMilestoneEvaluation {
   milestoneId: string;
   competencyScore: CompetencyScore;
   evaluatedAt: string;
-  teacherNotes?: string;
+  teacherNotes?: string;  /** ISO timestamp of the last local mutation (local-first sync). */
+  updatedAt?: string;
 }
 
 export interface TeachingClaim {
@@ -147,7 +153,8 @@ export interface TeachingClaim {
   status: ClaimStatus;
   submittedAt?: string;
   paidAt?: string;
-  notes?: string;
+  notes?: string;  /** ISO timestamp of the last local mutation (local-first sync). */
+  updatedAt?: string;
 }
 
 export interface ParentReport {
@@ -162,7 +169,8 @@ export interface ParentReport {
   teacherNarrativeFeedback: string;
   whatsappBriefText: string;
   isSent: boolean;
-  sentAt?: string;
+  sentAt?: string;  /** ISO timestamp of the last local mutation (local-first sync). */
+  updatedAt?: string;
 }
 
 export interface TaskItem {

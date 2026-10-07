@@ -6,25 +6,30 @@ import {
 import { useTeacherStore } from '../../store/useTeacherStore';
 import { useTranslation } from '../../utils/i18n';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { localDateStr } from '../../utils/date';
+import { getIdentity, SIGN_OUT_URL } from '../../utils/identity';
 
 export const SettingsHub: React.FC = () => {
   const { 
     teacher, updateTeacher, language, setLanguage, addToast,
     cohorts, students, attendanceRecords, lessonPlans, tasks, 
     sessions, claims, studentEvaluations, parentReports, cefrMilestones,
-    importFullDatabase, resetToDemoData 
+    importFullDatabase, reloadFromEdge, syncDatabaseToEdge,
+    syncAuthStatus, hasUnsyncedChanges, theme, setTheme,
   } = useTeacherStore();
   const t = useTranslation(language);
 
   const [name, setName] = useState(teacher.name);
-  const [email, setEmail] = useState(teacher.email);
+  const identity = getIdentity();
+  // The login email is the account; it is not editable here once known.
+  const [email, setEmail] = useState(identity.email ?? teacher.email);
   const [schoolName, setSchoolName] = useState(teacher.schoolName);
   const [hourlyRate, setHourlyRate] = useState(teacher.defaultHourlyRate.toString());
   const [currency] = useState(teacher.currency);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Backup & Reset modals & refs
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetStep, setResetStep] = useState<0 | 1 | 2>(0); // double confirmation
   const [isSyncing, setIsSyncing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -47,7 +52,7 @@ export const SettingsHub: React.FC = () => {
     try {
       const exportPayload = {
         app: 'ClassQue-TeachAssist',
-        version: '1.0.0',
+        version: '1.1.0',
         exportedAt: new Date().toISOString(),
         teacher,
         cohorts,
@@ -66,9 +71,8 @@ export const SettingsHub: React.FC = () => {
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const dateTag = new Date().toISOString().slice(0, 10);
       link.href = url;
-      link.download = `classque_teachassist_backup_${dateTag}.json`;
+      link.download = `classque_backup_${localDateStr()}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -97,27 +101,21 @@ export const SettingsHub: React.FC = () => {
         const text = event.target?.result as string;
         const parsed = JSON.parse(text);
 
-        if (!parsed || (!parsed.cohorts && !parsed.students)) {
-          throw new Error('Invalid ClassQue database schema.');
-        }
-
-        const success = importFullDatabase(parsed);
-        if (success) {
-          addToast(
-            language === 'id'
-              ? 'Database berhasil dipulihkan dari file JSON!'
-              : 'Database successfully restored from JSON file!',
-            'success'
-          );
-        } else {
-          throw new Error('Database import failed.');
-        }
+        // Validated completely BEFORE anything is applied: a bad file never touches your data.
+        const result = importFullDatabase(parsed);
+        if (!result.ok) throw new Error(result.error || 'Invalid backup.');
+        addToast(
+          language === 'id'
+            ? 'Database berhasil dipulihkan dari file JSON! Perubahan akan disinkronkan ke D1.'
+            : 'Database restored from JSON file! Changes will be synced to D1.',
+          'success'
+        );
       } catch (err) {
         console.error('Import failed', err);
         addToast(
-          language === 'id'
-            ? 'Format file tidak valid atau rusak. Pastikan file adalah cadangan ClassQue.'
-            : 'Invalid or corrupt file. Ensure it is a valid ClassQue backup.',
+          (language === 'id'
+            ? 'Format file tidak valid atau rusak. Data Anda tidak diubah. '
+            : 'Invalid or corrupt file. Your data was not changed. ') + (err instanceof SyntaxError ? '' : (err as Error).message),
           'error'
         );
       } finally {
@@ -129,71 +127,34 @@ export const SettingsHub: React.FC = () => {
     reader.readAsText(file);
   };
 
-  // Handle Reset to Demo Seed Data
-  const handleResetConfirm = () => {
-    resetToDemoData();
-    setIsResetModalOpen(false);
+  // Discard local data and re-download everything from D1 (two confirmations)
+  const handleResetConfirm = async () => {
+    setResetStep(0);
+    const ok = await reloadFromEdge();
     addToast(
-      language === 'id' 
-        ? 'Database berhasil dikembalikan ke data percontohan awal.' 
-        : 'Database reset to initial demo seed data.',
-      'info'
+      ok
+        ? (language === 'id' ? 'Data lokal diganti dengan data terbaru dari D1.' : 'Local data replaced with the latest data from D1.')
+        : (language === 'id' ? 'Gagal terhubung ke D1. Data lokal Anda tidak diubah.' : 'Could not reach D1. Your local data was not changed.'),
+      ok ? 'success' : 'error'
     );
   };
 
-  // Cloudflare D1 Real Sync
+  // Cloudflare D1 sync through the store (token, tombstones and flags handled there)
   const handleManualSync = async () => {
     setIsSyncing(true);
-    try {
-      const payload = {
-        teacher,
-        cohorts,
-        students,
-        lessonPlans,
-        attendanceRecords,
-        sessions,
-        claims,
-        studentEvaluations,
-        parentReports,
-        tasks,
-      };
-
-      const res = await fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json() as any;
-        addToast(
-          language === 'id'
-            ? `Sinkronisasi Edge D1 Berhasil: ${data.message || 'Tersinkronisasi!'}`
-            : `Edge D1 Sync Successful: ${data.message || 'Synced!'}`,
-          'success'
-        );
-      } else {
-        const errorData = await res.json().catch(() => ({})) as any;
-        if (res.status === 503 || errorData.status === 'unbound') {
-          addToast(
-            language === 'id'
-              ? 'D1 Cloudflare belum di-bind di wrangler.toml. Berjalan dalam mode Local-First.'
-              : 'D1 binding not yet provisioned in Cloudflare. Running in Local-First mode.',
-            'warning'
-          );
-        } else {
-          throw new Error(errorData.error || 'Server error');
-        }
-      }
-    } catch {
-      addToast(
-        language === 'id'
-          ? 'Mode Offline / Lokal: Data aman tersimpan di Local-First storage.'
-          : 'Offline / Local Mode: Data safely preserved in Local-First storage.',
-        'info'
-      );
-    } finally {
-      setIsSyncing(false);
+    const ok = await syncDatabaseToEdge();
+    const status = useTeacherStore.getState().syncAuthStatus;
+    setIsSyncing(false);
+    if (ok) {
+      addToast(language === 'id' ? 'Sinkronisasi Edge D1 berhasil.' : 'Edge D1 sync successful.', 'success');
+    } else if (status === 'unauthenticated') {
+      addToast(language === 'id' ? 'Belum masuk. Masuk lewat Cloudflare Access untuk sinkronisasi.' : 'Not signed in. Sign in through Cloudflare Access to sync.', 'warning');
+    } else if (status === 'unbound') {
+      addToast(language === 'id' ? 'Database D1 belum terhubung ke server (binding DB).' : 'The D1 database is not linked to the server (DB binding).', 'warning');
+    } else if (status === 'unconfigured') {
+      addToast(language === 'id' ? 'Server belum siap (D1).' : 'The server is not ready (D1).', 'warning');
+    } else {
+      addToast(language === 'id' ? 'Mode Offline: data aman di penyimpanan lokal dan akan disinkronkan nanti.' : 'Offline: data is safe locally and will sync later.', 'info');
     }
   };
 
@@ -208,7 +169,7 @@ export const SettingsHub: React.FC = () => {
       }
       return (total / 1024).toFixed(1);
     } catch {
-      return '120.4';
+      return '—';
     }
   };
 
@@ -232,6 +193,33 @@ export const SettingsHub: React.FC = () => {
         </div>
       </div>
 
+      {/* Signed-in account */}
+      <div className="bg-white rounded-3xl p-5 border border-stone-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
+            {language === 'id' ? 'Masuk sebagai' : 'Signed in as'}
+          </p>
+          <p className="text-sm font-extrabold text-stone-900 truncate">
+            {identity.email ?? (language === 'id' ? 'Tamu (hanya perangkat ini)' : 'Guest (this device only)')}
+          </p>
+          {identity.email && !identity.verified && (
+            <p className="text-[11px] text-amber-700 font-medium mt-0.5">
+              {language === 'id'
+                ? 'Belum terverifikasi: data tersimpan di perangkat ini dan akan disinkronkan setelah login terkonfirmasi.'
+                : 'Not verified yet: data is kept on this device and will sync once your login is confirmed.'}
+            </p>
+          )}
+        </div>
+        {identity.email && (
+          <a
+            href={SIGN_OUT_URL}
+            className="px-4 py-2 text-xs font-bold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-xl transition-colors"
+          >
+            {language === 'id' ? 'Keluar' : 'Sign out'}
+          </a>
+        )}
+      </div>
+
       {/* Profile & Rates Form */}
       <form onSubmit={handleSave} className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs space-y-5">
         <h3 className="text-sm font-extrabold text-stone-900 border-b border-stone-100 pb-2">
@@ -244,6 +232,7 @@ export const SettingsHub: React.FC = () => {
               {language === 'id' ? 'Nama Lengkap Guru' : 'Teacher Full Name'}
             </label>
             <input
+              aria-label={language === 'id' ? 'Nama lengkap guru' : 'Teacher full name'}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -256,11 +245,18 @@ export const SettingsHub: React.FC = () => {
               {language === 'id' ? 'Email Guru' : 'Teacher Email'}
             </label>
             <input
+              aria-label={language === 'id' ? 'Email guru' : 'Teacher email'}
               type="email"
               value={email}
+              readOnly={Boolean(identity.email)}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800"
+              className="w-full px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 focus:bg-white text-stone-800 read-only:text-stone-500 read-only:cursor-not-allowed"
             />
+            {identity.email && (
+              <p className="text-[11px] text-stone-500 mt-1">
+                {language === 'id' ? 'Email login Anda; tidak dapat diubah di sini.' : 'Your login email; it cannot be changed here.'}
+              </p>
+            )}
           </div>
 
           <div>
@@ -268,6 +264,7 @@ export const SettingsHub: React.FC = () => {
               {language === 'id' ? 'Nama Sekolah / Lembaga Kursus' : 'School / Academy Name'}
             </label>
             <input
+              aria-label={language === 'id' ? 'Nama sekolah / lembaga' : 'School / institution name'}
               type="text"
               value={schoolName}
               onChange={(e) => setSchoolName(e.target.value)}
@@ -281,6 +278,7 @@ export const SettingsHub: React.FC = () => {
             </label>
             <div className="flex items-center gap-2">
               <input
+              aria-label={language === 'id' ? 'Tarif honor standar per jam' : 'Default hourly rate'}
                 type="number"
                 value={hourlyRate}
                 onChange={(e) => setHourlyRate(e.target.value)}
@@ -295,7 +293,7 @@ export const SettingsHub: React.FC = () => {
 
         {/* Language Preferences */}
         <div className="border-t border-stone-100 pt-4 space-y-3">
-          <h3 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider text-stone-400">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-stone-600">
             {language === 'id' ? 'Preferensi Bahasa Antarmuka' : 'UI Language Preference'}
           </h3>
 
@@ -318,6 +316,33 @@ export const SettingsHub: React.FC = () => {
             >
               🇬🇧 English
             </button>
+          </div>
+        </div>
+
+        {/* Appearance */}
+        <div className="border-t border-stone-100 pt-4 space-y-3">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-stone-600" id="theme-heading">
+            {language === 'id' ? 'Tampilan' : 'Appearance'}
+          </h3>
+          <div role="radiogroup" aria-labelledby="theme-heading" className="flex flex-wrap items-center gap-3" data-testid="theme-picker">
+            {([
+              ['light', language === 'id' ? '☀️ Terang' : '☀️ Light'],
+              ['dark', language === 'id' ? '🌙 Gelap' : '🌙 Dark'],
+              ['system', language === 'id' ? '💻 Ikuti sistem' : '💻 Match system'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={theme === value}
+                onClick={() => setTheme(value)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${
+                  theme === value ? 'bg-teal-800 text-white shadow-xs' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -347,7 +372,7 @@ export const SettingsHub: React.FC = () => {
                 : 'Download a complete JSON snapshot of your teaching database or restore from a previous file.'}
             </p>
           </div>
-          <ShieldCheck className="w-5 h-5 text-emerald-600" />
+          <ShieldCheck className="w-5 h-5 text-emerald-700" />
         </div>
 
         {/* Actions Grid */}
@@ -401,17 +426,17 @@ export const SettingsHub: React.FC = () => {
           {/* Reset to Demo Data Button */}
           <button
             type="button"
-            onClick={() => setIsResetModalOpen(true)}
+            onClick={() => setResetStep(1)}
             className="p-4 rounded-2xl bg-rose-50/60 hover:bg-rose-100/80 border border-rose-200 text-rose-900 transition-all text-left flex flex-col justify-between group cursor-pointer shadow-xs"
           >
             <div className="flex items-center justify-between">
-              <RotateCcw className="w-5 h-5 text-rose-600 group-hover:rotate-45 transition-transform" />
+              <RotateCcw className="w-5 h-5 text-rose-700 group-hover:rotate-45 transition-transform" />
               <span className="text-[10px] font-extrabold bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-md">RESET</span>
             </div>
             <div className="mt-3">
-              <p className="text-xs font-black">{language === 'id' ? 'Kembalikan Data Demo' : 'Reset to Demo Data'}</p>
+              <p className="text-xs font-black">{language === 'id' ? 'Muat Ulang dari D1' : 'Reload from D1'}</p>
               <p className="text-[11px] text-rose-700 mt-0.5">
-                {language === 'id' ? 'Muat ulang contoh data kurikulum' : 'Reload sample curriculum data'}
+                {language === 'id' ? 'Ganti data lokal dengan data D1' : 'Replace local data with D1 data'}
               </p>
             </div>
           </button>
@@ -434,7 +459,7 @@ export const SettingsHub: React.FC = () => {
           </div>
           <div>
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
-              {language === 'id' ? 'Rencana Ajar' : 'Lesson Plans'}
+              {language === 'id' ? 'RPP' : 'Lesson Plans'}
             </span>
             <span className="font-extrabold text-stone-900 font-mono text-sm">{lessonPlans.length}</span>
           </div>
@@ -448,12 +473,12 @@ export const SettingsHub: React.FC = () => {
       </div>
 
       {/* Cloudflare D1 & Edge Diagnostics */}
-      <div className="bg-stone-900 rounded-3xl p-6 text-white space-y-4 shadow-md">
+      <div className="theme-original bg-stone-900 rounded-3xl p-6 text-white space-y-4 shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 pb-4">
           <div>
             <h4 className="font-extrabold flex items-center gap-2 text-sm text-teal-400">
               <Database className="w-4 h-4" />
-              Cloudflare D1 Edge & Offline Engine
+              {language === 'id' ? 'Cloudflare D1 Edge & Mesin Offline' : 'Cloudflare D1 Edge & Offline Engine'}
             </h4>
             <p className="text-xs text-stone-400 mt-0.5">
               {language === 'id'
@@ -477,20 +502,20 @@ export const SettingsHub: React.FC = () => {
           <div className="bg-stone-800/80 p-3.5 rounded-2xl border border-stone-700/80">
             <span className="text-[10px] text-stone-400 font-bold uppercase block flex items-center justify-center gap-1">
               <HardDrive className="w-3 h-3 text-stone-400" />
-              Penyimpanan Lokal
+              {language === 'id' ? 'Penyimpanan Lokal' : 'Local Storage'}
             </span>
             <span className="font-mono font-bold text-teal-300 mt-1 block text-sm">
-              {storageUsedKb} KB <span className="text-[11px] font-sans text-stone-400">/ IndexedDB</span>
+              {storageUsedKb} KB <span className="text-[11px] font-sans text-stone-400">/ localStorage</span>
             </span>
           </div>
 
           <div className="bg-stone-800/80 p-3.5 rounded-2xl border border-stone-700/80">
             <span className="text-[10px] text-stone-400 font-bold uppercase block flex items-center justify-center gap-1">
               <Wifi className="w-3 h-3 text-emerald-400" />
-              Status Jaringan
+              {language === 'id' ? 'Status Jaringan' : 'Network Status'}
             </span>
-            <span className="font-bold text-emerald-400 mt-1 block text-sm">
-              Online (Local-First Active)
+            <span className={`font-bold mt-1 block text-sm ${typeof navigator !== 'undefined' && navigator.onLine ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {typeof navigator !== 'undefined' && navigator.onLine ? 'Online' : (language === 'id' ? 'Luar Jaringan' : 'Offline')} (Local-First)
             </span>
           </div>
 
@@ -499,27 +524,47 @@ export const SettingsHub: React.FC = () => {
               <Database className="w-3 h-3 text-teal-400" />
               Cloudflare D1 Edge
             </span>
-            <span className="font-bold text-teal-300 mt-1 block text-sm">
-              100% Free Tier (Active)
+            <span className="font-bold text-teal-300 mt-1 block text-sm" data-testid="d1-auth-status">
+              {syncAuthStatus === 'ok' ? (language === 'id' ? 'Terhubung' : 'Connected')
+                : syncAuthStatus === 'unauthenticated' ? (language === 'id' ? 'Belum masuk' : 'Not signed in')
+                : syncAuthStatus === 'unbound' ? (language === 'id' ? 'D1 belum terhubung' : 'D1 not linked')
+                : syncAuthStatus === 'unconfigured' ? (language === 'id' ? 'Server belum diatur' : 'Server not configured')
+                : (language === 'id' ? 'Menunggu' : 'Pending')}
+              {hasUnsyncedChanges ? ' • ' + (language === 'id' ? 'ada perubahan' : 'unsynced') : ''}
             </span>
           </div>
         </div>
+
       </div>
 
-      {/* Confirmation Modal for Reset to Demo Data */}
+      {/* Reload from D1: two confirmations because it discards unsynced local edits */}
       <ConfirmModal
-        isOpen={isResetModalOpen}
-        title={language === 'id' ? 'Kembalikan ke Data Demo Awal?' : 'Reset to Initial Demo Data?'}
+        isOpen={resetStep === 1}
+        title={language === 'id' ? 'Ganti data lokal dengan data D1?' : 'Replace local data with D1 data?'}
         message={
           language === 'id'
-            ? 'Tindakan ini akan menggantikan data yang telah Anda ubah dengan dataset percontohan awal ClassQue. Pastikan Anda telah mengekspor cadangan JSON terlebih dahulu jika ingin menyimpan data saat ini.'
-            : 'This will replace your current data with the default sample seed dataset. Ensure you have exported a JSON backup first if you wish to keep current changes.'
+            ? 'Semua data di perangkat ini, termasuk perubahan yang belum tersinkronisasi, akan diganti dengan data terbaru di Cloudflare D1. Ekspor cadangan JSON terlebih dahulu jika ragu.'
+            : 'Everything on this device, including edits that have not synced yet, will be replaced by the latest data in Cloudflare D1. Export a JSON backup first if unsure.'
         }
-        confirmText={language === 'id' ? 'Ya, Kembalikan ke Demo' : 'Yes, Reset to Demo'}
+        confirmText={language === 'id' ? 'Lanjutkan' : 'Continue'}
+        cancelText={language === 'id' ? 'Batal' : 'Cancel'}
+        isDangerous={true}
+        onConfirm={() => setResetStep(2)}
+        onCancel={() => setResetStep(0)}
+      />
+      <ConfirmModal
+        isOpen={resetStep === 2}
+        title={language === 'id' ? 'Konfirmasi terakhir' : 'Final confirmation'}
+        message={
+          language === 'id'
+            ? 'Tindakan ini tidak dapat dibatalkan. Yakin ingin mengganti data lokal?'
+            : 'This cannot be undone. Are you sure you want to replace your local data?'
+        }
+        confirmText={language === 'id' ? 'Ya, Ganti Data Lokal' : 'Yes, Replace Local Data'}
         cancelText={language === 'id' ? 'Batal' : 'Cancel'}
         isDangerous={true}
         onConfirm={handleResetConfirm}
-        onCancel={() => setIsResetModalOpen(false)}
+        onCancel={() => setResetStep(0)}
       />
 
     </div>

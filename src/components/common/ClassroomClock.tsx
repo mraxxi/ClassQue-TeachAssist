@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Globe } from 'lucide-react';
 import { useTeacherStore } from '../../store/useTeacherStore';
+import { getNextSlot, getTodaySlots } from '../../utils/schedule';
 
 interface ClassroomClockProps {
   compact?: boolean;
@@ -8,7 +9,7 @@ interface ClassroomClockProps {
 }
 
 export const ClassroomClock: React.FC<ClassroomClockProps> = ({ compact = false, className = '' }) => {
-  const { language } = useTeacherStore();
+  const { language, cohorts, sessions } = useTeacherStore();
   const [now, setNow] = useState<Date>(new Date());
 
   useEffect(() => {
@@ -17,6 +18,19 @@ export const ClassroomClock: React.FC<ClassroomClockProps> = ({ compact = false,
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Proximity to the next class: 'live' (in progress), 'soon' (starts within 30 min) or 'none'
+  const nextSlot = getNextSlot(getTodaySlots(cohorts, sessions, now));
+  const minutesUntil = nextSlot ? Math.ceil((nextSlot.start.getTime() - now.getTime()) / 60000) : null;
+  const proximity: 'live' | 'soon' | 'none' =
+    nextSlot?.status === 'live' ? 'live' : nextSlot && minutesUntil !== null && minutesUntil <= 30 ? 'soon' : 'none';
+  const proximityColor = proximity === 'live' ? 'text-emerald-700' : proximity === 'soon' ? 'text-amber-500' : 'text-teal-700';
+  const proximityLabel =
+    proximity === 'live'
+      ? (language === 'id' ? 'Kelas berlangsung' : 'Class in progress')
+      : proximity === 'soon'
+      ? (language === 'id' ? `Kelas dalam ${minutesUntil} mnt` : `Class in ${minutesUntil} min`)
+      : '';
 
   // Format Time (HH:mm:ss)
   const hours = String(now.getHours()).padStart(2, '0');
@@ -53,8 +67,12 @@ export const ClassroomClock: React.FC<ClassroomClockProps> = ({ compact = false,
 
   if (compact) {
     return (
-      <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg bg-stone-100/90 border border-stone-200 text-stone-700 select-none ${className}`}>
-        <Clock className="w-3.5 h-3.5 text-teal-700 animate-pulse" />
+      <div
+        data-proximity={proximity}
+        title={proximityLabel || undefined}
+        className={`flex items-center gap-2 px-2.5 py-1 rounded-lg bg-stone-100/90 border border-stone-200 text-stone-700 select-none ${className}`}
+      >
+        <Clock className={`w-3.5 h-3.5 ${proximityColor} ${proximity !== 'none' ? 'animate-pulse' : ''}`} />
         <span className="font-mono font-bold text-xs tracking-tight text-stone-900">
           {hours}:{minutes}:{seconds}
         </span>
@@ -78,9 +96,19 @@ export const ClassroomClock: React.FC<ClassroomClockProps> = ({ compact = false,
               <span className="text-teal-300/80 text-lg sm:text-xl font-medium">:{seconds}</span>
             </span>
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-950/80 border border-teal-700/40 text-[11px] text-teal-200 font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span
+                data-proximity={proximity}
+                className={`w-1.5 h-1.5 rounded-full ${
+                  proximity === 'soon' ? 'bg-amber-400 animate-ping' : proximity === 'live' ? 'bg-emerald-400 animate-ping' : 'bg-emerald-400'
+                }`}
+              ></span>
               <span>{tzAbbr}</span>
             </div>
+            {proximityLabel && (
+              <span className={`text-[11px] font-bold ${proximity === 'soon' ? 'text-amber-300' : 'text-emerald-300'}`} data-testid="clock-proximity">
+                {proximityLabel}
+              </span>
+            )}
           </div>
           <p className="text-xs text-stone-300 font-medium capitalize mt-0.5">
             {formattedDate}

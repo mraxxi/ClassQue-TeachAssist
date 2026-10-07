@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { 
   Calendar, ChevronLeft, ChevronRight, CheckCheck, 
-  Clock, AlertCircle, CheckCircle2, XCircle, FileEdit
+  FileEdit
 } from 'lucide-react';
 import { Cohort, Student, AttendanceStatus } from '../../types';
 import { useTeacherStore } from '../../store/useTeacherStore';
-import { useTranslation } from '../../utils/i18n';
+import { useTranslation, attendanceStatusLabel } from '../../utils/i18n';
+import { AttendanceControl, RollCallProgress } from '../common/AttendanceControl';
+import { addDaysStr, localDateStr } from '../../utils/date';
 
 interface AttendanceHistoryTabProps {
   activeCohort: Cohort;
@@ -19,27 +21,15 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
   const { attendanceRecords, setAttendance, batchMarkAllPresent, language, addToast } = useTeacherStore();
   const t = useTranslation(language);
 
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(localDateStr());
   const [viewMode, setViewMode] = useState<'daily' | 'matrix'>('daily');
   const [editingNoteStudentId, setEditingNoteStudentId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState<string>('');
 
-  // Date navigation helpers
-  const handlePrevDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
-
-  const handleNextDay = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
-
-  const handleToday = () => {
-    setSelectedDate(new Date().toISOString().split('T')[0]);
-  };
+  // Date navigation helpers (local calendar dates, never UTC)
+  const handlePrevDay = () => setSelectedDate(addDaysStr(selectedDate, -1));
+  const handleNextDay = () => setSelectedDate(addDaysStr(selectedDate, 1));
+  const handleToday = () => setSelectedDate(localDateStr());
 
   const getStudentStatusRecord = (studentId: string, date: string) => {
     return attendanceRecords.find(
@@ -47,37 +37,31 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
     );
   };
 
-  const getStudentStatus = (studentId: string, date: string): AttendanceStatus => {
-    const rec = getStudentStatusRecord(studentId, date);
-    return rec?.status || 'present';
-  };
-
-  const statusConfigs: { key: AttendanceStatus; label: string; activeClass: string; badgeClass: string; icon: any }[] = [
-    { key: 'present', label: language === 'id' ? 'Hadir (H)' : 'Present (P)', activeClass: 'bg-emerald-600 text-white shadow-xs', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
-    { key: 'absent', label: language === 'id' ? 'Alpa (A)' : 'Absent (A)', activeClass: 'bg-rose-600 text-white shadow-xs', badgeClass: 'bg-rose-100 text-rose-800 border-rose-200', icon: XCircle },
-    { key: 'late', label: language === 'id' ? 'Terlambat (T)' : 'Late (L)', activeClass: 'bg-amber-600 text-white shadow-xs', badgeClass: 'bg-amber-100 text-amber-800 border-amber-200', icon: Clock },
-    { key: 'excused', label: language === 'id' ? 'Izin (I)' : 'Excused (E)', activeClass: 'bg-sky-600 text-white shadow-xs', badgeClass: 'bg-sky-100 text-sky-800 border-sky-200', icon: AlertCircle },
-  ];
+  /** `undefined` = not recorded yet. Unrecorded never counts as present. */
+  const getStudentStatus = (studentId: string, date: string): AttendanceStatus | undefined =>
+    getStudentStatusRecord(studentId, date)?.status;
 
   // Selected date statistics
   const presentCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'present').length;
   const absentCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'absent').length;
   const lateCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'late').length;
   const excusedCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === 'excused').length;
-  const attendanceRate = cohortStudents.length > 0 
-    ? Math.round(((presentCount + lateCount) / cohortStudents.length) * 100) 
-    : 100;
+  const unmarkedCount = cohortStudents.filter((s) => getStudentStatus(s.id, selectedDate) === undefined).length;
+  const recordedCount = cohortStudents.length - unmarkedCount;
+  // Rate is computed from recorded students only; "—" while nothing is recorded.
+  const attendanceRate: number | null = recordedCount > 0 ? Math.round(((presentCount + lateCount) / recordedCount) * 100) : null;
 
-  // Recent 7 dates for matrix view
+  // Recent 7 dates for matrix view (oldest -> today)
+  const today = localDateStr();
   const recentDates: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    recentDates.push(d.toISOString().split('T')[0]);
-  }
+  for (let i = 6; i >= 0; i--) recentDates.push(addDaysStr(today, -i));
 
   const handleSaveNote = (studentId: string) => {
     const currentStatus = getStudentStatus(studentId, selectedDate);
+    if (!currentStatus) {
+      addToast(language === 'id' ? 'Tandai status presensi terlebih dahulu.' : 'Mark an attendance status first.', 'warning');
+      return;
+    }
     setAttendance(studentId, activeCohort.id, selectedDate, currentStatus, noteText.trim());
     setEditingNoteStudentId(null);
     setNoteText('');
@@ -95,7 +79,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
           <button
             onClick={handlePrevDay}
             className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-            title="Previous Day"
+            title={language === 'id' ? 'Hari sebelumnya' : 'Previous day'}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -104,6 +88,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
             <Calendar className="w-3.5 h-3.5 text-teal-700" />
             <input
               type="date"
+                aria-label={language === 'id' ? 'Tanggal presensi' : 'Attendance date'}
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="bg-transparent focus:outline-none cursor-pointer font-mono"
@@ -113,7 +98,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
           <button
             onClick={handleNextDay}
             className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-            title="Next Day"
+            title={language === 'id' ? 'Hari berikutnya' : 'Next day'}
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -164,36 +149,42 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
       </div>
 
       {/* Date KPI Summary Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
           <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
             {language === 'id' ? 'Tingkat Kehadiran' : 'Attendance Rate'}
           </span>
-          <span className="text-xl font-black text-teal-900 mt-0.5 block">{attendanceRate}%</span>
+          <span className="text-xl font-black text-teal-900 mt-0.5 block">{attendanceRate === null ? '—' : `${attendanceRate}%`}</span>
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
-          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
+          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
             {language === 'id' ? 'Hadir' : 'Present'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{presentCount}</span>
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
-          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
+          <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">
             {language === 'id' ? 'Alpa' : 'Absent'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{absentCount}</span>
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
-          <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
+          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
             {language === 'id' ? 'Terlambat' : 'Late'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{lateCount}</span>
         </div>
-        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center col-span-2 sm:col-span-1">
-          <span className="text-[10px] font-bold text-sky-600 uppercase tracking-wider block">
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center">
+          <span className="text-[10px] font-bold text-sky-700 uppercase tracking-wider block">
             {language === 'id' ? 'Izin' : 'Excused'}
           </span>
           <span className="text-xl font-black text-stone-900 mt-0.5 block">{excusedCount}</span>
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs text-center col-span-2 sm:col-span-1" data-testid="unmarked-kpi">
+          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+            {language === 'id' ? 'Belum Dicatat' : 'Not Recorded'}
+          </span>
+          <span className="text-xl font-black text-stone-900 mt-0.5 block">{unmarkedCount}</span>
         </div>
       </div>
 
@@ -204,9 +195,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
             <h3 className="text-sm font-extrabold text-stone-900">
               {language === 'id' ? 'Daftar Presensi Sesi:' : 'Session Roster:'} <span className="font-mono text-teal-800">{selectedDate}</span>
             </h3>
-            <span className="text-xs text-stone-500 font-medium">
-              {cohortStudents.length} {language === 'id' ? 'Siswa' : 'Students'}
-            </span>
+            <RollCallProgress recorded={recordedCount} total={cohortStudents.length} language={language} />
           </div>
 
           <div className="divide-y divide-stone-100">
@@ -227,29 +216,19 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                       <div>
                         <p className="text-xs font-bold text-stone-900">{st.fullName}</p>
                         <p className="text-[11px] text-stone-400">
-                          "{st.nickname}" • Wali: {st.guardianName}
+                          "{st.nickname}" • {language === 'id' ? 'Wali' : 'Guardian'}: {st.guardianName}
                         </p>
                       </div>
                     </div>
 
                     {/* 1-Click Status Selector & Note Trigger */}
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl border border-stone-200">
-                        {statusConfigs.map((cfg) => {
-                          const isSelected = currentStatus === cfg.key;
-                          return (
-                            <button
-                              key={cfg.key}
-                              onClick={() => setAttendance(st.id, activeCohort.id, selectedDate, cfg.key, rec?.note)}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                isSelected ? cfg.activeClass : 'text-stone-600 hover:bg-stone-200'
-                              }`}
-                            >
-                              {cfg.label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <AttendanceControl
+                        value={currentStatus}
+                        language={language}
+                        label={st.fullName}
+                        onChange={(status) => setAttendance(st.id, activeCohort.id, selectedDate, status, rec?.note)}
+                      />
 
                       <button
                         onClick={() => {
@@ -265,7 +244,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                             ? 'bg-amber-50 text-amber-800 border-amber-200'
                             : 'bg-stone-100 hover:bg-stone-200 text-stone-500 border-stone-200'
                         }`}
-                        title={rec?.note ? `Catatan: ${rec.note}` : 'Tambah catatan presensi'}
+                        title={rec?.note ? `${language === 'id' ? 'Catatan' : 'Note'}: ${rec.note}` : (language === 'id' ? 'Tambah catatan presensi' : 'Add attendance note')}
                       >
                         <FileEdit className="w-3.5 h-3.5" />
                       </button>
@@ -288,7 +267,11 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                         type="text"
                         value={noteText}
                         onChange={(e) => setNoteText(e.target.value)}
-                        placeholder="e.g. Izin sakit flu / Datang terlambat 15 menit..."
+                        placeholder={language === 'id' ? 'mis. Izin sakit flu / Datang terlambat 15 menit...' : 'e.g. Excused: flu / Arrived 15 minutes late...'}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveNote(st.id);
+                          if (e.key === 'Escape') setEditingNoteStudentId(null);
+                        }}
                         className="flex-1 px-3 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-700 text-stone-800"
                         autoFocus
                       />
@@ -296,13 +279,13 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                         onClick={() => handleSaveNote(st.id)}
                         className="px-3 py-1.5 rounded-xl bg-teal-800 text-white text-xs font-bold hover:bg-teal-900 cursor-pointer"
                       >
-                        Simpan
+                        {language === 'id' ? 'Simpan' : 'Save'}
                       </button>
                       <button
                         onClick={() => setEditingNoteStudentId(null)}
                         className="px-2.5 py-1.5 rounded-xl bg-stone-100 text-stone-600 text-xs font-bold hover:bg-stone-200 cursor-pointer"
                       >
-                        Batal
+                        {language === 'id' ? 'Batal' : 'Cancel'}
                       </button>
                     </div>
                   )}
@@ -322,25 +305,26 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
               {language === 'id' ? 'Matriks Riwayat Presensi 7 Hari Terakhir' : '7-Day Attendance Matrix'}
             </h3>
             <span className="text-xs text-stone-500 font-medium">
-              Klik chip status untuk mengubah
+              {language === 'id' ? 'Klik chip status untuk mengubah' : 'Click a status chip to change it'}
             </span>
           </div>
 
           <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="border-b border-stone-200 text-[11px] text-stone-400 uppercase font-bold">
-                <th className="py-2.5 px-3">Siswa / Student</th>
+                <th className="py-2.5 px-3">{language === 'id' ? 'Siswa' : 'Student'}</th>
                 {recentDates.map((dt) => (
                   <th key={dt} className="py-2.5 px-2 text-center font-mono">
                     {dt.slice(5)}
                   </th>
                 ))}
-                <th className="py-2.5 px-3 text-right">Kehadiran</th>
+                <th className="py-2.5 px-3 text-right">{language === 'id' ? 'Kehadiran' : 'Attendance'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {cohortStudents.map((st) => {
                 let stPresent = 0;
+                let stRecorded = 0;
                 return (
                   <tr key={st.id} className="hover:bg-stone-50/60 transition-colors">
                     <td className="py-3 px-3 font-bold text-stone-900">
@@ -354,10 +338,13 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
 
                     {recentDates.map((dt) => {
                       const status = getStudentStatus(st.id, dt);
+                      if (status) stRecorded++;
                       if (status === 'present' || status === 'late') stPresent++;
 
-                      const letter = status === 'present' ? 'H' : status === 'absent' ? 'A' : status === 'late' ? 'T' : 'I';
-                      const color = status === 'present' 
+                      const letter = !status ? '·' : status === 'present' ? 'H' : status === 'absent' ? 'A' : status === 'late' ? 'T' : 'I';
+                      const color = !status
+                        ? 'bg-stone-50 text-stone-300 border-stone-200'
+                        : status === 'present' 
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
                         : status === 'absent' 
                         ? 'bg-rose-100 text-rose-800 border-rose-300' 
@@ -367,7 +354,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
 
                       const cycleNext = () => {
                         const order: AttendanceStatus[] = ['present', 'late', 'excused', 'absent'];
-                        const nextIdx = (order.indexOf(status) + 1) % order.length;
+                        const nextIdx = status ? (order.indexOf(status) + 1) % order.length : 0;
                         setAttendance(st.id, activeCohort.id, dt, order[nextIdx]);
                       };
 
@@ -376,7 +363,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                           <button
                             onClick={cycleNext}
                             className={`w-7 h-7 rounded-lg text-xs font-black border transition-all cursor-pointer ${color}`}
-                            title={`${dt}: ${status.toUpperCase()} (Click to toggle)`}
+                            title={`${dt}: ${status ? attendanceStatusLabel(status, language).toUpperCase() : (language === 'id' ? 'BELUM DICATAT' : 'NOT RECORDED')} (${language === 'id' ? 'Klik untuk mengubah' : 'Click to toggle'})`}
                           >
                             {letter}
                           </button>
@@ -385,7 +372,7 @@ export const AttendanceHistoryTab: React.FC<AttendanceHistoryTabProps> = ({
                     })}
 
                     <td className="py-3 px-3 text-right font-mono font-bold text-teal-900">
-                      {Math.round((stPresent / recentDates.length) * 100)}%
+                      {stRecorded > 0 ? `${Math.round((stPresent / stRecorded) * 100)}%` : '—'}
                     </td>
                   </tr>
                 );

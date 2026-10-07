@@ -33,11 +33,11 @@ export const LessonPlannerHub: React.FC = () => {
   const activeCohort = cohorts.find((c) => c.id === activePlan?.cohortId);
 
   const stages = [
-    { num: 1, name: language === 'id' ? '1. Pemanasan / Apersepsi (Warm-up / Hook)' : 'Stage 1: Warm-up / Hook', duration: '5–10 min', content: activePlan?.warmUp },
-    { num: 2, name: language === 'id' ? '2. Penyampaian Materi (Presentation)' : 'Stage 2: Concept Presentation', duration: '15–20 min', content: activePlan?.presentation },
-    { num: 3, name: language === 'id' ? '3. Latihan Terpandu (Controlled Practice)' : 'Stage 3: Controlled Practice', duration: '15–20 min', content: activePlan?.practice },
-    { num: 4, name: language === 'id' ? '4. Aplikasi Mandiri (Free Production)' : 'Stage 4: Free Production', duration: '20–25 min', content: activePlan?.production },
-    { num: 5, name: language === 'id' ? '5. Refleksi & Penutup (Review & Wrap-up)' : 'Stage 5: Review & Wrap-up', duration: '5–10 min', content: activePlan?.wrapUp },
+    { num: 1, name: language === 'id' ? '1. Pemanasan / Apersepsi' : 'Stage 1: Warm-up / Hook', duration: language === 'id' ? '5–10 mnt' : '5–10 min', content: activePlan?.warmUp },
+    { num: 2, name: language === 'id' ? '2. Penyampaian Materi' : 'Stage 2: Presentation', duration: language === 'id' ? '15–20 mnt' : '15–20 min', content: activePlan?.presentation },
+    { num: 3, name: language === 'id' ? '3. Latihan Terpandu' : 'Stage 3: Controlled Practice', duration: language === 'id' ? '15–20 mnt' : '15–20 min', content: activePlan?.practice },
+    { num: 4, name: language === 'id' ? '4. Aplikasi Mandiri' : 'Stage 4: Free Production', duration: language === 'id' ? '20–25 mnt' : '20–25 min', content: activePlan?.production },
+    { num: 5, name: language === 'id' ? '5. Refleksi & Penutup' : 'Stage 5: Review & Wrap-up', duration: language === 'id' ? '5–10 mnt' : '5–10 min', content: activePlan?.wrapUp },
   ];
 
   const handleOpenAdd = () => {
@@ -58,7 +58,6 @@ export const LessonPlannerHub: React.FC = () => {
   const handleDeleteConfirm = () => {
     if (!confirmDeletePlan) return;
     deleteLessonPlan(confirmDeletePlan.id);
-    addToast(language === 'id' ? 'RPP berhasil dihapus' : 'Lesson plan deleted', 'info');
     setConfirmDeletePlan(null);
   };
 
@@ -113,9 +112,19 @@ export const LessonPlannerHub: React.FC = () => {
 
           <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
             {filteredPlans.length === 0 ? (
-              <div className="p-8 text-center text-stone-400 text-xs">
-                <p>{language === 'id' ? 'Tidak ada RPP yang sesuai.' : 'No lesson plans found.'}</p>
-              </div>
+              lessonPlans.length === 0 ? (
+                <div className="p-6 text-center space-y-3" data-testid="plans-empty">
+                  <p className="text-sm font-bold text-stone-800">{language === 'id' ? 'Belum ada rencana pembelajaran' : 'No lesson plans yet'}</p>
+                  <p className="text-xs text-stone-600">{language === 'id' ? 'Susun pelajaran dalam 5 tahap dengan bank kosakata, lalu pakai langsung di Kokpit.' : 'Draft a 5-stage lesson with a vocabulary bank, then use it live in the Cockpit.'}</p>
+                  <button onClick={handleOpenAdd} className="px-4 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold cursor-pointer">
+                    {language === 'id' ? 'Buat RPP Pertama' : 'Create your first plan'}
+                  </button>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-stone-500 text-xs">
+                  <p>{language === 'id' ? 'Tidak ada RPP yang sesuai.' : 'No lesson plans found.'}</p>
+                </div>
+              )
             ) : (
               filteredPlans.map((plan) => {
                 const isSelected = plan.id === activePlan?.id;
@@ -137,7 +146,7 @@ export const LessonPlannerHub: React.FC = () => {
                         {plan.durationMinutes} min
                       </span>
                     </div>
-                    <h4 className="text-xs font-bold text-stone-900 truncate">{plan.title}</h4>
+                    <h3 className="text-xs font-bold text-stone-900 truncate">{plan.title}</h3>
                     <p className="text-[11px] text-stone-500 truncate mt-0.5">{plan.topic || 'General Lesson'}</p>
                   </div>
                 );
@@ -160,7 +169,7 @@ export const LessonPlannerHub: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                      CEFR {activePlan.cefrLevel} • {activePlan.durationMinutes} Menit
+                      CEFR {activePlan.cefrLevel} • {activePlan.durationMinutes} {language === 'id' ? 'Menit' : 'min'}
                     </span>
                     {activeCohort && (
                       <span className="text-[10px] font-bold text-stone-600 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200">
@@ -169,7 +178,7 @@ export const LessonPlannerHub: React.FC = () => {
                     )}
                   </div>
                   <h3 className="text-xl font-black text-stone-900 mt-1.5">{activePlan.title}</h3>
-                  <p className="text-xs text-stone-500 font-medium">Topik / Tema: {activePlan.topic || '-'}</p>
+                  <p className="text-xs text-stone-500 font-medium">{language === 'id' ? 'Topik / Tema' : 'Topic / Theme'}: {activePlan.topic || '-'}</p>
                 </div>
 
                 {/* Plan Toolbar Actions */}
@@ -177,7 +186,7 @@ export const LessonPlannerHub: React.FC = () => {
                   <button
                     onClick={() => setPrintModalOpen(true)}
                     className="p-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-                    title="Print / Save PDF (A4 Scaffold)"
+                    title={language === 'id' ? 'Cetak / Simpan PDF (A4)' : 'Print / Save PDF (A4)'}
                   >
                     <Printer className="w-4 h-4" />
                   </button>
@@ -185,7 +194,7 @@ export const LessonPlannerHub: React.FC = () => {
                   <button
                     onClick={() => handleDuplicate(activePlan.id)}
                     className="p-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-                    title="Duplicate Lesson Plan"
+                    title={language === 'id' ? 'Duplikat RPP' : 'Duplicate Lesson Plan'}
                   >
                     <Copy className="w-4 h-4" />
                   </button>
@@ -193,37 +202,35 @@ export const LessonPlannerHub: React.FC = () => {
                   <button
                     onClick={() => handleOpenEdit(activePlan)}
                     className="p-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-                    title="Edit Lesson Plan"
+                    title={language === 'id' ? 'Ubah RPP' : 'Edit Lesson Plan'}
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
 
-                  {lessonPlans.length > 1 && (
                     <button
                       onClick={() => setConfirmDeletePlan(activePlan)}
-                      className="p-2.5 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
-                      title="Delete Lesson Plan"
+                      className="p-2.5 rounded-xl bg-stone-100 hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition-colors cursor-pointer"
+                      title={language === 'id' ? 'Hapus RPP' : 'Delete Lesson Plan'}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                  )}
                 </div>
               </div>
 
               {/* Grammar Focus Strip */}
               {activePlan.grammarFocus && (
                 <div className="bg-stone-50 p-3.5 rounded-2xl border border-stone-200/80 flex items-center justify-between text-xs">
-                  <span className="font-bold text-stone-700">🎯 Grammar Focus:</span>
+                  <span className="font-bold text-stone-700">🎯 {language === 'id' ? 'Fokus Tata Bahasa:' : 'Grammar Focus:'}</span>
                   <span className="font-semibold text-teal-900">{activePlan.grammarFocus}</span>
                 </div>
               )}
 
               {/* 5 Lesson Stages Stack */}
               <div className="space-y-3">
-                <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                <h3 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-teal-700" />
-                  5 Tahap Alur Pembelajaran (Pedagogical Delivery)
-                </h4>
+                  {language === 'id' ? '5 Tahap Alur Pembelajaran' : '5-Stage Lesson Flow'}
+                </h3>
 
                 <div className="space-y-2.5">
                   {stages.map((stg) => (
@@ -248,10 +255,10 @@ export const LessonPlannerHub: React.FC = () => {
               {/* Vocabulary Table */}
               {activePlan.vocabulary && activePlan.vocabulary.length > 0 && (
                 <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <h3 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
                     <BookOpen className="w-3.5 h-3.5 text-teal-700" />
-                    Target Vocabulary Bank ({activePlan.vocabulary.length})
-                  </h4>
+                    {language === 'id' ? 'Bank Kosakata Target' : 'Target Vocabulary Bank'} ({activePlan.vocabulary.length})
+                  </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {activePlan.vocabulary.map((vocab, idx) => (
                       <div key={idx} className="p-3 rounded-2xl bg-stone-50 border border-stone-200/80 text-xs space-y-0.5">
@@ -277,16 +284,16 @@ export const LessonPlannerHub: React.FC = () => {
                 <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200/80 text-xs space-y-1">
                   <span className="font-bold text-amber-900 block flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5 text-amber-700" />
-                    Tugas Mandiri (Homework):
+                    {language === 'id' ? 'Tugas Mandiri:' : 'Homework Assignment:'}
                   </span>
-                  <p className="text-stone-700">{activePlan.homework || 'Tidak ada tugas tertulis'}</p>
+                  <p className="text-stone-700">{activePlan.homework || (language === 'id' ? 'Tidak ada tugas tertulis' : 'No written assignment')}</p>
                 </div>
 
                 {/* Resource Links Card */}
                 <div className="p-4 bg-teal-50/50 rounded-2xl border border-teal-200/80 text-xs space-y-1.5">
                   <span className="font-bold text-teal-900 block flex items-center gap-1">
                     <ExternalLink className="w-3.5 h-3.5 text-teal-700" />
-                    Tautan Materi / Worksheet:
+                    {language === 'id' ? 'Tautan Materi / Worksheet:' : 'Resource Links / Worksheets:'}
                   </span>
                   {activePlan.materialsLinks && activePlan.materialsLinks.length > 0 ? (
                     <div className="space-y-1">

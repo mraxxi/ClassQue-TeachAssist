@@ -6,12 +6,14 @@ import { SyncDiagnosticsModal } from '../settings/SyncDiagnosticsModal';
 
 interface SyncStatusBadgeProps {
   language: Language;
+  compact?: boolean;
 }
 
-export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language }) => {
+export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language, compact = false }) => {
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-  const { isSyncingWithEdge, isEdgeConnected, hasUnsyncedChanges } = useTeacherStore();
+  const { isSyncingWithEdge, isEdgeConnected, hasUnsyncedChanges, syncAuthStatus } = useTeacherStore();
+  const authProblem = syncAuthStatus === 'unconfigured' || syncAuthStatus === 'unbound' || syncAuthStatus === 'unauthenticated';
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -31,10 +33,12 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language }) =>
       <button
         type="button"
         onClick={() => setIsDiagnosticsOpen(true)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer select-none hover:shadow-xs hover:scale-[1.02] active:scale-95 ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 whitespace-nowrap rounded-full text-xs font-semibold border transition-all cursor-pointer select-none hover:shadow-xs hover:scale-[1.02] active:scale-95 ${
           isSyncingWithEdge
             ? 'bg-blue-50 text-blue-800 border-blue-200'
             : !isOnline
+            ? 'bg-amber-50 text-amber-900 border-amber-300'
+            : authProblem
             ? 'bg-amber-50 text-amber-900 border-amber-300'
             : hasUnsyncedChanges
             ? 'bg-amber-50/90 text-amber-800 border-amber-300'
@@ -43,41 +47,57 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({ language }) =>
             : 'bg-stone-100 text-stone-700 border-stone-300'
         }`}
         title={
-          isSyncingWithEdge
-            ? 'Sinkronisasi ke Cloudflare D1 sedang berlangsung...'
+          language === 'id'
+            ? isSyncingWithEdge
+              ? 'Sinkronisasi ke Cloudflare D1 sedang berlangsung...'
+              : authProblem
+              ? (syncAuthStatus === 'unbound' ? 'Database D1 belum terhubung ke server (binding DB)' : syncAuthStatus === 'unauthenticated' ? 'Belum masuk. Masuk lewat Cloudflare Access untuk sinkronisasi' : 'Server belum siap (D1)')
+              : hasUnsyncedChanges
+              ? 'Perubahan lokal tersimpan di browser, menunggu sinkronisasi D1'
+              : 'Klik untuk membuka Diagnostik Cloudflare D1'
+            : isSyncingWithEdge
+            ? 'Syncing to Cloudflare D1...'
+            : authProblem
+            ? (syncAuthStatus === 'unbound' ? 'The D1 database is not linked to the server (DB binding)' : syncAuthStatus === 'unauthenticated' ? 'Not signed in. Sign in through Cloudflare Access to sync' : 'The server is not ready (D1)')
             : hasUnsyncedChanges
-            ? 'Perubahan lokal tersimpan di browser, menunggu sinkronisasi D1'
-            : 'Klik untuk membuka Diagnostik Cloudflare D1'
+            ? 'Local changes are saved in this browser, waiting to sync to D1'
+            : 'Click to open Cloudflare D1 diagnostics'
         }
       >
         {isSyncingWithEdge ? (
           <>
             <RefreshCw className="w-3.5 h-3.5 text-blue-600 animate-spin" />
-            <span className="hidden sm:inline">{language === 'id' ? 'Menyinkronkan...' : 'Syncing...'}</span>
+            {!compact && <span className="hidden sm:inline">{language === 'id' ? 'Menyinkronkan...' : 'Syncing...'}</span>}
           </>
         ) : !isOnline ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            <CloudOff className="w-3.5 h-3.5 text-amber-600" />
-            <span>{language === 'id' ? 'Luar Jaringan' : 'Offline'}</span>
+            <CloudOff className="w-3.5 h-3.5 text-amber-700" />
+            {!compact && <span>{language === 'id' ? 'Luar Jaringan' : 'Offline'}</span>}
+          </>
+        ) : authProblem ? (
+          <>
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+            {!compact && <span>{syncAuthStatus === 'unbound' ? (language === 'id' ? 'D1 Belum Terhubung' : 'D1 Not Linked') : syncAuthStatus === 'unauthenticated' ? (language === 'id' ? 'Perlu Masuk' : 'Sign-in Needed') : (language === 'id' ? 'Server Belum Siap' : 'Server Not Ready')}</span>}
           </>
         ) : hasUnsyncedChanges ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-            <span>{language === 'id' ? 'Belum Tersinkron' : 'Unsynced'}</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+            {!compact && <span>{language === 'id' ? 'Belum Tersinkron' : 'Unsynced'}</span>}
           </>
         ) : isEdgeConnected ? (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
             <CloudCheck className="w-3.5 h-3.5 text-teal-600" />
-            <span className="hidden sm:inline">D1 Synced</span>
+            {!compact && <span className="hidden sm:inline">{language === 'id' ? 'D1 Tersinkron' : 'D1 Synced'}</span>}
           </>
         ) : (
           <>
             <span className="w-1.5 h-1.5 rounded-full bg-stone-400"></span>
             <CloudOff className="w-3.5 h-3.5 text-stone-500" />
-            <span>{language === 'id' ? 'Penyangga Lokal' : 'Local Buffer'}</span>
+            {!compact && <span>{language === 'id' ? 'Penyangga Lokal' : 'Local Buffer'}</span>}
           </>
         )}
       </button>
