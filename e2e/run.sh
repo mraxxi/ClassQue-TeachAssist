@@ -43,6 +43,8 @@ start_server() { # $1 = with|without login, $2 = optional SQL seed file
   fi
   local extra=()
   # "no-login" files run without DEV_USER_EMAIL, i.e. as if Cloudflare Access had not signed anyone in.
+  # A deploy-ready wrangler.toml carries the real Access [vars]; blank them so the local DEV_USER_EMAIL login applies.
+  extra=(--binding "CF_ACCESS_AUD=" --binding "CF_ACCESS_TEAM_DOMAIN=")
   [ "$1" = "with" ] && extra+=(--binding "DEV_USER_EMAIL=$USER_EMAIL" --binding "LEGACY_OWNER_EMAIL=$USER_EMAIL")
   setsid npx wrangler pages dev ./dist --d1 "DB=$DB_ID" --persist-to "$STATE/d1" --port "$PORT" "${extra[@]}" >"$LOG" 2>&1 &
   SERVER_PID=$!
