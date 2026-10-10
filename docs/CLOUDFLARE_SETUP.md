@@ -148,6 +148,9 @@ folder that has a `wrangler.toml` silently removes them and every login then fai
 - **Recommended:** write the three variables into the `[vars]` block of your local `wrangler.toml` (they are not secrets; keep that file out of git), or
 - deploy from a folder without `wrangler.toml`, so the dashboard values stay.
 
+Every machine that deploys needs its own `wrangler.toml` with those three variables. A copy without them (for example an
+older checkout on another computer) wipes them on its first deploy. Deploy only from a machine whose `wrangler.toml` you have checked.
+
 After a deploy, check the variables are still on the latest deployment (Pages -> Deployments -> the deployment -> Variables).
 Also keep the real `database_id` in `wrangler.toml`; the example file contains a placeholder that makes the deploy fail.
 
