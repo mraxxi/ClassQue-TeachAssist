@@ -29,3 +29,6 @@ Thumbs.db
 
 # Local Wrangler secrets
 .dev.vars
+
+# D1 exports (personal data, never commit)
+backups/

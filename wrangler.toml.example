@@ -41,3 +41,23 @@ APP_NAME = "ClassQue-TeachAssist"
 # Email of whoever owned the data saved before logins existed (the placeholder teacher 'teacher-1').
 # Set it BEFORE that person's first login so they claim it.
 # LEGACY_OWNER_EMAIL = "you@example.com"
+
+# ==========================================
+# 4. Staging = the Pages *preview* environment (deploy with --branch staging)
+# ==========================================
+# Pages takes ALL bindings from this file on every deploy, and an environment block does not inherit
+# d1_databases or vars. Without this block preview deploys use the production database.
+[env.preview]
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "classque_db_staging"
+database_id = "YOUR_STAGING_D1_DATABASE_ID_HERE"
+migrations_dir = "./migrations"
+
+[env.preview.vars]
+ENVIRONMENT = "staging"
+APP_NAME = "ClassQue-TeachAssist (staging)"
+# Staging has its own Access application (own AUD); fill these in your untracked wrangler.toml.
+# CF_ACCESS_TEAM_DOMAIN = "yourteam.cloudflareaccess.com"
+# CF_ACCESS_AUD = "YOUR_STAGING_ACCESS_APPLICATION_AUD_TAG"
+# LEGACY_OWNER_EMAIL = "you@example.com"
