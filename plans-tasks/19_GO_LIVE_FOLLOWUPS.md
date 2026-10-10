@@ -27,8 +27,9 @@ State on 2026-10-07: Stage 18 and the Access login are deployed to production
    Add the hostname to the same Access application (Zero Trust -> Access -> Applications -> the app -> add public hostname).
 5. **Backup:** a D1 backup was taken before migration 0005 but lives only in an old cloud session. Export a fresh one with
    `wrangler d1 export classque_db --remote --output backups/<utc>.sql`. `backups/` is gitignored; the dump holds teachers' and students'
-   personal data, so keep the folder `chmod 700` and never paste the dump into another tool. Wrangler on lab-arm is not logged in yet
-   (2026-10-10); the owner has to run `wrangler login` there first.
+   personal data, so keep the folder `chmod 700` and never paste the dump into another tool. Done 2026-10-10 on lab-arm:
+   `backups/classque_db-20261010T052954Z.sql` (11 app tables + `d1_migrations` 0001-0005). Wrangler there reads its token from
+   `~/.config/claude-rc/env`.
 6. Optional hardening: the e2e runner has no CI; consider running it on pull requests.
 7. Move `working_on/18_...` to `finished_tested/` after items 1 and 2 pass.
 
