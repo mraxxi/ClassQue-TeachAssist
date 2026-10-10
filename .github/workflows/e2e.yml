@@ -20,7 +20,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      # No wrangler.toml in the repo, so e2e/run.sh falls back to wrangler.toml.example (local D1 only, no secrets).
+      # wrangler only reads a file named wrangler.toml; the example config is enough for a local D1 (no secrets).
+      - run: cp wrangler.toml.example wrangler.toml
       # The runner image ships Google Chrome; e2e/lib.mjs launches whatever CHROMIUM points at.
       - run: npm run test:e2e
         env:
