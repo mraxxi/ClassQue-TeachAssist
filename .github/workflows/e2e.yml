@@ -1,0 +1,27 @@
+name: e2e
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      # No wrangler.toml in the repo, so e2e/run.sh falls back to wrangler.toml.example (local D1 only, no secrets).
+      # The runner image ships Google Chrome; e2e/lib.mjs launches whatever CHROMIUM points at.
+      - run: npm run test:e2e
+        env:
+          CHROMIUM: /usr/bin/google-chrome
