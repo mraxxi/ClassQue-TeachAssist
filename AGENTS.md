@@ -55,6 +55,14 @@ When interacting with this repository, agents should leverage the specialized sk
 
 ---
 
+## 🧪 Staging First
+
+ClassQue has a staging copy, like kicad-partlib: Pages preview environment at `staging.classque-teachassist.pages.dev`
+with its own D1 `classque_db_staging`. Apply every migration and deploy every change to staging first, check it there,
+then export a production backup and do production. Commands and the `wrangler.toml` block: `docs/CLOUDFLARE_SETUP.md`, "Staging".
+
+---
+
 ## 🛡️ Coding & Quality Guidelines
 
 - **Ubiquitous Language & Terminology**: Adhere strictly to canonical terms defined in [docs/TERMINOLOGY.md](file:///home/archvan/development/ClassQue-TeachAssist/docs/TERMINOLOGY.md) (e.g. `Cohort`, `Teaching Session`, `Live Cockpit`, `Roll-Call`, `Teaching Claim`). Never scatter confusing synonyms across code or UI.

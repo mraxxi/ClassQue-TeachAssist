@@ -33,5 +33,9 @@ State on 2026-10-07: Stage 18 and the Access login are deployed to production
 6. Optional hardening: the e2e runner has no CI; consider running it on pull requests.
 7. Move `working_on/18_...` to `finished_tested/` after items 1 and 2 pass.
 
+8. **Staging (done 2026-10-10 except the login).** `classque_db_staging` created and migrated 0001-0005, Pages preview DB
+   binding points at it, `[env.preview]` added to `wrangler.toml`, `./deploy.sh staging|production`. Owner still to do:
+   create the staging Access application for `staging.classque-teachassist.pages.dev`, then first `./deploy.sh staging`.
+
 ## Out of scope (backlog)
 Shared cohorts / co-teaching, roles, admin view.

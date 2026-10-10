@@ -154,6 +154,33 @@ older checkout on another computer) wipes them on its first deploy. Deploy only 
 After a deploy, check the variables are still on the latest deployment (Pages -> Deployments -> the deployment -> Variables).
 Also keep the real `database_id` in `wrangler.toml`; the example file contains a placeholder that makes the deploy fail.
 
+### Staging (preview environment)
+Staging works like kicad-partlib's staging Worker: its own database, its own URL, its own Access application.
+On Pages it is the **preview** environment, deployed from the `staging` branch alias.
+
+| | Production | Staging |
+|---|---|---|
+| URL | `classque-teachassist.pages.dev`, `classque.pmandiri.com` | `staging.classque-teachassist.pages.dev` |
+| D1 | `classque_db` (`aa730171-...`) | `classque_db_staging` (`ac44137a-...`, demo data from migration 0002) |
+| `wrangler.toml` | top-level `[[d1_databases]]` and `[vars]` | `[env.preview]` block |
+| Deploy | `./deploy.sh production` | `./deploy.sh staging` |
+
+Pages takes every binding from `wrangler.toml` on each deploy, and an environment block inherits neither `d1_databases`
+nor `vars`. Keep the `[env.preview]` block in your local `wrangler.toml`, or a deploy points preview back at the production database.
+
+Order for every change:
+```bash
+npx wrangler d1 migrations apply DB --remote --env preview   # 1. migrations on staging
+./deploy.sh staging                                          # 2. deploy and check staging
+npx wrangler d1 export classque_db --remote --output backups/<utc>.sql   # 3. backup production
+npx wrangler d1 migrations apply classque_db --remote        # 4. migrations on production
+./deploy.sh production                                       # 5. deploy production
+```
+
+Staging login: create a second Access application for `staging.classque-teachassist.pages.dev` and put its
+`CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` and `LEGACY_OWNER_EMAIL` into `[env.preview.vars]`. Until then the staging API
+answers 401 and the app runs as a local-only guest.
+
 ### Local development
 Locally there is no Access login page. Put `DEV_USER_EMAIL=you@example.com` in `.dev.vars` (see `.dev.vars.example`).
 Without it the API answers 401 and the app runs as a local-only guest. The e2e suite signs in as `e2e.teacher@classque.test` and loads a second
